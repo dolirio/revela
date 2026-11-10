@@ -1,0 +1,4 @@
+libheif-bundle.mjs: libheif-js 1.23.5 (https://github.com/catdad-experiments/libheif-js),
+build WebAssembly do libheif (https://github.com/strukturag/libheif).
+Licença LGPL-3.0, texto completo em libheif-LICENSE.txt. Arquivo usado sem modificações,
+carregado como módulo separado apenas para abrir fotos HEIC/HEIF.

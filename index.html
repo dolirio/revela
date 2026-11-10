@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0d0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Revela</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0e0d0c; --dock: #161412; --raise: #201d1a; --line: #2a2622; --text: #efe9de; --muted: #8f877b;
+    --accent: #e8a33d; --accent-ink: #1a1307;
+    --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; }
+  body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:disabled { opacity: .3; cursor: default; }
+  svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+  /* topo */
+  header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: calc(8px + var(--safe-t)) 10px 8px; }
+  header .l { display: flex; gap: 2px; } header .r { display: flex; justify-content: flex-end; gap: 6px; }
+  .ib { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--text); }
+  .ib:active { background: var(--raise); }
+  .mid { display: flex; gap: 2px; }
+  .export { background: var(--accent); color: var(--accent-ink); font-weight: 650; padding: 9px 16px; border-radius: 999px; }
+
+  /* foto */
+  #stage { position: relative; display: grid; place-items: center; overflow: hidden; padding: 6px 12px 12px; touch-action: none; min-width: 0; }
+  #view { max-width: 100%; max-height: 100%; display: none; user-select: none; -webkit-user-select: none; }
+  #empty { text-align: center; color: var(--muted); max-width: 290px; display: grid; gap: 14px; justify-items: center; }
+  #empty .big { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--raise); color: var(--accent); }
+  #empty .big svg { width: 30px; height: 30px; }
+  #empty b { color: var(--text); font-size: 16px; font-weight: 600; }
+  #badge { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #000b; color: #fff; font-size: 12px;
+    padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .04em; }
+
+  /* dock */
+  #dock { background: var(--dock); padding-bottom: var(--safe-b); min-width: 0; }
+  .ctx { height: 158px; position: relative; overflow: hidden; }
+  .mode, .sheet { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; }
+  .mode.on, .sheet.on { display: flex; }
+  .scrollx { display: flex; overflow-x: auto; scrollbar-width: none; padding: 0 14px; gap: 6px; }
+  .scrollx::-webkit-scrollbar { display: none; }
+
+  /* filmes */
+  .cats { display: flex; gap: 18px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; }
+  .cats button { color: var(--muted); font-size: 13px; letter-spacing: .02em; white-space: nowrap; padding: 2px 0; }
+  .cats button.on { color: var(--text); font-weight: 600; }
+  #strip { gap: 8px; }
+  .film { flex: 0 0 auto; width: 76px; text-align: center; font-size: 11px; color: var(--muted); position: relative; }
+  .film canvas, .film .ph { width: 76px; height: 76px; border-radius: 6px; display: block; background: #26221e; }
+  .film .nm { display: block; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .film[aria-pressed="true"] { color: var(--text); }
+  .film[aria-pressed="true"] canvas { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .film .knob { position: absolute; left: 50%; top: 38px; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%;
+    background: #000a; display: none; place-items: center; color: #fff; }
+  .film[aria-pressed="true"]:not([data-id="none"]) .knob { display: grid; }
+  .film .knob svg { width: 16px; height: 16px; }
+  .film .star { position: absolute; top: 3px; right: 5px; color: var(--accent); font-size: 11px; text-shadow: 0 1px 2px #000; display: none; }
+  .film.fav .star { display: block; }
+  .film.add .ph { display: grid; place-items: center; color: var(--muted); border: 1px dashed #3a352f; background: none; }
+
+  /* ferramentas */
+  .tools { gap: 4px; align-items: flex-start; }
+  .tool { flex: 0 0 auto; width: 68px; display: grid; justify-items: center; gap: 6px; font-size: 11px; color: var(--muted); position: relative; }
+  .tool .ring { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--raise); color: var(--text); }
+  .tool.set .ring { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
+  .tool span { white-space: nowrap; }
+  .tool.on .ring { background: var(--accent); color: var(--accent-ink); }
+
+  /* folha de um ajuste */
+  .sheet { background: var(--dock); padding: 0 18px; gap: 6px; }
+  .sheet .head { display: flex; justify-content: center; align-items: baseline; gap: 10px; }
+  .sheet .val { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 300; min-width: 54px; text-align: center; }
+  .sheet .reset { color: var(--muted); font-size: 12px; }
+  .foot { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; margin-top: 4px; }
+  .foot .t { text-align: center; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 36px; background: transparent; margin: 0; }
+  input[type=range] { --a: 0%; --b: 0%; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, #4a443c var(--a), var(--accent) var(--a), var(--accent) var(--b), #4a443c var(--b)); }
+  input[type=range]::-moz-range-track { height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, #4a443c var(--a), var(--accent) var(--a), var(--accent) var(--b), #4a443c var(--b)); }
+  .rw { position: relative; }
+  .rw.bi::before { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 12px; margin: -6px 0 0 -1px; background: var(--muted); border-radius: 1px; pointer-events: none; }
+  .ends { display: none; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -6px; letter-spacing: .03em; }
+  .ends.on { display: flex; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--text); margin-top: -10px; box-shadow: 0 1px 4px #0008; }
+  input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--text); border: 0; }
+  .mini { display: grid; grid-template-columns: 84px minmax(0, 1fr) 34px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .mini output { text-align: right; font-variant-numeric: tabular-nums; }
+  .mini input[type=range] { height: 28px; }
+  .dots { display: flex; gap: 10px; justify-content: center; padding: 2px 0 4px; }
+  .dots button { width: 22px; height: 22px; border-radius: 50%; }
+  .dots button.on { box-shadow: 0 0 0 2px var(--dock), 0 0 0 4px var(--text); }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .pills button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+  .pills button.on { border-color: var(--accent); color: var(--accent); }
+  #curveSheet { flex-direction: row; gap: 14px; align-items: center; }
+  #curve { height: 140px; width: 140px; flex: 0 0 auto; touch-action: none; background: var(--raise); border-radius: 6px; }
+  #curveSheet .side { flex: 1; display: grid; gap: 8px; }
+
+  /* painéis com rolagem (corte, receitas) */
+  .panel { overflow-y: auto; justify-content: flex-start !important; padding: 10px 16px; gap: 10px; }
+  .panel h4 { margin: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+  .panel .pills { justify-content: flex-start; }
+  .rowb { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rowb button, .btn { border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 13px; }
+  .rowb button.on { border-color: var(--accent); color: var(--accent); }
+  input[type=text] { font: inherit; color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; flex: 1; }
+  .item { display: flex; align-items: center; gap: 8px; background: var(--raise); border-radius: 8px; padding: 6px 8px 6px 12px; }
+  .item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0; }
+  a { color: var(--accent); }
+
+  /* barra inferior */
+  nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--line); }
+  nav button { display: grid; justify-items: center; gap: 3px; padding: 9px 0 8px; font-size: 10.5px; color: var(--muted); letter-spacing: .03em; }
+  nav button.on { color: var(--text); }
+  nav button.on svg { color: var(--accent); }
+
+  #toast { position: fixed; left: 50%; top: calc(64px + var(--safe-t)); transform: translateX(-50%); background: #000d; color: #fff;
+    padding: 8px 16px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9; max-width: 90vw; text-align: center; }
+  #toast.on { opacity: 1; }
+
+
+  /* corte livre, grade e lupa */
+  #cropBox { position: absolute; display: none; box-shadow: 0 0 0 200vmax rgba(8,7,6,.62); outline: 1px solid #fff9; touch-action: none; cursor: move; }
+  #cropBox.on { display: block; }
+  #cropBox .g { position: absolute; background: #ffffff40; pointer-events: none; }
+  #cropBox .h { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; touch-action: none; }
+  #cropBox .h::after { content: ""; position: absolute; inset: 9px; border: 3px solid #fff; }
+  #cropBox .h[data-c="0"] { left: 0; top: 0; cursor: nwse-resize; } #cropBox .h[data-c="0"]::after { border-right: 0; border-bottom: 0; }
+  #cropBox .h[data-c="1"] { left: 100%; top: 0; cursor: nesw-resize; } #cropBox .h[data-c="1"]::after { border-left: 0; border-bottom: 0; }
+  #cropBox .h[data-c="2"] { left: 0; top: 100%; cursor: nesw-resize; } #cropBox .h[data-c="2"]::after { border-right: 0; border-top: 0; }
+  #cropBox .h[data-c="3"] { left: 100%; top: 100%; cursor: nwse-resize; } #cropBox .h[data-c="3"]::after { border-left: 0; border-top: 0; }
+  #gridOv { position: absolute; display: none; pointer-events: none; }
+  #gridOv.on { display: block; }
+  #zoomTag { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: #000b; color: #fff; font-size: 12px;
+    padding: 4px 12px; border-radius: 999px; display: none; pointer-events: none; white-space: nowrap; }
+
+  /* menu do topo */
+  #menu { position: fixed; top: calc(54px + var(--safe-t)); right: 10px; background: var(--raise); border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px; display: none; z-index: 8; min-width: 210px; box-shadow: 0 10px 30px #0009; }
+  #menu.on { display: grid; }
+  #menu button, #menu a { text-align: left; padding: 10px 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 14px; }
+  #menu button:hover, #menu a:hover { background: #ffffff0d; }
+
+  /* receitas */
+  .cats .sp { flex: 1; } .cats .act { color: var(--accent); }
+  @media (max-width: 420px) { .cats { gap: 14px; } }
+  .film .sub { display: block; font-size: 10px; color: #6f685e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .note { margin: 0; text-align: center; color: var(--muted); font-size: 13px; }
+  .rowb.center { justify-content: center; align-items: center; }
+  #dock.tall .ctx { height: min(56vh, 460px); }
+  #recEditor { justify-content: flex-start; padding: 10px 0 0; gap: 0; }
+  #recEditor .top { display: flex; gap: 8px; padding: 0 16px 6px; }
+  #recEditor .list { overflow-y: auto; flex: 1; padding: 0 16px 6px; }
+  #recEditor .foot { padding: 0 18px 4px; }
+  .grp { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; margin: 12px 0 4px; }
+  .frow { display: grid; grid-template-columns: minmax(0, 1fr) 36px 96px 36px; align-items: center; gap: 4px; padding: 3px 0; border-bottom: 1px solid #ffffff08; }
+  .frow > span { font-size: 13.5px; }
+  .frow output { text-align: center; font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--text); }
+  .frow output.chg { color: var(--accent); }
+  .frow .st { width: 34px; height: 34px; border-radius: 50%; background: var(--raise); font-size: 18px; line-height: 1; }
+  .frow select { grid-column: 2 / 5; font: inherit; color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; }
+
+  @media (min-width: 900px) {
+    #dock { width: 100%; max-width: 760px; justify-self: center; border-radius: 14px 14px 0 0; }
+    .ctx { height: 170px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="l">
+    <button class="ib" id="btnOpen" title="Abrir foto" aria-label="Abrir foto"></button>
+    <button class="ib" id="btnLut" title="Importar LUT .cube" aria-label="Importar LUT"></button>
+  </div>
+  <div class="mid">
+    <button class="ib" id="btnUndo" title="Desfazer" aria-label="Desfazer" disabled></button>
+    <button class="ib" id="btnRedo" title="Refazer" aria-label="Refazer" disabled></button>
+    <button class="ib" id="btnCompare" title="Segure para ver o original" aria-label="Comparar com o original"></button>
+  </div>
+  <div class="r"><button class="ib" id="btnMenu" title="Mais opções" aria-label="Mais opções"></button><button class="export" id="btnExport" disabled>Exportar</button></div>
+  <input id="fileImg" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" hidden>
+  <input id="fileBatch" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
+  <input id="fileLut" type="file" accept=".cube" multiple hidden>
+</header>
+
+<main id="stage">
+  <div id="empty">
+    <button class="big" id="btnOpen2" aria-label="Abrir foto"></button>
+    <b>Escolha uma foto</b>
+    <div>JPEG, PNG, HEIC ou RAW. Tudo é processado no seu aparelho; nada é enviado.</div>
+  </div>
+  <canvas id="view" aria-label="Prévia da foto"></canvas>
+  <div id="badge">ORIGINAL</div>
+  <canvas id="gridOv"></canvas>
+  <div id="cropBox"><div class="g" style="left:33.33%;top:0;bottom:0;width:1px"></div><div class="g" style="left:66.66%;top:0;bottom:0;width:1px"></div>
+    <div class="g" style="top:33.33%;left:0;right:0;height:1px"></div><div class="g" style="top:66.66%;left:0;right:0;height:1px"></div>
+    <div class="h" data-c="0"></div><div class="h" data-c="1"></div><div class="h" data-c="2"></div><div class="h" data-c="3"></div></div>
+  <div id="zoomTag">100% · arraste para mover · dois toques para sair</div>
+</main>
+
+<section id="dock">
+  <div class="ctx">
+    <!-- modos -->
+    <div class="mode on" id="m-films">
+      <div class="cats" id="cats">
+        <button data-f="all" class="on">Todos</button>
+        <button data-f="fav">Favoritos</button>
+        <button data-f="Cor">Cor</button>
+        <button data-f="P&amp;B">P&amp;B</button>
+        <button data-f="mine">Minhas</button>
+      </div>
+      <div class="scrollx" id="strip"></div>
+    </div>
+    <div class="mode" id="m-recipes">
+      <div class="cats" id="rcats">
+        <button data-f="classic" class="on">Clássicas</button>
+        <button data-f="fav">Favoritas</button>
+        <button data-f="mine">Minhas</button>
+        <span class="sp"></span>
+        <button class="act" id="recNew">+ Nova</button>
+        <button class="act" id="recSaveCur" title="Salvar a edição atual como receita">Salvar</button>
+      </div>
+      <div class="scrollx" id="rstrip"></div>
+    </div>
+    <div class="mode" id="m-adjust"><div class="scrollx tools" id="t-adjust"></div></div>
+    <div class="mode" id="m-tex"><div class="scrollx tools" id="t-tex"></div></div>
+    <div class="mode" id="m-fx"><div class="scrollx tools" id="t-fx"></div></div>
+    <div class="mode panel" id="m-crop">
+      <div class="scrollx tools" id="t-crop" style="padding:0;margin:0 -6px;flex:0 0 auto"></div>
+      <h4>Proporção</h4><div class="pills" id="aspects"></div>
+      <h4>Moldura</h4><div class="pills" id="frames"></div>
+    </div>
+
+    <!-- folhas de edição -->
+    <div class="sheet" id="sliderSheet">
+      <div class="head"><span class="val" id="sVal">0</span><button class="reset" id="sReset">zerar</button></div>
+      <div class="rw" id="sWrap"><input type="range" id="sRange"></div>
+      <div class="ends" id="sEnds"><span></span><span></span></div>
+      <div class="foot"><button class="ib" id="sCancel" aria-label="Cancelar"></button><div class="t" id="sTitle"></div><button class="ib" id="sOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="filmSheet">
+      <div class="head"><span class="val" id="fVal">100</span><button class="reset" id="fFav">☆ favoritar</button></div>
+      <input type="range" id="fRange" min="0" max="100">
+      <div class="foot"><button class="ib" id="fCancel" aria-label="Cancelar"></button><div class="t" id="fTitle"></div><button class="ib" id="fOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="hslSheet">
+      <div class="dots" id="hslDots"></div>
+      <div class="mini"><span>Matiz</span><input type="range" id="hsl-h" min="-100" max="100"><output></output></div>
+      <div class="mini"><span>Saturação</span><input type="range" id="hsl-s" min="-100" max="100"><output></output></div>
+      <div class="mini"><span>Luminância</span><input type="range" id="hsl-l" min="-100" max="100"><output></output></div>
+      <div class="foot"><button class="ib" id="hCancel" aria-label="Cancelar"></button><div class="t">Cor</div><button class="ib" id="hOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="curveSheet">
+      <canvas id="curve" width="420" height="420"></canvas>
+      <div class="side">
+        <div class="pills" id="curveCh"><button data-c="m" class="on">RGB</button><button data-c="r">R</button><button data-c="g">G</button><button data-c="b">B</button></div>
+        <p class="hint">Toque para criar um ponto e arraste. Dois toques removem.</p>
+        <div class="foot"><button class="ib" id="cCancel" aria-label="Cancelar"></button><button class="reset" id="curveReset">zerar canal</button><button class="ib" id="cOk" aria-label="Confirmar"></button></div>
+      </div>
+    </div>
+    <div class="sheet" id="leakSheet">
+      <div class="pills" id="leakTypes"></div>
+      <div class="mini"><span>Força</span><input type="range" id="leakRange" min="0" max="100"><output></output></div>
+      <div class="foot"><button class="ib" id="lCancel" aria-label="Cancelar"></button><button class="reset" id="leakSeed">variar posição</button><button class="ib" id="lOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="dustSheet">
+      <div class="head"><span class="val" id="uVal">0</span><button class="reset" id="uSeed">variar</button></div>
+      <div class="pills" id="dustTypes"></div>
+      <div class="rw bi"><input type="range" id="uRange" min="-100" max="100"></div>
+      <div class="ends on"><span>◂ escura</span><span>clara ▸</span></div>
+      <div class="foot"><button class="ib" id="uCancel" aria-label="Cancelar"></button><div class="t">Poeira</div><button class="ib" id="uOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="recSheet">
+      <p class="note" id="rNote"></p>
+      <div class="rowb center"><button id="rFav">☆ Favoritar</button><button id="rEdit">Editar</button><button id="rDup">Duplicar</button><button id="rDel">Excluir</button></div>
+      <div class="foot"><span></span><div class="t" id="rTitle"></div><button class="ib" id="rOk" aria-label="Fechar"></button></div>
+    </div>
+    <div class="sheet" id="recEditor">
+      <div class="top"><input type="text" id="eName" placeholder="Nome da receita" maxlength="40"></div>
+      <div class="list" id="eList"></div>
+      <div class="foot"><button class="ib" id="eCancel" aria-label="Cancelar"></button><div class="t">Receita</div><button class="ib" id="eOk" aria-label="Salvar receita"></button></div>
+    </div>
+    <div class="sheet" id="dateSheet">
+      <div class="rowb center"><button id="dOn">Ligar data</button><input type="text" id="dText" maxlength="14" style="max-width:150px;flex:0 1 150px"><button id="dToday">Hoje</button></div>
+      <p class="note">Números, espaço, ponto, traço e apóstrofo. Sai gravada na foto, como nas câmeras compactas antigas.</p>
+      <div class="foot"><button class="ib" id="dCancel" aria-label="Cancelar"></button><div class="t">Data</div><button class="ib" id="dOk" aria-label="Confirmar"></button></div>
+    </div>
+  </div>
+  <nav id="nav">
+    <button data-m="films" class="on"></button>
+    <button data-m="recipes"></button>
+    <button data-m="adjust"></button>
+    <button data-m="tex"></button>
+    <button data-m="fx"></button>
+    <button data-m="crop"></button>
+  </nav>
+</section>
+<div id="menu" role="menu">
+  <button id="btnCopy">Copiar ajustes</button>
+  <button id="btnPaste">Colar ajustes</button>
+  <button id="btnBatch">Editar várias fotos…</button>
+  <button id="btnResetAll">Redefinir tudo</button>
+  <a href="lab.html">Laboratório de filmes</a>
+</div>
+<div id="toast" role="status"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
