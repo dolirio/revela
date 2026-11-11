@@ -290,8 +290,24 @@
     </div>
     <div class="sheet" id="leakSheet">
       <div class="pills" id="leakTypes"></div>
-      <div class="mini"><span>Força</span><input type="range" id="leakRange" min="0" max="100"><output></output></div>
-      <div class="foot"><button class="ib" id="lCancel" aria-label="Cancelar"></button><button class="reset" id="leakSeed">variar posição</button><button class="ib" id="lOk" aria-label="Confirmar"></button></div>
+      <p class="note" id="leakNote"></p>
+      <div class="dicerow"><button class="dice" id="leakSeed" aria-label="Sortear outro vazamento" title="Sortear outro vazamento"></button>
+        <div class="rw"><input type="range" id="leakRange" min="0" max="100"></div><output id="leakVal">0</output></div>
+      <div class="foot"><button class="ib" id="lCancel" aria-label="Cancelar"></button><div class="t">Light leak</div><button class="ib" id="lOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="scrSheet">
+      <div class="pills" id="scrTypes"></div>
+      <p class="note" id="scrNote"></p>
+      <div class="dicerow"><button class="dice" id="scrSeed" aria-label="Sortear outros arranhões" title="Sortear outros arranhões"></button>
+        <div class="rw bi"><input type="range" id="scrRange" min="-100" max="100"></div><output id="scrVal">0</output></div>
+      <div class="ends on" style="padding-left:52px"><span>◂ escuros</span><span>claros ▸</span></div>
+      <div class="foot"><button class="ib" id="scCancel" aria-label="Cancelar"></button><div class="t">Arranhões</div><button class="ib" id="scOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="chrSheet">
+      <div class="pills" id="chrTypes"></div>
+      <p class="note" id="chrNote"></p>
+      <div class="mini"><span>Intensidade</span><input type="range" id="chrRange" min="0" max="100"><output></output></div>
+      <div class="foot"><button class="ib" id="chCancel" aria-label="Cancelar"></button><div class="t">Aberração</div><button class="ib" id="chOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="panelSheet">
       <div id="pBody"></div>

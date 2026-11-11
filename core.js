@@ -17,7 +17,7 @@ export function defaults() {
     grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, paper: 0, paperType: 0, paperSeed: 0,
     gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0, gfxDuo: 0, gfxTri: 0,
     fade: 0, vig: 0, chroma: 0,
-    leak: 0, leakType: 0, leakSeed: 1, dust: 0, dustType: 1, dustSeed: 0, scratch: 0, seed: 0,
+    leak: 0, leakType: 0, leakSeed: 1, dust: 0, dustType: 1, dustSeed: 0, scratch: 0, scrType: 0, scrSeed: 0, chromaType: 0, seed: 0,
     hsl: Array.from({ length: 8 }, () => ({ h: 0, s: 0, l: 0 })),
     curve: { m: [[0, 0], [1, 1]], r: [[0, 0], [1, 1]], g: [[0, 0], [1, 1]], b: [[0, 0], [1, 1]] },
     rot: 0, flip: false, straight: 0, aspect: 'orig', persV: 0, persH: 0, lens: 0, crop: [0, 0, 1, 1],
@@ -282,21 +282,20 @@ export function curveData(c) {
 }
 
 // ------------------------------------------------------------ vazamentos de luz
+// tipos pela origem do vazamento (como acontece numa câmera de filme de verdade)
 export const LEAKS = [
-  { name: 'Âmbar', a: [1.0, 0.45, 0.1], b: [1.0, 0.2, 0.05] },
-  { name: 'Rosa', a: [1.0, 0.3, 0.45], b: [1.0, 0.55, 0.2] },
-  { name: 'Frio', a: [0.3, 0.6, 1.0], b: [0.6, 0.35, 1.0] },
-  { name: 'Sol', a: [1.0, 0.85, 0.45], b: [1.0, 0.55, 0.15] },
+  { name: 'Tampa', note: 'luz pela vedação da tampa: faixa laranja entrando pela borda do filme' },
+  { name: 'Dobradiça', note: 'mancha forte numa lateral, com o centro queimado' },
+  { name: 'Ponta do rolo', note: 'primeira foto do rolo: parte da imagem queimada' },
+  { name: 'Entre fotos', note: 'faixa estreita perto da divisa entre duas fotos' },
+  { name: 'Frontal', note: 'luz pela frente da câmera: véu frio e macio' },
+  { name: 'Raios', note: 'furinho na vedação: feixes saindo de um ponto da borda' },
 ];
 function rnd(seed) { let x = Math.sin(seed * 9301 + 49297) * 233280; return () => { x = Math.sin(x) * 10000; return x - Math.floor(x); }; }
-export function leakData(type, seed) {
-  const r = rnd(seed), L = LEAKS[type] || LEAKS[0];
-  const edge = () => {
-    const side = Math.floor(r() * 4), t = r();
-    return side === 0 ? [t, -0.05] : side === 1 ? [1.05, t] : side === 2 ? [t, 1.05] : [-0.05, t];
-  };
-  const p1 = edge(), p2 = edge();
-  return { a: [p1[0], p1[1], 0.35 + r() * 0.35, 1], b: [p2[0], p2[1], 0.2 + r() * 0.3, 0.7], ca: L.a, cb: L.b };
+// posição e forma sorteadas pelo dado: [lado (0/1), posição ao longo da borda, largura, variação]
+export function leakParams(seed) {
+  const r = rnd(seed + 1);
+  return [r() > 0.5 ? 1 : 0, 0.15 + 0.7 * r(), r(), r()];
 }
 
 // Gráfico: paletas de duotônico (escura, clara) e tritônico (sombras, meios-tons, luzes)
@@ -319,7 +318,7 @@ export function renderParams(s) {
     hslH: new Float32Array(s.hsl.map((x) => x.h)),
     hslS: new Float32Array(s.hsl.map((x) => x.s)),
     hslL: new Float32Array(s.hsl.map((x) => x.l)),
-    leakData: s.leak > 0 ? leakData(s.leakType, s.leakSeed) : null,
+    leakP: s.leak > 0 ? leakParams(s.leakSeed) : null,
     gfxCols: s.gfx === 3 ? (GFX_DUO[s.gfxDuo] || GFX_DUO[0]).c : s.gfx === 4 ? (GFX_TRI[s.gfxTri] || GFX_TRI[0]).c : null,
   };
 }

@@ -18,8 +18,8 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk']) setIcon(id, 'ok');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel', 'scCancel', 'chCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk', 'scOk', 'chOk']) setIcon(id, 'ok');
 const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
@@ -248,8 +248,8 @@ const TEX = [
 ];
 const FX = [
   { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
-  { s: 'leak', n: 'Luz', i: 'leak' }, { s: 'dust', n: 'Poeira', i: 'dust' }, { k: 'scratch', n: 'Arranhões', min: 0 },
-  { k: 'chroma', n: 'Aberração', min: 0 }, { s: 'date', n: 'Data', i: 'date' },
+  { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'dust', n: 'Poeira', i: 'dust' }, { s: 'scratch', n: 'Arranhões', i: 'scratch' },
+  { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'date', n: 'Data', i: 'date' },
 ];
 const GEO = [
   { k: 'straight', n: 'Endireitar', min: -450, max: 450, scale: 10, geo: true },
@@ -602,6 +602,8 @@ function openSpecial(s) {
   if (s === 'hsl') { syncHsl(); openSheet('hslSheet'); }
   if (s === 'curve') { openSheet('curveSheet'); drawCurve(); }
   if (s === 'leak') { syncLeak(); openSheet('leakSheet'); }
+  if (s === 'scratch') { syncScr(); openSheet('scrSheet'); }
+  if (s === 'chroma') { syncChr(); openSheet('chrSheet'); }
   if (s === 'date') { openSheet('dateSheet'); if (!state.date) { state.date = true; draw(); } syncDate(); }
   if (s === 'dust') { openSheet('dustSheet'); syncDust(); }
   if (s === 'paper') { openSheet('paperSheet'); syncPaper(); }
@@ -688,17 +690,71 @@ $('curveReset').onclick = () => { state.curve[curCh] = [[0, 0], [1, 1]]; drawCur
 $('cOk').onclick = () => closeSheet(true);
 $('cCancel').onclick = () => closeSheet(false);
 
+// light leak: tipo (de onde a luz entrou) + dado (forma e posição) + força
 LEAKS.forEach((L, i) => {
   const b = document.createElement('button'); b.textContent = L.name; b.dataset.i = i;
-  b.onclick = () => { state.leakType = i; if (!state.leak) state.leak = 0.5; syncLeak(); draw(); };
+  b.onclick = () => { state.leakType = i; if (!state.leak) state.leak = 0.6; syncLeak(); draw(); };
   $('leakTypes').append(b);
 });
 function syncLeak() {
   document.querySelectorAll('#leakTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === state.leakType && state.leak > 0));
-  $('leakRange').value = Math.round(state.leak * 100); $('leakRange').parentElement.querySelector('output').textContent = $('leakRange').value;
+  const r = $('leakRange'); r.value = Math.round(state.leak * 100); fillRange(r, 0);
+  $('leakVal').textContent = r.value; $('leakNote').textContent = (LEAKS[state.leakType] || LEAKS[0]).note;
 }
-$('leakRange').addEventListener('input', () => { state.leak = +$('leakRange').value / 100; syncLeak(); draw(); });
-$('leakSeed').onclick = () => { state.leakSeed = Math.floor(Math.random() * 1e5); state.seed = Math.floor(Math.random() * 1000); draw(); };
+$('leakSeed').innerHTML = icon('dice');
+$('leakRange').addEventListener('input', () => { state.leak = +$('leakRange').value / 100; syncLeak(); draw(); flashVal('Light leak', $('leakRange').value); });
+$('leakSeed').onclick = () => { state.leakSeed = (state.leakSeed + 1 + Math.floor(Math.random() * 9973)) % 99991; if (!state.leak) state.leak = 0.6; syncLeak(); draw(); };
+
+// arranhões: tipo + dado + intensidade (esquerda escuros, direita claros)
+const SCR_TYPES = [
+  ['Câmera', 'riscos longos no sentido em que o filme corre, com falhas, às vezes em pares'],
+  ['Projeção', 'riscos atravessados que tremem e aparecem em trechos, como filme de cinema'],
+  ['Manuseio', 'microarranhões curtos em várias direções, de negativo guardado sem capa'],
+  ['Vinco', 'dobra curva com rachadura fina na emulsão'],
+  ['Emulsão', 'poucos riscos largos que arrancam camada de cor (como em slide)'],
+  ['Digital', 'marca de dedo leve e oleosa'],
+];
+SCR_TYPES.forEach(([n], i) => {
+  const b = document.createElement('button'); b.textContent = n; b.dataset.i = i;
+  b.onclick = () => { state.scrType = i; if (!state.scratch) state.scratch = 0.5; syncScr(); draw(); };
+  $('scrTypes').append(b);
+});
+function syncScr() {
+  document.querySelectorAll('#scrTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === state.scrType && state.scratch !== 0));
+  const r = $('scrRange'), v = Math.round(state.scratch * 100); r.value = v; fillRange(r, 0);
+  $('scrVal').textContent = v > 0 ? `Claros ${v}` : v < 0 ? `Escuros ${-v}` : '0';
+  $('scrNote').textContent = (SCR_TYPES[state.scrType] || SCR_TYPES[0])[1];
+}
+$('scrSeed').innerHTML = icon('dice');
+$('scrRange').addEventListener('input', () => {
+  let v = +$('scrRange').value; if (Math.abs(v) <= 2) { v = 0; $('scrRange').value = 0; }
+  state.scratch = v / 100; syncScr(); draw(); flashVal('Arranhões', signed(v));
+});
+$('scrRange').addEventListener('dblclick', () => { state.scratch = 0; syncScr(); draw(); });
+$('scrSeed').onclick = () => { state.scrSeed = (state.scrSeed + 1 + Math.floor(Math.random() * 97)) % 997; if (!state.scratch) state.scratch = 0.5; syncScr(); draw(); };
+$('scOk').onclick = () => closeSheet(true);
+$('scCancel').onclick = () => closeSheet(false);
+
+// aberração: tipo + intensidade
+const CHR_TYPES = [
+  ['Lateral', 'centro limpo; franjas vermelho/ciano crescendo para as bordas, como lente grande-angular antiga'],
+  ['Franja roxa', 'halo roxo nos contornos escuros colados a luzes fortes, em qualquer parte da foto'],
+  ['Lente barata', 'lateral forte e descentrada, com um pouco de franja roxa'],
+];
+CHR_TYPES.forEach(([n], i) => {
+  const b = document.createElement('button'); b.textContent = n; b.dataset.i = i;
+  b.onclick = () => { state.chromaType = i; if (!state.chroma) state.chroma = 0.5; syncChr(); draw(); };
+  $('chrTypes').append(b);
+});
+function syncChr() {
+  document.querySelectorAll('#chrTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === state.chromaType && state.chroma > 0));
+  const r = $('chrRange'); r.value = Math.round(state.chroma * 100); fillRange(r, 0);
+  r.parentElement.querySelector('output').textContent = r.value;
+  $('chrNote').textContent = (CHR_TYPES[state.chromaType] || CHR_TYPES[0])[1];
+}
+$('chrRange').addEventListener('input', () => { state.chroma = +$('chrRange').value / 100; syncChr(); draw(); flashVal('Aberração', $('chrRange').value); });
+$('chOk').onclick = () => closeSheet(true);
+$('chCancel').onclick = () => closeSheet(false);
 $('lOk').onclick = () => closeSheet(true);
 $('lCancel').onclick = () => closeSheet(false);
 

@@ -29,7 +29,7 @@ uniform mat3 uGeo, uPersp; uniform float uLens;
 uniform vec4 uInner, uZoom, uBorder;
 uniform vec3 uFrameCol; uniform float uFrameRound, uFrameRough, uHoles, uOverOn;
 uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
-uniform vec4 uLeakA, uLeakB; uniform vec3 uLeakCA, uLeakCB;
+uniform vec4 uLeakP; uniform float uLeakType, uLeakSeed, uScrType, uScrSeed, uChromaType;
 
 float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 float hash(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
@@ -133,6 +133,151 @@ vec2 hairs(vec2 q, float sc, float p, float off){
   float aa = (1.0 - smoothstep(w, w + px * 1.2, d)) * (1.0 - smoothstep(len * 0.75, len, abs(dv.x)));
   return vec2(aa, hash(cell + 9.1));
 }
+
+// ruído de gradiente (Perlin): sem as "dobras" do ruído de valor, que viram linhas em áreas grandes e lisas
+vec2 grad2(vec2 i){ float a = hash(i) * 6.2832; return vec2(cos(a), sin(a)); }
+float gnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float n = mix(mix(dot(grad2(i), f), dot(grad2(i + vec2(1, 0)), f - vec2(1, 0)), u.x),
+                mix(dot(grad2(i + vec2(0, 1)), f - vec2(0, 1)), dot(grad2(i + vec2(1, 1)), f - vec2(1, 1)), u.x), u.y);
+  return clamp(0.5 + 0.75 * n, 0.0, 1.0);
+}
+// ---------- etapa B: light leaks, arranhões (bibliotecas com dado) ----------
+float fbm2(vec2 p){ return 0.55 * gnoise(p) + 0.3 * gnoise(p * 2.03 + 7.1) + 0.15 * gnoise(p * 4.1 + 3.7); }
+// rampa de cor de um light leak: fraco = vermelho, médio = laranja, forte = amarelo, queimado = quase branco
+vec3 leakRamp(float x, float warm, float cool){
+  vec3 r = mix(vec3(0.72, 0.05, 0.04), vec3(0.92, 0.22, 0.05), warm);
+  vec3 o = mix(vec3(1.0, 0.36, 0.07), vec3(1.0, 0.56, 0.12), warm);
+  vec3 y = vec3(1.0, 0.86, 0.52), w = vec3(1.0, 0.97, 0.9);
+  if (cool > 0.5) { r = vec3(0.2, 0.08, 0.42); o = vec3(0.3, 0.42, 0.95); y = vec3(0.78, 0.72, 1.0); w = vec3(0.95, 0.95, 1.0); }
+  // transições suaves (sem quinas na rampa, que viravam linhas visíveis nas curvas de nível)
+  vec3 col = r * smoothstep(0.0, 0.45, x);
+  col = mix(col, o, smoothstep(0.25, 0.75, x));
+  col = mix(col, y, smoothstep(0.55, 1.05, x));
+  return mix(col, w, smoothstep(0.9, 1.35, x));
+}
+// intensidade do vazamento (0 a ~1.3). O filme corre no sentido do lado maior da foto: a tampa vaza pelas bordas
+// longas (onde fica a borda do filme); dobradiça, ponta do rolo e divisa entre fotos ficam nas bordas curtas.
+float leakField(vec2 iu, out float cool){
+  cool = 0.0;
+  int t = int(uLeakType + 0.5);
+  float sd = uLeakSeed, bit = uLeakP.x;
+  bool land = uRes.x >= uRes.y;
+  bool longEdge = t == 0 || t == 5 || (t == 4 && hash(vec2(sd, 4.0)) > 0.5);
+  int side = longEdge ? (land ? (bit > 0.5 ? 2 : 3) : (bit > 0.5 ? 0 : 1)) : (land ? (bit > 0.5 ? 0 : 1) : (bit > 0.5 ? 2 : 3));
+  float d, s;
+  if (side == 0) { d = iu.x; s = iu.y; } else if (side == 1) { d = 1.0 - iu.x; s = iu.y; }
+  else if (side == 2) { d = iu.y; s = iu.x; } else { d = 1.0 - iu.y; s = iu.x; }
+  float sh = min(uRes.x, uRes.y);
+  float lenD = side < 2 ? uRes.x : uRes.y, lenS = side < 2 ? uRes.y : uRes.x;
+  float dn = d * lenD / sh, sn = s * lenS / sh, tp = uLeakP.y * lenS / sh, w = uLeakP.z, v = uLeakP.w;
+  if (t == 0) {          // tampa: faixa irregular entrando pela borda do filme, com plumas
+    float along = exp(-pow((sn - tp) / (0.5 + 0.9 * w), 2.0));
+    float plume = 0.5 + 0.5 * fbm2(vec2(sn * 7.0 + sd, dn * 1.3));
+    float depth = (0.1 + 0.22 * w) * (0.55 + 0.9 * fbm2(vec2(sn * 2.2 + sd * 3.0, 0.5)));
+    return 1.75 * along * exp(-dn / depth) * plume;
+  } else if (t == 1) {   // dobradiça: mancha forte numa borda curta, com núcleo queimado
+    vec2 q = vec2(dn / (0.22 + 0.28 * w), (sn - tp) / (0.3 + 0.35 * w));
+    float n = fbm2(vec2(sn, dn) * 3.5 + sd);
+    return 1.65 * exp(-dot(q, q) * 1.3) * (0.7 + 0.45 * n) + 0.25 * exp(-dn / 0.05) * n;
+  } else if (t == 2) {   // ponta do rolo: parte da foto queimada, fronteira ondulada
+    float bnd = 0.2 + 0.35 * w + (fbm2(vec2(sn * 1.8 + sd, 1.0)) - 0.5) * 0.3;
+    return 1.4 * (1.0 - smoothstep(bnd - 0.4, bnd + 0.06, dn)) * (0.8 + 0.3 * fbm2(vec2(sn * 3.0, dn * 3.0) + sd));
+  } else if (t == 3) {   // entre fotos: faixa vertical estreita perto da divisa, que some e volta
+    float d0 = 0.03 + 0.12 * v, bw = 0.025 + 0.06 * w;
+    float wob = (gnoise(vec2(sn * 1.5 + sd, 0.5)) - 0.5) * 0.04;
+    float band = exp(-pow((dn - d0 - wob) / bw, 2.0)) * (0.45 + 0.75 * fbm2(vec2(sn * 2.5 + sd, 2.0)));
+    return 1.25 * band + 0.4 * exp(-dn / 0.06) * fbm2(vec2(sn * 4.0, sd));
+  } else if (t == 4) {   // frontal: véu frio e macio (luz entrando pela frente da câmera)
+    cool = 1.0;
+    vec2 q = vec2(dn - (0.1 + 0.35 * v), sn - tp) / (0.45 + 0.45 * w);
+    return 0.55 * exp(-dot(q, q)) * (0.8 + 0.3 * fbm2(vec2(sn, dn) * 2.0 + sd));
+  }
+  // raios: furinho na vedação, feixes saindo de um ponto da borda
+  vec2 rel = vec2(dn, sn - tp);
+  float ang = atan(rel.y, rel.x + 1e-4), dist = length(rel);
+  // poucos feixes largos e macios que se abrem com a distância (não uma estrela desenhada)
+  float rays = smoothstep(0.42, 0.9, gnoise(vec2(ang * 2.6 + sd, sd * 0.37)));
+  float soft = 0.35 + 0.65 * gnoise(vec2(dist * 3.0 + sd, ang * 1.5));
+  return 1.1 * rays * soft * exp(-dist / (0.3 + 0.45 * w)) + 1.2 * exp(-dist * dist / (0.02 + 0.03 * w));
+}
+// linha com espessura real (em pixels da foto final): fina demais para a tela vira linha mais clara, como na foto reduzida
+float lineAA(float d, float w, float px){ float ww = max(w, px); return (1.0 - smoothstep(ww * 0.5, ww * 0.5 + px, d)) * min(1.0, w / max(px, 1e-4)); }
+// arranhões: alfa (0..1); colored = 1 nos riscos coloridos de emulsão
+float scratchOf(vec2 iu, float am, out float colored){
+  colored = 0.0;
+  int t = int(uScrType + 0.5);
+  float sd = uScrSeed;
+  bool land = uRes.x >= uRes.y;
+  vec2 P = iu * uRes;
+  float A = land ? P.x : P.y, B = land ? P.y : P.x;      // A: sentido em que o filme corre (lado maior); B: atravessado
+  float LA = land ? uRes.x : uRes.y, LB = land ? uRes.y : uRes.x, sh = min(uRes.x, uRes.y);
+  float pxA = max(fwidth(A), 1e-3), pxB = max(fwidth(B), 1e-3);
+  float a = 0.0;
+  if (t == 0 || t == 4) {   // câmera: riscos longos no sentido do filme; emulsão (slide): poucos, largos e coloridos
+    colored = t == 4 ? 1.0 : 0.0;
+    for (int i = 0; i < 6; i++) {
+      float fi = float(i);
+      if (hash(vec2(fi, sd + 9.0)) > (t == 4 ? 0.15 + 0.35 * am : 0.3 + 0.7 * am) || (t == 4 && i > 2)) continue;
+      float pos = LB * (0.06 + 0.88 * hash(vec2(fi, sd + 1.0)));
+      float wob = (gnoise(vec2(A / LA * 1.7 + fi * 7.0, sd)) - 0.5) * sh * 0.008;
+      float wd = (t == 4 ? 3.0 + 5.0 * hash(vec2(fi, sd + 2.0)) : 0.7 + 2.0 * hash(vec2(fi, sd + 2.0))) * (0.6 + 0.8 * gnoise(vec2(A / LA * 9.0, fi + sd)));
+      float seg = smoothstep(0.22, 0.42, gnoise(vec2(A / LA * 3.5 + fi * 3.3, sd + 5.0)));
+      float st = LA * hash(vec2(fi, sd + 3.0)) * 0.6 * step(0.55, hash(vec2(fi, sd + 4.0)));
+      float l = lineAA(abs(B - pos - wob), wd, pxB) * seg * step(st, A);
+      if (hash(vec2(fi, sd + 6.0)) > 0.6) l = max(l, 0.7 * lineAA(abs(B - pos - wob - (3.0 + 4.0 * hash(vec2(fi, sd + 7.0)))), wd * 0.6, pxB) * seg * step(st, A));
+      a = max(a, l);
+    }
+  } else if (t == 1) {      // projeção (cinema): riscos atravessados que tremem e aparecem em trechos
+    for (int i = 0; i < 9; i++) {
+      float fi = float(i);
+      if (hash(vec2(fi, sd + 9.0)) > 0.25 + 0.75 * am) continue;
+      float pos = LA * (0.04 + 0.92 * hash(vec2(fi, sd + 1.0)));
+      float wob = (gnoise(vec2(B / LB * 3.0 + fi * 5.0, sd)) - 0.5) * sh * 0.018;
+      float wd = 0.8 + 1.8 * hash(vec2(fi, sd + 2.0));
+      float seg = smoothstep(0.42, 0.58, gnoise(vec2(B / LB * 10.0 + fi * 5.1, sd + 3.0)));
+      a = max(a, lineAA(abs(A - pos - wob), wd, pxA) * seg * (0.6 + 0.4 * hash(vec2(fi, sd + 4.0))));
+    }
+  } else if (t == 2) {      // manuseio: microarranhões curtos em todas as direções
+    vec2 N = P / sh;
+    for (int L = 0; L < 2; L++) {
+      float sc = L == 0 ? 7.0 : 15.0;
+      vec2 g = N * sc, cell = floor(g) + float(L) * 37.0 + sd * 3.1;
+      if (hash(cell) > 0.12 + 0.45 * am) continue;
+      vec2 dv = fract(g) - (0.4 + 0.2 * vec2(hash(cell + 1.1), hash(cell + 2.3)));
+      float an = hash(cell + 3.7) * 3.1416;
+      vec2 uv = mat2(cos(an), -sin(an), sin(an), cos(an)) * dv;
+      float hl = 0.12 + 0.22 * hash(cell + 4.9);
+      float bend = (hash(cell + 5.3) - 0.5) * 1.6;
+      float dd = abs(uv.y - bend * uv.x * uv.x) * sh / sc;
+      float taper = 1.0 - smoothstep(hl * 0.55, hl, abs(uv.x));
+      a = max(a, lineAA(dd, 0.5 + 1.1 * hash(cell + 6.1), pxA) * taper * 0.85);
+    }
+  } else if (t == 3) {      // vinco: dobra curva com rachadura fina e um leve halo
+    vec2 N = P / sh, mid = uRes / sh * 0.5;
+    for (int i = 0; i < 2; i++) {
+      float fi = float(i);
+      if (i == 1 && hash(vec2(sd, 3.0)) > am) continue;
+      float th = hash(vec2(sd + fi, 1.0)) * 6.2832, Rr = 1.1 + 1.6 * hash(vec2(sd + fi, 2.0));
+      vec2 C = mid + vec2(cos(th), sin(th)) * Rr + (vec2(hash(vec2(sd, fi + 5.0)), hash(vec2(sd, fi + 6.0))) - 0.5) * 0.6;
+      float dist = length(N - C) - Rr + (fbm2(N * 9.0 + sd + fi) - 0.5) * 0.012;
+      float dp = abs(dist) * sh;
+      a = max(a, lineAA(dp, 1.3 + fi * 0.5, pxA) + 0.22 * exp(-dp / (4.0 + 6.0 * am)));
+    }
+  } else {                  // marca de dedo: digital leve e oleosa
+    vec2 N = P / sh, C = vec2(0.2 + 0.6 * hash(vec2(sd, 1.0)), 0.2 + 0.6 * hash(vec2(sd, 2.0))) * uRes / sh;
+    float an = hash(vec2(sd, 3.0)) * 3.1416;
+    vec2 rel = mat2(cos(an), -sin(an), sin(an), cos(an)) * (N - C);
+    float e = length(rel / vec2(0.07, 0.095));
+    float mask = 1.0 - smoothstep(0.65, 1.0, e);
+    float rr = e * 20.0 + (fbm2(rel * 30.0 + sd) - 0.5) * 3.0;
+    float ridge = smoothstep(0.5, 0.95, 0.5 + 0.5 * sin(rr * 6.2832));
+    float ridgePx = 0.095 * sh / 20.0;                   // largura de cada sulco em pixels da foto final
+    ridge = mix(0.5, ridge, clamp(ridgePx / (pxA * 2.0), 0.0, 1.0));   // reduzida, a digital vira só uma mancha
+    a = mask * (0.08 + 0.24 * ridge);
+  }
+  return clamp(a, 0.0, 1.0);
+}
 vec2 dustOf(vec2 q){
   int t = int(uDustType + 0.5);
   vec2 a = vec2(0.0), b;
@@ -216,11 +361,31 @@ void main(){
   float br = (uSoft * 0.0012 + uSoft * uSoft * 0.004 + sn * 0.003 + sn * sn * 0.003
             + (uEBlur * 0.007 + uVLens * 0.0065) * edge2) * uTexLong;
   if (br > 0.35) c = blurAt(su, br);
-  float chr = uChroma + uVLens * 1.1;   // lente antiga: franjas coloridas que crescem para as bordas
-  if (chr > 0.0) {
-    vec2 off = (iu - 0.5) * chr * 0.006;
-    c.r = texture(uImg, srcUv(iu + off)).r;
-    c.b = texture(uImg, srcUv(iu - off)).b;
+  // Aberração cromática. Lateral: zero no centro, cresce rápido para as bordas (r²), vermelho para fora e azul
+  // para dentro, com a borda menos nítida. Franja roxa (longitudinal): halo roxo nos escuros colados a luzes fortes,
+  // em qualquer lugar da foto. Lente barata: lateral forte e descentrada + um pouco de franja.
+  int cty = int(uChromaType + 0.5);
+  float chA = uChroma * (0.35 + 0.65 * uChroma);
+  float lat = (cty == 1 ? 0.0 : chA * (cty == 2 ? 1.6 : 1.0)) + uVLens * 0.55;
+  if (lat > 0.0) {
+    vec2 ctr = cty == 2 ? vec2(0.57, 0.45) : vec2(0.5);
+    float r2 = dot((iu - ctr) * 2.0, (iu - ctr) * 2.0) * 0.5;
+    vec2 off = (iu - ctr) * lat * 0.016 * r2;
+    float lod = lat * r2 * 1.6;
+    c.r = textureLod(uImg, srcUv(iu + off), lod).r;
+    c.b = textureLod(uImg, srcUv(iu - off), lod).b;
+    if (cty == 2) c.g = mix(c.g, textureLod(uImg, srcUv(iu + off * 0.3), lod).g, 0.5);
+  }
+  float pfr = cty == 1 ? chA : (cty == 2 ? chA * 0.5 : 0.0);
+  if (pfr > 0.0) {
+    float R = max((3.0 + 4.0 * pfr) * uSrcScale, 1.2), mx = 0.0;
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * 0.7854;
+      mx = max(mx, luma(texture(uImg, su + vec2(cos(a), sin(a)) * R * uTexel).rgb));
+    }
+    float l0 = luma(c);
+    float fe = smoothstep(0.55, 0.95, mx) * smoothstep(0.12, 0.45, mx - l0);
+    c = mix(c, c * vec3(0.8, 0.5, 1.0) + vec3(0.3, 0.02, 0.45) * mx, clamp(fe * pfr * 1.1, 0.0, 1.0));
   }
   if (uSharp > 0.0) {
     float r = max(uSRad * uSrcScale, 0.5);
@@ -356,11 +521,11 @@ void main(){
       c = c * (1.0 - m * 0.04) + m * vec3(0.022, 0.02, 0.018);
     }
   }
-  if (uLeak > 0.0) {
-    vec2 a = vec2(uRes.x / uRes.y, 1.0);
-    float wa = exp(-pow(length((iu - uLeakA.xy) * a) / uLeakA.z, 2.0));
-    float wb = exp(-pow(length((iu - uLeakB.xy) * a) / uLeakB.z, 2.0));
-    vec3 lk = clamp(uLeakCA * wa * uLeakA.w + uLeakCB * wb * uLeakB.w, 0.0, 1.0) * uLeak;
+  if (uLeak > 0.0) {   // light leak: luz que entrou na câmera e velou o filme (soma de luz + véu que baixa o contraste)
+    float cool;
+    float x = leakField(iu, cool) * uLeak * 1.15;
+    vec3 lk = leakRamp(min(x, 1.25), hash(vec2(uLeakSeed, 7.0)), cool);
+    c = mix(c, c * 0.88 + 0.1, clamp(x, 0.0, 1.0) * 0.25);
     c = 1.0 - (1.0 - c) * (1.0 - lk);
   }
   c = c * (1.0 - 0.22*uFade) + 0.09*uFade;
@@ -380,14 +545,14 @@ void main(){
       c = mix(c, col, d.x * min(1.0, abs(uDust)) * 0.95);
     }
   }
-  if (uScratch > 0.0) {
-    float x = iu.x * 120.0, col = floor(x);
-    if (hash(vec2(col, 7.0) + uSeed) < uScratch * 0.12) {
-      float cx = col + 0.2 + 0.6 * hash(vec2(col, 11.0)) + (vnoise(vec2(iu.y * 3.0, col)) - 0.5) * 0.5;
-      float d = abs(x - cx), px = fwidth(x);
-      float aa = 1.0 - smoothstep(0.03, 0.03 + px * 1.5, d);
-      float seg = smoothstep(0.35, 0.6, vnoise(vec2(col * 3.1, iu.y * 5.0) + uSeed));
-      c = mix(c, vec3(0.93), aa * seg * 0.75);
+  // arranhões: direita = claros (risco na base, comum no negativo escaneado); esquerda = escuros
+  if (uScratch != 0.0) {
+    float am = min(abs(uScratch), 1.0), colored;
+    float sa = scratchOf(iu, am, colored);
+    if (sa > 0.0) {
+      vec3 col = uScratch > 0.0 ? vec3(0.95, 0.94, 0.92) : vec3(0.04, 0.035, 0.03);
+      if (colored > 0.5) col = uScratch > 0.0 ? vec3(0.5, 0.95, 0.82) : vec3(0.42, 0.04, 0.3);
+      c = mix(c, col, clamp(sa * (0.4 + 0.6 * am), 0.0, 1.0));
     }
   }
   // ---------- grão
@@ -493,7 +658,7 @@ const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'u
   'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
-  'uLeakA', 'uLeakB', 'uLeakCA', 'uLeakCB'];
+  'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType'];
 
 const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 export const IDENT_VIEW = {
@@ -629,8 +794,9 @@ export class Renderer {
     f('uFrameRound', v.round); f('uFrameRough', v.rough); f('uHoles', v.holes ? full.w : 0);
     f('uOverOn', v.overlay ? 1 : 0);
     gl.uniform1fv(u.uHslH, s.hslH || HSL_ZERO); gl.uniform1fv(u.uHslS, s.hslS || HSL_ZERO); gl.uniform1fv(u.uHslL, s.hslL || HSL_ZERO);
-    const lk = s.leakData || { a: [0, 0, 1, 0], b: [0, 0, 1, 0], ca: [0, 0, 0], cb: [0, 0, 0] };
-    gl.uniform4fv(u.uLeakA, lk.a); gl.uniform4fv(u.uLeakB, lk.b); gl.uniform3fv(u.uLeakCA, lk.ca); gl.uniform3fv(u.uLeakCB, lk.cb);
+    gl.uniform4fv(u.uLeakP, s.leakP || [0, 0.5, 0.5, 0.5]);
+    f('uLeakType', s.leakType || 0); f('uLeakSeed', (s.leakSeed || 0) % 997);
+    f('uScrType', s.scrType || 0); f('uScrSeed', (s.scrSeed || 0) % 997); f('uChromaType', s.chromaType || 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }
