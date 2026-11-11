@@ -19,7 +19,7 @@ const grain = (iso, { bw = false, mul = 1, cmul = 1 } = {}) => {
 
 export const FILM_CATS = [
   { id: 'neg', n: 'Negativo' }, { id: 'pb', n: 'P&B' }, { id: 'slide', n: 'Slide' },
-  { id: 'old', n: 'Vencido' }, { id: 'app', n: 'Apps' }, { id: 'mine', n: 'Minhas' },
+  { id: 'old', n: 'Vencido' }, { id: 'app', n: 'Filtros' }, { id: 'mine', n: 'Minhas' },
 ];
 
 export const FILMS = [
@@ -178,28 +178,28 @@ export const FILMS = [
     ch: { ...grain(400, { mul: 1.1 }), vig: 0.35, vlens: 0.3 } },
 
   // ---------------------------------------------------------------- clássicos de app
-  { id: 'f_cl', code: 'CL', cat: 'app', ref: 'filtro Clarendon do Instagram', kind: 'app · contraste e cor, sombras frias',
+  { id: 'f_cl', code: 'CL', cat: 'app', ref: 'filtro Clarendon do Instagram', kind: 'contraste e cor, sombras frias',
     look: { contrast: 4.6, sat: 1.2, hues: [{ at: 215, width: 45, shift: -6, sat: 1.15 }],
       split: { shadow: [0.46, 0.5, 0.54], high: [0.53, 0.52, 0.48], amt: 0.25 }, black: [0.02, 0.03, 0.04], white: [1, 1, 1] }, ch: {} },
-  { id: 'f_ju', code: 'JU', cat: 'app', ref: 'filtro Juno do Instagram', kind: 'app · quentes vivos, luz dourada',
+  { id: 'f_ju', code: 'JU', cat: 'app', ref: 'filtro Juno do Instagram', kind: 'quentes vivos, luz dourada',
     look: { wb: [1.02, 1, 0.98], contrast: 4, sat: 1.15, hues: [{ at: 0, width: 30, sat: 1.2 }, { at: 55, width: 35, sat: 1.15 }],
       split: { shadow: [0.5, 0.5, 0.5], high: [0.53, 0.515, 0.48], amt: 0.15 } }, ch: {} },
-  { id: 'f_gg', code: 'GG', cat: 'app', ref: 'filtro Gingham do Instagram', kind: 'app · desbotado e suave',
+  { id: 'f_gg', code: 'GG', cat: 'app', ref: 'filtro Gingham do Instagram', kind: 'desbotado e suave',
     look: { contrast: 2.2, sat: 0.8, gamma: [0.95, 0.95, 0.97],
       split: { shadow: [0.49, 0.5, 0.52], high: [0.52, 0.51, 0.49], amt: 0.12 }, black: [0.12, 0.12, 0.12], white: [0.97, 0.96, 0.94] }, ch: {} },
-  { id: 'f_vl', code: 'VL', cat: 'app', ref: 'filtro Valencia do Instagram', kind: 'app · quente e desbotado',
+  { id: 'f_vl', code: 'VL', cat: 'app', ref: 'filtro Valencia do Instagram', kind: 'quente e desbotado',
     look: { wb: [1.04, 1, 0.93], contrast: 3.2, sat: 1.05,
       split: { shadow: [0.51, 0.49, 0.48], high: [0.55, 0.52, 0.46], amt: 0.25 }, black: [0.08, 0.06, 0.05], white: [0.99, 0.96, 0.88] }, ch: {} },
-  { id: 'f_nv', code: 'NV', cat: 'app', ref: 'filtro Nashville do Instagram', kind: 'app · rosado nas sombras, luzes cremosas',
+  { id: 'f_nv', code: 'NV', cat: 'app', ref: 'filtro Nashville do Instagram', kind: 'rosado nas sombras, luzes cremosas',
     look: { wb: [1.05, 0.99, 0.93], contrast: 2.8, sat: 0.95,
       split: { shadow: [0.53, 0.48, 0.5], high: [0.55, 0.53, 0.46], amt: 0.25 }, black: [0.15, 0.1, 0.13], white: [0.98, 0.95, 0.86] }, ch: {} },
-  { id: 'f_xp', code: 'XP', cat: 'app', ref: 'filtro X-Pro II do Instagram', kind: 'app · cruzado: contraste alto, luzes amarelas',
+  { id: 'f_xp', code: 'XP', cat: 'app', ref: 'filtro X-Pro II do Instagram', kind: 'cruzado: contraste alto, luzes amarelas',
     look: { contrast: 6, sat: 1.25,
       split: { shadow: [0.48, 0.5, 0.53], high: [0.55, 0.53, 0.44], amt: 0.3 }, black: [0, 0, 0.04], white: [1, 0.98, 0.86] }, ch: { vig: 0.45 } },
-  { id: 'f_eb', code: 'EB', cat: 'app', ref: 'filtro Earlybird do Instagram', kind: 'app · sépia quente, cantos escuros',
+  { id: 'f_eb', code: 'EB', cat: 'app', ref: 'filtro Earlybird do Instagram', kind: 'sépia quente, cantos escuros',
     look: { wb: [1.06, 1, 0.88], contrast: 2.6, sat: 0.75,
       split: { shadow: [0.5, 0.5, 0.5], high: [0.56, 0.52, 0.44], amt: 0.3 }, black: [0.14, 0.1, 0.07], white: [0.97, 0.92, 0.8] }, ch: { vig: 0.35 } },
-  { id: 'f_iw', code: 'IW', cat: 'app', ref: 'filtro Inkwell do Instagram', kind: 'app · preto e branco simples',
+  { id: 'f_iw', code: 'IW', cat: 'app', ref: 'filtro Inkwell do Instagram', kind: 'preto e branco simples',
     look: { bw: [0.3, 0.59, 0.11], contrast: 3.5, black: [0.04, 0.04, 0.04], white: [0.97, 0.97, 0.97] }, ch: {} },
 ];
 
