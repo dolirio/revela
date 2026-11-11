@@ -794,7 +794,7 @@ function drawRuler() {
   const g = cvs.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   const R = GEO_RULER[geoKey], x = geoVal(), cx = W / 2, X = (u) => cx + (u - x) * R.ppu;
   const css = getComputedStyle(document.documentElement);
-  const accent = css.getPropertyValue('--accent').trim() || '#e8b04a', muted = css.getPropertyValue('--muted').trim() || '#998f80';
+  const accent = css.getPropertyValue('--accent').trim() || '#93c45e', muted = css.getPropertyValue('--muted').trim() || '#998f80';
   // trecho entre o zero e o valor
   const a = X(Math.min(0, x)), b = X(Math.max(0, x));
   g.fillStyle = accent; g.fillRect(a, 30, Math.max(0, b - a), 2);
