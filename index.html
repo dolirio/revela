@@ -107,10 +107,17 @@
   /* painel com vários controles (grão, brilho, halo, nitidez) */
   #dock.med .ctx { height: 236px; }
   #pBody { display: grid; gap: 4px; }
-  #pBody .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; }
-  #pBody .seg button { flex: 1; padding: 7px 4px; font-size: 12.5px; color: var(--muted); }
-  #pBody .seg button + button { border-left: 1px solid var(--line); }
-  #pBody .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; flex: 0 0 auto; }
+  .seg button { flex: 1; padding: 7px 4px; font-size: 12.5px; color: var(--muted); position: relative; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .seg button.set:not(.on)::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .ruler { position: relative; height: 52px; margin: 0 -18px; touch-action: none; cursor: ew-resize; outline: none; flex: 0 0 auto; }
+  .ruler canvas { width: 100%; height: 100%; display: block; }
+  .ruler:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+  #paperTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
+  #paperTypes::-webkit-scrollbar { display: none; }
+  #paperTypes button { flex: 0 0 auto; }
   #pBody .prow { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
   #pBody .prow output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
   #pBody .prow input[type=range] { height: 30px; }
@@ -297,6 +304,18 @@
         <div class="rw bi"><input type="range" id="uRange" min="-100" max="100"></div><output id="uVal">0</output></div>
       <div class="ends on" style="padding-left:52px"><span>◂ escura</span><span>clara ▸</span></div>
       <div class="foot"><button class="ib" id="uCancel" aria-label="Cancelar"></button><div class="t">Poeira</div><button class="ib" id="uOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="paperSheet">
+      <div class="pills" id="paperTypes"></div>
+      <div class="dicerow"><button class="dice" id="ppSeed" aria-label="Sortear outra variação do papel" title="Sortear outra variação"></button>
+        <div class="rw"><input type="range" id="ppRange" min="0" max="100" aria-label="Intensidade do papel"></div><output id="ppVal">0</output></div>
+      <div class="foot"><button class="ib" id="ppCancel" aria-label="Cancelar"></button><div class="t">Papel</div><button class="ib" id="ppOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="geoSheet">
+      <div class="seg" id="geoTabs" role="tablist" aria-label="Correção"></div>
+      <div class="head"><span class="val" id="gVal">0</span><button class="reset" id="gReset">zerar</button></div>
+      <div class="ruler" id="rulerBox" tabindex="0" role="slider" aria-label="Valor da correção"><canvas id="ruler"></canvas></div>
+      <div class="foot"><button class="ib" id="gCancel" aria-label="Cancelar"></button><div class="t">Ajustar</div><button class="ib" id="gOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="recSheet">
       <p class="note" id="rNote"></p>

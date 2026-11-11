@@ -18,8 +18,8 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk']) setIcon(id, 'ok');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk']) setIcon(id, 'ok');
 const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
@@ -226,7 +226,7 @@ const TEX = [
   P_SHARP, P_GRAIN, P_GLOW, P_HALO,
   { k: 'vlens', n: 'Lente antiga', min: 0 },
   { k: 'eblur', n: 'Borda suave', min: 0 },
-  { k: 'paper', n: 'Papel', min: 0 },
+  { s: 'paper', n: 'Papel', i: 'paper' },
 ];
 const FX = [
   { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
@@ -252,7 +252,7 @@ function buildTools(box, list) {
     const b = document.createElement('button'); b.className = 'tool'; b.dataset.k = t.p ? 'p_' + t.p : t.k || t.s || 'act_' + t.a;
     if (t.p) b.dataset.keys = [...t.rows.map((r) => r.k), ...(t.chips ? ['gcolor', 'grough'] : [])].join(',');
     b.innerHTML = `<div class="ring">${icon(t.i || t.k)}</div><span>${t.n}</span>`;
-    b.onclick = () => (t.a ? ACTIONS[t.a]() : t.s ? openSpecial(t.s) : t.p ? openPanel(t) : openSlider(t));
+    b.onclick = () => (t.a ? ACTIONS[t.a]() : t.s ? openSpecial(t.s) : t.p ? openPanel(t) : t.geo ? openGeo(t.k) : openSlider(t));
     box.append(b);
   }
 }
@@ -571,6 +571,7 @@ function openSpecial(s) {
   if (s === 'leak') { syncLeak(); openSheet('leakSheet'); }
   if (s === 'date') { openSheet('dateSheet'); if (!state.date) { state.date = true; draw(); } syncDate(); }
   if (s === 'dust') { openSheet('dustSheet'); syncDust(); }
+  if (s === 'paper') { openSheet('paperSheet'); syncPaper(); }
 }
 let hslSel = 0;
 HSL_NAMES.forEach((n, i) => {
@@ -702,6 +703,135 @@ $('uOk').onclick = () => closeSheet(true);
 $('uCancel').onclick = () => closeSheet(false);
 $('dCancel').onclick = () => closeSheet(false);
 
+// papel: tipo, variação (dado) e intensidade
+const PAPER_TYPES = ['Nenhum', 'Fotográfico', 'Marfim', 'Tela', 'Revista', 'Fotocópia'];
+const PAPER_ON = [0, 0.6, 0.7, 0.6, 1, 1];   // intensidade inicial ao escolher o tipo
+PAPER_TYPES.forEach((n, i) => {
+  const b = document.createElement('button'); b.textContent = n; b.dataset.i = i;
+  b.onclick = () => {
+    if (i === 0) state.paper = 0;
+    else { if (!state.paper || state.paperType !== i - 1) state.paper = PAPER_ON[i]; state.paperType = i - 1; }
+    syncPaper(); draw();
+  };
+  $('paperTypes').append(b);
+});
+function syncPaper() {
+  const on = state.paper > 0 ? state.paperType + 1 : 0;
+  document.querySelectorAll('#paperTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === on));
+  const r = $('ppRange'), v = Math.round(state.paper * 100); r.value = v; fillRange(r, 0);
+  $('ppVal').textContent = String(v);
+  $('ppSeed').disabled = !state.paper;
+}
+$('ppSeed').innerHTML = icon('dice');
+$('ppRange').addEventListener('input', () => {
+  const v = +$('ppRange').value; state.paper = v / 100; syncPaper(); draw(); flashVal('Papel', String(v));
+});
+$('ppRange').addEventListener('dblclick', () => { state.paper = 0; syncPaper(); draw(); });
+$('ppSeed').onclick = () => { state.paperSeed = (state.paperSeed + 1 + Math.floor(Math.random() * 89)) % 991; syncPaper(); draw(); };
+$('ppOk').onclick = () => closeSheet(true);
+$('ppCancel').onclick = () => closeSheet(false);
+
+// ------------------------------------------------------------ ajustar (endireitar, perspectiva, lente) com régua
+const sgn = (x) => (x > 0 ? '+' : x < 0 ? '−' : '');
+const GEO_RULER = {
+  straight: { n: 'Endireitar', min: -45, max: 45, ppu: 12, step: 0.1, minor: 1, mid: 5, major: 10, val: (v) => v, set: (x) => x,
+    fmt: (x) => sgn(x) + Math.abs(x).toFixed(1).replace('.', ',') + '°', lab: (x) => (x < 0 ? '−' : '') + Math.abs(x) + '°' },
+  persV: { n: 'Vertical', min: -100, max: 100, ppu: 4, step: 1, minor: 5, mid: 25, major: 50, val: (v) => v * 100, set: (x) => x / 100,
+    fmt: (x) => sgn(x) + Math.abs(x), lab: (x) => (x < 0 ? '−' : '') + Math.abs(x) },
+};
+GEO_RULER.persH = { ...GEO_RULER.persV, n: 'Horizontal' };
+GEO_RULER.lens = { ...GEO_RULER.persV, n: 'Lente' };
+let geoKey = 'straight';
+for (const k of Object.keys(GEO_RULER)) {
+  const b = document.createElement('button'); b.textContent = GEO_RULER[k].n; b.dataset.g = k; b.setAttribute('role', 'tab');
+  b.onclick = () => { geoKey = k; syncGeo(); };
+  $('geoTabs').append(b);
+}
+function openGeo(k) {
+  if (!photo) { toast('Abra uma foto primeiro'); return; }
+  geoKey = k; openSheet('geoSheet'); $('dock').classList.add('med');
+  syncGeo(); positionOverlays();
+}
+const geoVal = () => GEO_RULER[geoKey].val(state[geoKey]);
+function setGeoVal(x) {
+  const R = GEO_RULER[geoKey];
+  x = clamp(Math.round(x / R.step) * R.step, R.min, R.max);
+  if (Math.abs(x) < R.step * 0.5) x = 0;
+  const nv = R.set(+x.toFixed(2));
+  if (nv === state[geoKey]) return;
+  state[geoKey] = nv; syncGeo(); draw();
+}
+function syncGeo() {
+  document.querySelectorAll('#geoTabs button').forEach((b) => {
+    const on = b.dataset.g === geoKey;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+    b.classList.toggle('set', !!state[b.dataset.g]);
+  });
+  const R = GEO_RULER[geoKey], x = geoVal();
+  $('gVal').textContent = R.fmt(x);
+  $('rulerBox').setAttribute('aria-valuetext', R.n + ' ' + R.fmt(x));
+  drawRuler();
+}
+function drawRuler() {
+  const cvs = $('ruler'), box = $('rulerBox'), dpr = devicePixelRatio || 1;
+  const W = box.clientWidth, H = box.clientHeight; if (!W) return;
+  if (cvs.width !== Math.round(W * dpr)) cvs.width = Math.round(W * dpr);
+  if (cvs.height !== Math.round(H * dpr)) cvs.height = Math.round(H * dpr);
+  const g = cvs.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const R = GEO_RULER[geoKey], x = geoVal(), cx = W / 2, X = (u) => cx + (u - x) * R.ppu;
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue('--accent').trim() || '#e8b04a', muted = css.getPropertyValue('--muted').trim() || '#998f80';
+  // trecho entre o zero e o valor
+  const a = X(Math.min(0, x)), b = X(Math.max(0, x));
+  g.fillStyle = accent; g.fillRect(a, 30, Math.max(0, b - a), 2);
+  const lo = Math.max(R.min, Math.ceil((x - cx / R.ppu) / R.minor) * R.minor), hi = Math.min(R.max, x + cx / R.ppu);
+  g.font = '10px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let i = 0, u = lo; u <= hi + 1e-6; i++, u = lo + i * R.minor) {
+    const uu = Math.round(u / R.minor) * R.minor, px = Math.round(X(uu)) + 0.5;
+    const isMaj = Math.abs(uu % R.major) < 1e-6, isMid = Math.abs(uu % R.mid) < 1e-6;
+    const fade = 1 - Math.min(1, Math.abs(px - cx) / (cx + 1)) * 0.75;
+    g.strokeStyle = uu === 0 ? '#fff' : muted; g.globalAlpha = (isMaj ? 1 : isMid ? 0.85 : 0.55) * fade;
+    g.lineWidth = uu === 0 ? 2 : 1;
+    const h = uu === 0 ? 18 : isMaj ? 14 : isMid ? 10 : 6;
+    g.beginPath(); g.moveTo(px, 30 - h); g.lineTo(px, 30); g.stroke();
+    if (isMaj) { g.fillStyle = muted; g.fillText(R.lab(uu), px, 36); }
+  }
+  g.globalAlpha = 1;
+  // indicador fixo no centro
+  g.fillStyle = accent; g.fillRect(cx - 1, 6, 2, 28);
+  g.beginPath(); g.moveTo(cx - 5, 1); g.lineTo(cx + 5, 1); g.lineTo(cx, 7); g.closePath(); g.fill();
+}
+{
+  const box = $('rulerBox'); let rd = null, lastTapT = 0;
+  box.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); box.setPointerCapture(e.pointerId); box.focus({ preventScroll: true });
+    const now = performance.now();
+    if (now - lastTapT < 300) { setGeoVal(0); lastTapT = 0; rd = null; return; }   // dois toques: zera
+    lastTapT = now;
+    rd = { x: e.clientX, v: geoVal() };
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (!rd) return;
+    const R = GEO_RULER[geoKey];
+    let v = rd.v - (e.clientX - rd.x) / R.ppu;
+    if (Math.abs(v) < R.step * 4 && Math.abs(rd.v) >= R.step * 4) v = 0;    // encaixa no zero ao passar por ele
+    setGeoVal(v);
+  });
+  const end = () => { rd = null; };
+  box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+  box.addEventListener('wheel', (e) => { e.preventDefault(); const R = GEO_RULER[geoKey]; setGeoVal(geoVal() + ((e.deltaX || e.deltaY) / R.ppu) * 0.5); }, { passive: false });
+  box.addEventListener('keydown', (e) => {
+    const R = GEO_RULER[geoKey], d = (e.shiftKey ? 10 : 1) * R.step;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setGeoVal(geoVal() - d); e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setGeoVal(geoVal() + d); e.preventDefault(); }
+    if (e.key === 'Home' || e.key === '0') { setGeoVal(0); e.preventDefault(); }
+  });
+  addEventListener('resize', () => { if (openSheetId === 'geoSheet') drawRuler(); });
+}
+$('gReset').onclick = () => setGeoVal(0);
+$('gOk').onclick = () => closeSheet(true);
+$('gCancel').onclick = () => closeSheet(false);
+
 // ------------------------------------------------------------ corte: proporção, moldura, corte livre, grade
 const ASPECT_NAMES = { livre: 'Livre', orig: 'Original', '1:1': '1:1', '4:5': '4:5', '5:4': '5:4', '3:2': '3:2', '2:3': '2:3', '16:9': '16:9', '9:16': '9:16' };
 for (const a of Object.keys(ASPECTS)) {
@@ -721,7 +851,7 @@ function viewBox() {
 }
 function positionOverlays() {
   const cb = $('cropBox'), go = $('gridOv');
-  const geoSheet = !!(photo && openSheetId === 'sliderSheet' && curTool?.geo);
+  const geoSheet = !!(photo && openSheetId === 'geoSheet');
   const showCrop = !!(photo && cropEditing() && !openSheetId);
   cb.classList.toggle('on', showCrop);
   go.classList.toggle('on', geoSheet);
