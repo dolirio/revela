@@ -1,5 +1,5 @@
 // Receitas de filme no estilo "receita de câmera": poucos parâmetros em passos inteiros,
-// como nos menus de simulação de filme das câmeras. Nomes e valores são do Revela.
+// como nos menus de simulação de filme das câmeras. Nomes e valores são do Pellicula.
 
 // Campos do editor. opts = lista de opções; senão min/max/step numéricos.
 export const RECIPE_FIELDS = [
@@ -70,7 +70,7 @@ export function fmtField(f, v) {
   return r > 0 ? `+${r}` : r < 0 ? `−${Math.abs(r)}` : '0';
 }
 
-// Receitas clássicas do Revela: cada uma recria a sensação de um tipo de filme analógico,
+// Receitas clássicas do Pellicula: cada uma recria a sensação de um tipo de filme analógico,
 // sem copiar nomes ou receitas de terceiros.
 export const CLASSICS = [
   { id: 'c_domingo', name: 'Domingo no Parque', note: 'Negativo de consumo quente, grão fino, dia de sol.',

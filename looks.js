@@ -1,4 +1,4 @@
-// Looks originais do Revela. Cada look é uma receita de parâmetros que gera uma LUT 3D.
+// Looks originais do Pellicula. Cada look é uma receita de parâmetros que gera uma LUT 3D.
 // Nada aqui foi copiado de presets de terceiros: são curvas e tons definidos do zero.
 
 import { LOOKS } from './looks-data.js';

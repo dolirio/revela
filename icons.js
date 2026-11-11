@@ -1,4 +1,4 @@
-// Ícones próprios do Revela (traço simples, 24×24).
+// Ícones próprios do Pellicula (traço simples, 24×24).
 const P = {
   open: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>',
   lut: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',

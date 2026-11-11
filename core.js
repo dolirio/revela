@@ -210,12 +210,12 @@ export function makeOverlay(s, v, cw, ch, frameNo = 1, prev = null) {
       x.fillStyle = rgba([0.95, 0.62, 0.24], 0.95);
       x.font = `600 ${fs}px system-ui, sans-serif`;
       const yT = it * 0.16, yB = ch - bandB * 0.16;
-      x.fillText('REVELA 400', il + iw * 0.08, yT);
+      x.fillText('PELLICULA 400', il + iw * 0.08, yT);
       x.fillText(n, il + iw * 0.55, yT);
       x.fillText(`▸ ${n}A`, il + iw * 0.8, yT);
       x.fillText(n, il + iw * 0.06, yB);
       x.fillText(`▸ ${n}A`, il + iw * 0.3, yB);
-      x.fillText('REVELA 400', il + iw * 0.66, yB);
+      x.fillText('PELLICULA 400', il + iw * 0.66, yB);
       // código de borda (padrão próprio, gerado pelo número do quadro)
       let bx = il + iw * 0.44; const bh = bandB * 0.12;
       for (let i = 0; i < 22; i++) {
@@ -227,13 +227,13 @@ export function makeOverlay(s, v, cw, ch, frameNo = 1, prev = null) {
       const fs = Math.max(5, Math.min(it, ch - ib) * 0.32);
       x.fillStyle = rgba([0.82, 0.8, 0.74], 0.9);
       x.font = `600 ${fs}px system-ui, sans-serif`;
-      x.fillText(`REVELA 120   ${n}`, il + iw * 0.05, it * 0.5);
+      x.fillText(`PELLICULA 120   ${n}`, il + iw * 0.05, it * 0.5);
       x.fillText(`▸ ${n}`, ir - iw * 0.12, ch - (ch - ib) * 0.5);
     } else if (ft === 'cromo') {
       const fs = Math.max(5, (ch - ib) * 0.2);
       x.fillStyle = rgba([0.42, 0.41, 0.39], 0.95);
       x.font = `600 ${fs}px system-ui, sans-serif`; x.textAlign = 'center';
-      x.fillText('REVELA CROMO', cw / 2, ib + (ch - ib) * 0.5);
+      x.fillText('PELLICULA CROMO', cw / 2, ib + (ch - ib) * 0.5);
       x.save(); x.translate(il * 0.5, ch / 2); x.rotate(-Math.PI / 2); x.fillText(n, 0, 0); x.restore();
     }
   }

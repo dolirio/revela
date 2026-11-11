@@ -1,12 +1,12 @@
 {
-  "name": "Revela",
-  "short_name": "Revela",
+  "name": "Pellicula",
+  "short_name": "Pellicula",
   "description": "Editor de fotos com looks de filme.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#131210",
+  "background_color": "#151315",
   "theme_color": "#131210",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },

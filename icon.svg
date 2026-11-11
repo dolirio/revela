@@ -1,1 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#131210"/><circle cx="256" cy="256" r="150" fill="none" stroke="#e8a33d" stroke-width="36"/><circle cx="256" cy="256" r="58" fill="#e8a33d"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="sq"><rect width="1024" height="1024" rx="230"/></clipPath>
+    <clipPath id="half"><rect width="1024" height="512"/></clipPath>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#28252a"/><stop offset="1" stop-color="#121013"/></linearGradient>
+    <linearGradient id="pulp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9db4"/><stop offset="1" stop-color="#ef5f86"/></linearGradient>
+    <pattern id="stripes" width="120" height="1024" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">
+      <rect width="120" height="1024" fill="#f3e7a6"/><rect width="44" height="1024" fill="#6e9e4a"/>
+    </pattern>
+    <path id="g" d="M512 492 L443 300 A232 232 0 0 1 581 300 Z"/>
+  </defs>
+  <g clip-path="url(#sq)">
+    <rect width="1024" height="1024" fill="url(#dark)"/>
+    <g transform="translate(512 640) scale(1.22) translate(-512 -512)">
+      <g clip-path="url(#half)">
+        <circle cx="512" cy="512" r="300" fill="url(#stripes)"/>
+        <circle cx="512" cy="512" r="262" fill="#fff3ee"/>
+        <g fill="url(#pulp)">
+          <use xlink:href="#g"/><use xlink:href="#g" transform="rotate(45 512 512)"/><use xlink:href="#g" transform="rotate(90 512 512)"/>
+          <use xlink:href="#g" transform="rotate(270 512 512)"/><use xlink:href="#g" transform="rotate(315 512 512)"/>
+        </g>
+        <circle cx="512" cy="512" r="30" fill="#fff3ee"/>
+      </g>
+    </g>
+  </g>
+</svg>

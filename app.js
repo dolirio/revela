@@ -972,7 +972,7 @@ $('btnExport').addEventListener('click', async () => {
   try {
     await new Promise((r) => setTimeout(r, 30));
     const { blob, w, h } = await renderToBlob(photo.bitmap, photo.w, photo.h, state, photo.name);
-    await deliver([new File([blob], `${photo.name}_revela.jpg`, { type: 'image/jpeg' })]);
+    await deliver([new File([blob], `${photo.name}_pellicula.jpg`, { type: 'image/jpeg' })]);
     toast(`Foto exportada (${w}×${h})`);
   } catch (e) {
     console.error(e); toast('Falha ao exportar: ' + e.message);
@@ -996,7 +996,7 @@ $('fileBatch').addEventListener('change', async (e) => {
       const nm = files[i].name.replace(/\.[^.]+$/, '');
       const { blob } = await renderToBlob(bitmap, Math.round(bitmap.width * s), Math.round(bitmap.height * s), s0, nm);
       bitmap.close?.();
-      out.push(new File([blob], nm + '_revela.jpg', { type: 'image/jpeg' }));
+      out.push(new File([blob], nm + '_pellicula.jpg', { type: 'image/jpeg' }));
     } catch (err) { console.error(err); toast(`${files[i].name}: ${err.message}`); await new Promise((r) => setTimeout(r, 1500)); }
   }
   if (out.length) { await deliver(out); toast(`${out.length} foto(s) exportada(s)`); }
