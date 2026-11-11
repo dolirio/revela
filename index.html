@@ -146,7 +146,7 @@
   a { color: var(--accent); }
 
   /* barra inferior */
-  nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--line); }
+  nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); }
   nav button { display: grid; justify-items: center; gap: 3px; padding: 9px 0 8px; font-size: 10.5px; color: var(--muted); letter-spacing: .03em; }
   nav button.on { color: var(--text); }
   nav button.on svg { color: var(--accent); }
@@ -181,6 +181,8 @@
   /* receitas */
   .cats .sp { flex: 1; } .cats .act { color: var(--accent); }
   @media (max-width: 420px) { .cats { gap: 14px; } }
+  .finfo { margin: 6px 16px 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 15px; }
+  .finfo b { color: var(--text); font-weight: 600; margin-right: 4px; }
   .film .sub { display: block; font-size: 10px; color: #6f685e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
   .note { margin: 0; text-align: center; color: var(--muted); font-size: 13px; }
   .rowb.center { justify-content: center; align-items: center; }
@@ -240,25 +242,9 @@
   <div class="ctx">
     <!-- modos -->
     <div class="mode on" id="m-films">
-      <div class="cats" id="cats">
-        <button data-f="all" class="on">Todos</button>
-        <button data-f="fav">Favoritos</button>
-        <button data-f="Cor">Cor</button>
-        <button data-f="P&amp;B">P&amp;B</button>
-        <button data-f="mine">Minhas</button>
-      </div>
+      <div class="cats" id="cats"></div>
       <div class="scrollx" id="strip"></div>
-    </div>
-    <div class="mode" id="m-recipes">
-      <div class="cats" id="rcats">
-        <button data-f="classic" class="on">Clássicas</button>
-        <button data-f="fav">Favoritas</button>
-        <button data-f="mine">Minhas</button>
-        <span class="sp"></span>
-        <button class="act" id="recNew">+ Nova</button>
-        <button class="act" id="recSaveCur" title="Salvar a edição atual como receita">Salvar</button>
-      </div>
-      <div class="scrollx" id="rstrip"></div>
+      <p class="finfo" id="filmInfo"></p>
     </div>
     <div class="mode" id="m-adjust"><div class="scrollx tools" id="t-adjust"></div></div>
     <div class="mode" id="m-tex"><div class="scrollx tools" id="t-tex"></div></div>
@@ -277,7 +263,7 @@
       <div class="foot"><button class="ib" id="sCancel" aria-label="Cancelar"></button><div class="t" id="sTitle"></div><button class="ib" id="sOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="filmSheet">
-      <div class="head"><span class="val" id="fVal">100</span><button class="reset" id="fFav">☆ favoritar</button></div>
+      <div class="head"><span class="val" id="fVal">100</span><button class="reset" id="fSave">+ salvar como meu</button></div>
       <input type="range" id="fRange" min="0" max="100">
       <div class="foot"><button class="ib" id="fCancel" aria-label="Cancelar"></button><div class="t" id="fTitle"></div><button class="ib" id="fOk" aria-label="Confirmar"></button></div>
     </div>
@@ -314,13 +300,8 @@
     </div>
     <div class="sheet" id="recSheet">
       <p class="note" id="rNote"></p>
-      <div class="rowb center"><button id="rFav">☆ Favoritar</button><button id="rEdit">Editar</button><button id="rDup">Duplicar</button><button id="rDel">Excluir</button></div>
+      <div class="rowb center"><button id="rRen">Renomear</button><button id="rUpd">Atualizar com a edição atual</button><button id="rDel">Excluir</button></div>
       <div class="foot"><span></span><div class="t" id="rTitle"></div><button class="ib" id="rOk" aria-label="Fechar"></button></div>
-    </div>
-    <div class="sheet" id="recEditor">
-      <div class="top"><input type="text" id="eName" placeholder="Nome da receita" maxlength="40"></div>
-      <div class="list" id="eList"></div>
-      <div class="foot"><button class="ib" id="eCancel" aria-label="Cancelar"></button><div class="t">Receita</div><button class="ib" id="eOk" aria-label="Salvar receita"></button></div>
     </div>
     <div class="sheet" id="dateSheet">
       <div class="rowb center"><button id="dOn">Ligar data</button><input type="text" id="dText" maxlength="14" style="max-width:150px;flex:0 1 150px"><button id="dToday">Hoje</button></div>
@@ -330,7 +311,6 @@
   </div>
   <nav id="nav">
     <button data-m="films" class="on"></button>
-    <button data-m="recipes"></button>
     <button data-m="adjust"></button>
     <button data-m="tex"></button>
     <button data-m="fx"></button>

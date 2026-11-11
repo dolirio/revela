@@ -5,9 +5,11 @@ import {
   defaults, withDefaults, GEO_KEYS, KEEP_KEYS, computeView, curveData, curveFn, renderParams, decodeFile, isImageFile,
   HSL_NAMES, HSL_COLORS, ASPECTS, FRAMES, LEAKS, makeOverlay, autoDate,
 } from './core.js';
-import { RECIPE_FIELDS, CLASSICS, blankSpec, specToState, fmtField } from './recipes.js';
+import { specToState } from './recipes.js';
+import { FILMS, FILM_CATS } from './films.js';
 
-const LOOKS = getLooks();
+// looks antigos continuam disponíveis para os filmes salvos em Minhas; os filmes novos entram junto
+const LOOKS = [...getLooks(), ...FILMS.map((f) => ({ id: f.id, name: f.code, ...f.look }))];
 const $ = (id) => document.getElementById(id);
 const view = $('view');
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -16,9 +18,9 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'eCancel', 'dCancel', 'uCancel', 'pCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'eOk', 'dOk', 'rOk', 'uOk', 'pOk']) setIcon(id, 'ok');
-const NAV = { films: 'Filmes', recipes: 'Receitas', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk']) setIcon(id, 'ok');
+const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
 let preview, aux;
@@ -379,98 +381,26 @@ function markTools() {
   document.querySelector('.tool[data-k="act_zoom"]')?.classList.toggle('on', !!zoom);
 }
 
-// ------------------------------------------------------------ filmes
-let favs = new Set(store.get('revela.fav', []));
-let filter = 'all';
+// ------------------------------------------------------------ Pellicula: filmes e "Minhas"
+let cat = store.get('revela.cat', 'neg');
 let thumbSrc = null;
-
-function lookItems() {
-  return [
-    { id: 'none', name: 'Original', group: 'all' },
-    ...LOOKS.map((l) => ({ id: l.id, name: l.name, group: l.group || 'Cor' })),
-    ...userLuts.map((u) => ({ id: u.id, name: u.name, group: 'mine' })),
-  ];
-}
-function buildStrip() {
-  const strip = $('strip');
-  strip.innerHTML = '';
-  for (const it of lookItems()) {
-    const b = document.createElement('button');
-    b.className = 'film'; b.dataset.id = it.id; b.dataset.group = it.group; b.title = it.name;
-    b.innerHTML = `<canvas width="152" height="152"></canvas><div class="knob">${icon('dial')}</div><span class="star">★</span><span class="nm"></span>`;
-    b.querySelector('.nm').textContent = it.name;
-    b.addEventListener('click', () => {
-      if (state.look === it.id && it.id !== 'none') return openFilmSheet(it.name);
-      state.look = it.id; state.mix = 1; state.recipe = null; syncFilms(); syncRecipes(); draw(); commit();
-    });
-    strip.append(b);
-  }
-  const plus = document.createElement('button');
-  plus.className = 'film add'; plus.dataset.group = 'mine'; plus.title = 'Importar LUT .cube';
-  plus.innerHTML = `<div class="ph">${icon('lut')}</div><span class="nm">Importar</span>`;
-  plus.onclick = () => $('fileLut').click();
-  strip.append(plus);
-  syncFilms(); paintThumbs();
-}
-function syncFilms() {
-  document.querySelectorAll('#strip .film').forEach((b) => {
-    const id = b.dataset.id, g = b.dataset.group;
-    if (id) { b.setAttribute('aria-pressed', String(id === state.look)); b.classList.toggle('fav', favs.has(id)); }
-    const show = filter === 'all' ? true : filter === 'fav' ? favs.has(id) : filter === 'mine' ? g === 'mine' : g === filter;
-    b.style.display = show || id === 'none' ? '' : 'none';
-  });
-  document.querySelectorAll('#cats button').forEach((b) => b.classList.toggle('on', b.dataset.f === filter));
-}
-document.querySelectorAll('#cats button').forEach((b) => b.addEventListener('click', () => { filter = b.dataset.f; syncFilms(); }));
-
-function openFilmSheet(name) {
-  $('fTitle').textContent = name;
-  $('fRange').value = Math.round(state.mix * 100); $('fVal').textContent = $('fRange').value;
-  syncFav();
-  openSheet('filmSheet');
-}
-function syncFav() { $('fFav').textContent = favs.has(state.look) ? '★ favorito' : '☆ favoritar'; }
-$('fRange').addEventListener('input', () => { state.mix = +$('fRange').value / 100; $('fVal').textContent = $('fRange').value; draw(); flashVal('Filme', $('fRange').value); });
-$('fFav').onclick = () => {
-  favs.has(state.look) ? favs.delete(state.look) : favs.add(state.look);
-  store.set('revela.fav', [...favs]); syncFav(); syncFilms();
-};
-$('fOk').onclick = () => closeSheet(true);
-$('fCancel').onclick = () => closeSheet(false);
-
-let paintGen = 0;
-async function paintThumbs() {
-  const gen = ++paintGen;
-  const cs = [...document.querySelectorAll('#strip .film[data-id] canvas')];
-  if (!thumbSrc) {
-    for (const c of cs) { const x = c.getContext('2d'); x.fillStyle = '#26221e'; x.fillRect(0, 0, c.width, c.height); }
-    paintRecipeThumbs();
-    return;
-  }
-  aux.setCurve(null);
-  for (const c of cs) {
-    if (gen !== paintGen) return;
-    if (aux.imgKey !== 'thumb') aux.setImage(thumbSrc, 'thumb');
-    aux.setCurve(null);
-    const l = lutFor(c.parentElement.dataset.id); aux.setLut(l.data, l.n);
-    aux.render(thumbSrc.width, thumbSrc.height, {}, { w: thumbSrc.width, h: thumbSrc.height });
-    blitThumb(c);
-    await new Promise((r) => setTimeout(r));
-  }
-  paintRecipeThumbs();
-}
-function blitThumb(c) {
-  const s = Math.min(thumbSrc.width, thumbSrc.height);
-  c.getContext('2d').drawImage(aux.canvas, (thumbSrc.width - s) / 2, (thumbSrc.height - s) / 2, s, s, 0, 0, c.width, c.height);
-}
-
-// ------------------------------------------------------------ receitas
 let userRecipes = store.get('revela.recipes', []).map((r, i) => (r.id ? r : { id: `u_old${i}_${Date.now().toString(36)}`, ...r }));
-let recFavs = new Set(store.get('revela.recfav', []));
-let rfilter = 'classic';
 const saveUserRecipes = () => { if (!store.set('revela.recipes', userRecipes)) toast('Não foi possível salvar neste navegador'); };
-const allRecipes = () => [...CLASSICS.map((r) => ({ ...r, classic: true })), ...userRecipes];
-const findRecipe = (id) => allRecipes().find((r) => r.id === id);
+const findRecipe = (id) => userRecipes.find((r) => r.id === id);
+const filmById = (id) => FILMS.find((f) => f.id === id);
+
+// troca de filme: muda só a cor e o caráter do filme; luz, ajustes, corte e moldura ficam
+function applyFilm(id) {
+  const d = defaults(), prev = state.filmCh || {};
+  for (const [k, v] of Object.entries(prev)) if (near(state[k], v, 1e-6)) state[k] = d[k];
+  const f = filmById(id), ch = f ? { ...f.ch } : {};
+  // um filme sempre define o grão (mesmo que seja "sem grão")
+  if (f) for (const k of ['grain', 'gsize', 'grough', 'gcolor']) if (!(k in ch)) ch[k] = d[k];
+  Object.assign(state, ch);
+  state.filmCh = Object.keys(ch).length ? ch : null;
+  state.look = id; state.mix = 1; state.recipe = null;
+  syncUI(); draw(); commit();
+}
 function recipeParams(r) {
   if (r.spec) return specToState(r.spec);
   const o = JSON.parse(JSON.stringify(r.s || {}));
@@ -478,157 +408,161 @@ function recipeParams(r) {
   return o;
 }
 function applyRecipe(r) {
-  state = withDefaults({ ...recipeParams(r), ...keepNow(), recipe: r.id, seed: state.seed, leakSeed: state.leakSeed });
+  state = withDefaults({ ...recipeParams(r), ...keepNow(), recipe: r.id, filmCh: null, seed: state.seed, leakSeed: state.leakSeed });
   syncUI(); draw(); commit();
-  toast(`Receita “${r.name}”`);
 }
-function buildRecipeStrip() {
-  const strip = $('rstrip'); strip.innerHTML = '';
-  const list = allRecipes().filter((r) => (rfilter === 'classic' ? r.classic : rfilter === 'fav' ? recFavs.has(r.id) : !r.classic));
-  for (const r of list) {
-    const b = document.createElement('button');
-    b.className = 'film rec'; b.dataset.rid = r.id; b.title = r.note || r.name;
-    b.innerHTML = `<canvas width="152" height="152"></canvas><div class="knob">${icon('dial')}</div><span class="star">★</span><span class="nm"></span><span class="sub"></span>`;
-    b.querySelector('.nm').textContent = r.name;
-    b.querySelector('.sub').textContent = lookName(r.spec ? r.spec.film : r.s?.look || 'none');
-    b.addEventListener('click', () => (state.recipe === r.id ? openRecSheet(r) : applyRecipe(r)));
-    strip.append(b);
-  }
-  if (!list.length) {
-    const p = document.createElement('p'); p.className = 'hint'; p.style.padding = '0 4px';
-    p.textContent = rfilter === 'fav' ? 'Toque duas vezes numa receita e marque como favorita.' : 'Crie com “+ Nova”, ou ajuste a foto e use “Salvar edição”.';
-    strip.append(p);
-  }
-  syncRecipes(); paintRecipeThumbs();
+function editSnapshot() {
+  const s = JSON.parse(JSON.stringify(state));
+  for (const k of [...KEEP_KEYS, 'recipe', 'filmCh']) delete s[k];
+  return s;
 }
-function syncRecipes() {
-  document.querySelectorAll('#rstrip .film').forEach((b) => {
-    b.setAttribute('aria-pressed', String(b.dataset.rid === state.recipe));
-    b.classList.toggle('fav', recFavs.has(b.dataset.rid));
-  });
-  document.querySelectorAll('#rcats button[data-f]').forEach((b) => b.classList.toggle('on', b.dataset.f === rfilter));
+function saveAsMine() {
+  const base = filmById(state.look)?.code;
+  const name = (prompt('Nome do seu filme', base ? `${base} meu` : `Meu ${userRecipes.length + 1}`) || '').trim();
+  if (!name) return false;
+  const rec = { id: 'u' + Date.now().toString(36), name, s: editSnapshot() };
+  userRecipes.push(rec); saveUserRecipes();
+  state.recipe = rec.id; commit();
+  cat = 'mine'; store.set('revela.cat', cat); buildStrip();
+  toast(`“${name}” salvo em Minhas`);
+  return true;
 }
-document.querySelectorAll('#rcats button[data-f]').forEach((b) => b.addEventListener('click', () => { rfilter = b.dataset.f; buildRecipeStrip(); }));
 
-let rpaintGen = 0;
-async function paintRecipeThumbs() {
-  const gen = ++rpaintGen;
-  const cs = [...document.querySelectorAll('#rstrip .film canvas')];
+function buildCats() {
+  const box = $('cats'); box.innerHTML = '';
+  for (const c of FILM_CATS) {
+    const b = document.createElement('button'); b.dataset.f = c.id; b.textContent = c.n;
+    b.onclick = () => { cat = c.id; store.set('revela.cat', cat); buildStrip(); };
+    box.append(b);
+  }
+}
+function tile(cls, name) {
+  const b = document.createElement('button');
+  b.className = ('film ' + cls).trim();
+  b.innerHTML = `<canvas width="152" height="152"></canvas><div class="knob">${icon('dial')}</div><span class="nm"></span>`;
+  b.querySelector('.nm').textContent = name;
+  return b;
+}
+function buildStrip() {
+  const strip = $('strip'); strip.innerHTML = '';
+  const orig = tile('', 'Original'); orig.dataset.id = 'none'; orig.title = 'Sem filme';
+  orig.onclick = () => applyFilm('none');
+  strip.append(orig);
+  if (cat === 'mine') {
+    for (const r of userRecipes) {
+      const b = tile('rec', r.name); b.dataset.rid = r.id; b.title = r.name;
+      b.onclick = () => (state.recipe === r.id ? openRecSheet(r) : applyRecipe(r));
+      strip.append(b);
+    }
+    for (const u of userLuts) {
+      const b = tile('', u.name); b.dataset.id = u.id; b.title = u.name;
+      b.onclick = () => (state.look === u.id && !state.recipe ? openFilmSheet(u.name) : applyFilm(u.id));
+      strip.append(b);
+    }
+    const add = document.createElement('button');
+    add.className = 'film add'; add.title = 'Salvar a edição atual como um filme seu';
+    add.innerHTML = '<div class="ph">+</div><span class="nm">Salvar atual</span>';
+    add.onclick = () => { if (photo) saveAsMine(); else toast('Abra uma foto primeiro'); };
+    const imp = document.createElement('button');
+    imp.className = 'film add'; imp.title = 'Importar LUT .cube';
+    imp.innerHTML = `<div class="ph">${icon('lut')}</div><span class="nm">Importar LUT</span>`;
+    imp.onclick = () => $('fileLut').click();
+    strip.append(add, imp);
+  } else {
+    for (const f of FILMS.filter((x) => x.cat === cat)) {
+      const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · inspirado no ${f.ref}`;
+      b.onclick = () => (state.look === f.id && !state.recipe ? openFilmSheet(f.code) : applyFilm(f.id));
+      strip.append(b);
+    }
+  }
+  syncFilms(); paintThumbs();
+}
+function syncFilms() {
+  document.querySelectorAll('#strip .film').forEach((b) => {
+    const on = b.dataset.rid ? b.dataset.rid === state.recipe : b.dataset.id != null && b.dataset.id === state.look && !state.recipe;
+    b.setAttribute('aria-pressed', String(on));
+  });
+  document.querySelectorAll('#cats button').forEach((b) => b.classList.toggle('on', b.dataset.f === cat));
+  const r = state.recipe && findRecipe(state.recipe), f = filmById(state.look);
+  let title, text;
+  if (r) { title = r.name; text = f ? `seu filme · feito a partir do ${f.code}` : 'seu filme'; }
+  else if (f) { title = f.code; text = `inspirado no ${f.ref} · ${f.kind}`; }
+  else if (state.look !== 'none') { title = lookName(state.look); text = 'LUT importada'; }
+  else { title = 'Original'; text = 'toque num filme para aplicar; toque de novo para a intensidade'; }
+  const info = $('filmInfo'); info.innerHTML = '<b></b><span></span>';
+  info.querySelector('b').textContent = title; info.querySelector('span').textContent = text;
+}
+
+function openFilmSheet(name) {
+  $('fTitle').textContent = name;
+  $('fRange').value = Math.round(state.mix * 100); $('fVal').textContent = $('fRange').value;
+  openSheet('filmSheet');
+}
+$('fRange').addEventListener('input', () => { state.mix = +$('fRange').value / 100; $('fVal').textContent = $('fRange').value; draw(); flashVal('Filme', $('fRange').value); });
+$('fSave').onclick = () => { closeSheet(true); saveAsMine(); };
+$('fOk').onclick = () => closeSheet(true);
+$('fCancel').onclick = () => closeSheet(false);
+
+let paintGen = 0;
+async function paintThumbs() {
+  const gen = ++paintGen;
+  const cs = [...document.querySelectorAll('#strip .film canvas')];
   if (!thumbSrc || !photo) {
     for (const c of cs) { const x = c.getContext('2d'); x.fillStyle = '#26221e'; x.fillRect(0, 0, c.width, c.height); }
     return;
   }
   for (const c of cs) {
-    if (gen !== rpaintGen) return;
-    const r = findRecipe(c.parentElement.dataset.rid); if (!r) continue;
+    if (gen !== paintGen) return;
+    const el = c.parentElement;
     if (aux.imgKey !== 'thumb') aux.setImage(thumbSrc, 'thumb');
-    const p = withDefaults(recipeParams(r));
-    const l = lutFor(p.look); aux.setLut(l.data, l.n); aux.setCurve(curveData(p.curve));
-    aux.render(thumbSrc.width, thumbSrc.height, renderParams(p), { w: photo.w, h: photo.h, src: Math.max(photo.w, photo.h) });
+    if (el.dataset.rid) {
+      const r = findRecipe(el.dataset.rid); if (!r) continue;
+      const p = withDefaults(recipeParams(r));
+      const l = lutFor(p.look); aux.setLut(l.data, l.n); aux.setCurve(curveData(p.curve));
+      aux.render(thumbSrc.width, thumbSrc.height, renderParams(p), { w: photo.w, h: photo.h, src: Math.max(photo.w, photo.h) });
+    } else {
+      aux.setCurve(null);
+      const l = lutFor(el.dataset.id); aux.setLut(l.data, l.n);
+      aux.render(thumbSrc.width, thumbSrc.height, {}, { w: thumbSrc.width, h: thumbSrc.height });
+    }
     blitThumb(c);
     await new Promise((res) => setTimeout(res));
   }
 }
+function blitThumb(c) {
+  const s = Math.min(thumbSrc.width, thumbSrc.height);
+  c.getContext('2d').drawImage(aux.canvas, (thumbSrc.width - s) / 2, (thumbSrc.height - s) / 2, s, s, 0, 0, c.width, c.height);
+}
 
-// folha da receita escolhida
+// folha de um filme seu
 let sheetRecipe = null;
 function openRecSheet(r) {
   sheetRecipe = r;
   $('rTitle').textContent = r.name;
-  $('rNote').textContent = r.note || `${lookName(r.spec ? r.spec.film : r.s?.look || 'none')} · ${r.spec ? 'receita de câmera' : 'edição salva'}`;
-  $('rFav').textContent = recFavs.has(r.id) ? '★ Favorita' : '☆ Favoritar';
-  $('rEdit').textContent = r.classic ? 'Editar cópia' : 'Editar';
-  $('rEdit').style.display = r.spec ? '' : 'none';
-  $('rDel').style.display = r.classic ? 'none' : '';
+  const f = filmById(r.spec ? r.spec.film : r.s?.look);
+  $('rNote').textContent = f ? `Feito a partir do ${f.code} (inspirado no ${f.ref}).` : 'Seu filme, com todos os ajustes salvos.';
   openSheet('recSheet');
 }
-$('rFav').onclick = () => {
-  const id = sheetRecipe.id;
-  recFavs.has(id) ? recFavs.delete(id) : recFavs.add(id);
-  store.set('revela.recfav', [...recFavs]);
-  $('rFav').textContent = recFavs.has(id) ? '★ Favorita' : '☆ Favoritar';
-  syncRecipes();
+$('rRen').onclick = () => {
+  const r = sheetRecipe, name = (prompt('Novo nome', r.name) || '').trim();
+  if (!name) return;
+  r.name = name; saveUserRecipes(); $('rTitle').textContent = name; buildStrip();
 };
-$('rEdit').onclick = () => openEditor(sheetRecipe, sheetRecipe.classic);
-$('rDup').onclick = () => {
-  const r = sheetRecipe, copy = { id: 'u' + Date.now().toString(36), name: `${r.name} (cópia)`, ...(r.spec ? { spec: { ...r.spec } } : { s: JSON.parse(JSON.stringify(r.s)) }) };
-  userRecipes.push(copy); saveUserRecipes();
-  state.recipe = copy.id; closeSheet(true); rfilter = 'mine'; buildRecipeStrip(); toast('Cópia criada em “Minhas”');
+$('rUpd').onclick = () => {
+  const r = sheetRecipe;
+  if (!confirm(`Substituir “${r.name}” pela edição atual?`)) return;
+  const snap = sheetSnap ? JSON.parse(sheetSnap) : state;
+  const s = JSON.parse(JSON.stringify(snap)); for (const k of [...KEEP_KEYS, 'recipe', 'filmCh']) delete s[k];
+  delete r.spec; r.s = s; saveUserRecipes(); closeSheet(true); buildStrip(); toast(`“${r.name}” atualizado`);
 };
 $('rDel').onclick = () => {
   const r = sheetRecipe;
-  if (!confirm(`Excluir a receita “${r.name}”?`)) return;
+  if (!confirm(`Excluir “${r.name}”?`)) return;
   userRecipes = userRecipes.filter((x) => x.id !== r.id); saveUserRecipes();
-  recFavs.delete(r.id); store.set('revela.recfav', [...recFavs]);
   if (state.recipe === r.id) state.recipe = null;
-  closeSheet(true); buildRecipeStrip(); toast('Receita excluída');
+  closeSheet(true); buildStrip(); toast('Excluído');
 };
 $('rOk').onclick = () => closeSheet(true);
-
-// editor de receita (estilo menu de câmera)
-let edit = null;
-function openEditor(r, asCopy) {
-  const film = r?.spec?.film ?? (state.look || 'none');
-  edit = { spec: { ...blankSpec(film), ...(r?.spec || {}) }, id: r && !r.classic && !asCopy ? r.id : null };
-  $('eName').value = r ? (asCopy ? `${r.name} (minha)` : r.name) : '';
-  $('eName').placeholder = `Receita ${userRecipes.length + 1}`;
-  openSheet('recEditor');
-  $('dock').classList.add('tall');
-  buildEditor(); applyEdit();
-}
-function applyEdit() {
-  state = withDefaults({ ...specToState(edit.spec), ...keepNow(), recipe: edit.id, seed: state.seed, leakSeed: state.leakSeed });
-  draw();
-}
-function buildEditor() {
-  const box = $('eList'); box.innerHTML = '';
-  const base = blankSpec(edit.spec.film);
-  for (const f of RECIPE_FIELDS) {
-    if (f.group) { const g = document.createElement('div'); g.className = 'grp'; g.textContent = f.group; box.append(g); }
-    const row = document.createElement('div'); row.className = 'frow';
-    const lab = document.createElement('span'); lab.textContent = f.n; row.append(lab);
-    if (f.type === 'film') {
-      const sel = document.createElement('select');
-      for (const it of lookItems()) { const o = document.createElement('option'); o.value = it.id; o.textContent = it.name; sel.append(o); }
-      sel.value = edit.spec.film;
-      sel.onchange = () => { edit.spec.film = sel.value; applyEdit(); };
-      row.append(sel);
-    } else {
-      const minus = document.createElement('button'), out = document.createElement('output'), plus = document.createElement('button');
-      minus.className = plus.className = 'st'; minus.textContent = '−'; plus.textContent = '+';
-      minus.setAttribute('aria-label', `${f.n}: menos`); plus.setAttribute('aria-label', `${f.n}: mais`);
-      const lo = f.opts ? 0 : f.min, hiV = f.opts ? f.opts.length - 1 : f.max, st = f.opts ? 1 : f.step;
-      const show = () => { out.textContent = fmtField(f, edit.spec[f.k]); out.classList.toggle('chg', edit.spec[f.k] !== base[f.k]); };
-      const step = (d) => {
-        const v = clamp(Math.round((edit.spec[f.k] + d * st) / st) * st, lo, hiV);
-        edit.spec[f.k] = Math.round(v * 1000) / 1000; show(); applyEdit();
-      };
-      minus.onclick = () => step(-1); plus.onclick = () => step(1);
-      out.ondblclick = () => { edit.spec[f.k] = base[f.k]; show(); applyEdit(); };
-      show(); row.append(minus, out, plus);
-    }
-    box.append(row);
-  }
-}
-$('eOk').onclick = () => {
-  const name = $('eName').value.trim() || $('eName').placeholder;
-  const rec = { id: edit.id || 'u' + Date.now().toString(36), name, spec: { ...edit.spec } };
-  const i = userRecipes.findIndex((x) => x.id === rec.id);
-  if (i >= 0) userRecipes[i] = { ...userRecipes[i], ...rec }; else userRecipes.push(rec);
-  saveUserRecipes();
-  state.recipe = rec.id;
-  closeSheet(true); rfilter = 'mine'; buildRecipeStrip(); toast(`Receita “${name}” salva`);
-};
-$('eCancel').onclick = () => closeSheet(false);
-$('recNew').onclick = () => openEditor(null, false);
-$('recSaveCur').onclick = () => {
-  const name = (prompt('Nome da receita', `Receita ${userRecipes.length + 1}`) || '').trim();
-  if (!name) return;
-  const s = JSON.parse(JSON.stringify(state)); for (const k of [...KEEP_KEYS, 'recipe']) delete s[k];
-  const rec = { id: 'u' + Date.now().toString(36), name, s };
-  userRecipes.push(rec); saveUserRecipes();
-  state.recipe = rec.id; commit(); rfilter = 'mine'; buildRecipeStrip(); toast(`Receita “${name}” salva com todos os ajustes`);
-};
 
 // ------------------------------------------------------------ folhas especiais: cor (HSL), curvas, luz, data
 function openSpecial(s) {
@@ -859,7 +793,7 @@ function setZoom(on, cx = 0.5, cy = 0.5) {
 
 // ------------------------------------------------------------ sincronizar interface
 function syncUI() {
-  syncFilms(); syncRecipes(); markTools();
+  syncFilms(); markTools();
   document.querySelectorAll('#aspects button').forEach((b) => b.classList.toggle('on', b.dataset.a === state.aspect));
   document.querySelectorAll('#frames button').forEach((b) => b.classList.toggle('on', b.dataset.fr === state.frame));
   positionOverlays();
@@ -1043,7 +977,7 @@ async function importLut(file) {
     if (i >= 0) userLuts[i] = rec; else userLuts.push(rec);
     lutOnPreview = null;
     await saveLut({ id, name, text });
-    state.look = id; state.mix = 1; state.recipe = null; setMode('films'); buildStrip(); draw(); commit();
+    cat = 'mine'; store.set('revela.cat', cat); setMode('films'); buildStrip(); applyFilm(id);
     toast(`LUT "${name}" importada`);
   } catch (e) { toast(`${file.name}: ${e.message}`); }
 }
@@ -1059,4 +993,4 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-if (preview) { await loadLuts(); buildStrip(); buildRecipeStrip(); syncUI(); updUndo(); }
+if (preview) { await loadLuts(); buildCats(); buildStrip(); syncUI(); updUndo(); }
