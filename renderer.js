@@ -19,7 +19,7 @@ precision highp float;
 precision highp sampler3D;
 in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler2D uCurve; uniform sampler3D uLut; uniform sampler2D uOver;
-uniform float uLutN, uMix, uExp, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
+uniform float uLutN, uMix, uExp, uBright, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
 uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uBloomR, uChroma, uSrcScale, uTexLong, uVLens, uHaloR, uHaloT, uClarR;
 uniform float uFade, uGrain, uGrainSize, uGRough, uGColor, uPaper, uPaperType, uPaperSeed, uPxScale;
 uniform float uGfx, uGfxAmt, uGfxSize, uGfxCon; uniform vec3 uGfxA, uGfxB, uGfxC;
@@ -213,7 +213,7 @@ void main(){
   // "Nitidez" à esquerda do zero amacia só os detalhes finos (raio pequeno); "suavidade" das receitas é mais forte
   float sn = max(-uSharp, 0.0);
   float edge2 = smoothstep(0.25, 1.0, rr0); edge2 *= edge2;
-  float br = (uSoft * 0.0012 + uSoft * uSoft * 0.004 + sn * 0.0004 + sn * sn * 0.0011
+  float br = (uSoft * 0.0012 + uSoft * uSoft * 0.004 + sn * 0.003 + sn * sn * 0.003
             + (uEBlur * 0.007 + uVLens * 0.0065) * edge2) * uTexLong;
   if (br > 0.35) c = blurAt(su, br);
   float chr = uChroma + uVLens * 1.1;   // lente antiga: franjas coloridas que crescem para as bordas
@@ -233,8 +233,8 @@ void main(){
     b /= 8.0;
     float d = luma(texture(uImg, su).rgb) - luma(b);
     d = sign(d) * max(abs(d) - 0.004, 0.0);         // ignora ruído muito fino
-    d = d / (1.0 + abs(d) * 6.0);                    // contornos fortes não ganham halo
-    c = clamp(c + d * uSharp * 1.6, 0.0, 1.0);       // só luminância: sem franjas coloridas
+    d = d / (1.0 + abs(d) * 4.0);                    // contornos fortes não ganham halo
+    c = clamp(c + d * uSharp * 2.6, 0.0, 1.0);       // só luminância: sem franjas coloridas
   }
   if (uClar != 0.0) {
     // claridade = contraste local em escala média (volume), sem mexer no brilho geral nem nos contornos fortes
@@ -250,9 +250,17 @@ void main(){
     c = clamp(c + d * uClar * (uClar > 0.0 ? 0.85 : 1.0) * m, 0.0, 1.0);
   }
   // ---------- tom e cor
+  // Exposição: luz da cena inteira, em f-stops (como abrir o diafragma). Clareando, as luzes entram num
+  // "ombro" suave, como filme, em vez de cortar seco no branco.
   vec3 lin = pow(max(c, 0.0), vec3(2.2)) * exp2(uExp);
   lin *= vec3(1.0 + 0.18*uTemp + 0.06*uTint, 1.0 - 0.12*uTint, 1.0 - 0.18*uTemp + 0.06*uTint);
+  if (uExp > 0.0) {
+    vec3 hi = 0.7 + 0.3 * (1.0 - exp(-(lin - 0.7) / 0.3));
+    lin = mix(lin, hi, step(0.7, lin));
+  }
   c = pow(clamp(lin, 0.0, 1.0), vec3(1.0/2.2));
+  // Brilho: só os meios-tons (curva gama). O preto e o branco ficam no lugar, nada estoura.
+  if (uBright != 0.0) c = pow(c, vec3(exp2(-uBright * 0.8)));
   // brancos e pretos: mexem só nas pontas (o meio-tom quase não muda)
   c = clamp(c + uWhite * 0.12 * smoothstep(0.4, 1.0, c) + uBlack * 0.1 * (1.0 - smoothstep(0.0, 0.6, c)), 0.0, 1.0);
   {
@@ -265,16 +273,30 @@ void main(){
     float nl = clamp(l + dh + ds, 0.0, 1.0);
     c = clamp(c * (nl / max(l, 1e-4)), 0.0, 1.0);
   }
+  // Contraste: afasta claros e escuros a partir do cinza médio (que fica parado).
+  // Positivo = curva em S (pontas suaves, sem cortar); negativo = aproxima tudo do cinza, como cópia lavada.
   float k = uCon;
-  c = clamp(mix(c, c*c*(3.0-2.0*c), max(k,0.0)) + min(k,0.0)*(c-0.5)*0.6, 0.0, 1.0);
+  if (k > 0.0) {
+    vec3 sc = c*c*(3.0-2.0*c);
+    vec3 s2 = sc*sc*(3.0-2.0*sc);
+    c = mix(c, k > 0.6 ? mix(sc, s2, (k - 0.6) / 0.4 * 0.5) : sc, min(k / 0.6, 1.0));
+  } else c = 0.5 + (c - 0.5) * (1.0 + k * 0.6);
+  c = clamp(c, 0.0, 1.0);
   {
     float l = luma(c);
     float s = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
     c = clamp(mix(vec3(l), c, 1.0 + uSat + uVib * (1.0 - s) * 1.2), 0.0, 1.0);
   }
-  if (uDepth > 0.0) {   // cor profunda: cores saturadas ficam mais densas
-    float s = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
-    c *= 1.0 - uDepth * 0.3 * pow(s, 1.4);
+  c = vec3(texture(uCurve, vec2(c.r * 255.0/256.0 + 0.5/256.0, 0.5)).r,
+           texture(uCurve, vec2(c.g * 255.0/256.0 + 0.5/256.0, 0.5)).g,
+           texture(uCurve, vec2(c.b * 255.0/256.0 + 0.5/256.0, 0.5)).b);
+  vec3 g = texture(uLut, c * ((uLutN-1.0)/uLutN) + 0.5/uLutN).rgb;
+  c = mix(c, g, uMix);
+  // cor profunda e Cor (matiz/saturação/luminância por cor) depois do filme: o ajuste aparece mesmo com filme forte
+  if (uDepth > 0.0) {   // cor profunda: cores saturadas ficam mais densas (mais escuras e um pouco mais cheias), neutros quase não mudam
+    float l = luma(c), s = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+    c = clamp(mix(vec3(l), c, 1.0 + uDepth * 0.2 * s), 0.0, 1.0);
+    c *= 1.0 - uDepth * 0.45 * pow(s, 1.1);
   }
   {
     vec3 h = rgb2hsv(c);
@@ -286,17 +308,12 @@ void main(){
     }
     if (wsum > 0.0) { dh /= wsum; ds /= wsum; dl /= wsum; }
     if (dh != 0.0 || ds != 0.0 || dl != 0.0) {
-      h.x = fract(h.x + dh * 30.0 / 360.0);
+      h.x = fract(h.x + dh * 60.0 / 360.0);          // matiz: até 60° para cada lado
       h.y = clamp(h.y * (1.0 + ds), 0.0, 1.0);
-      h.z = clamp(h.z * (1.0 + dl * 0.5 * h.y), 0.0, 1.0);
+      h.z = clamp(h.z * (1.0 + dl * 0.65 * smoothstep(0.03, 0.3, h.y)), 0.0, 1.0);   // luminância: vale também em cores pouco saturadas
       c = hsv2rgb(h);
     }
   }
-  c = vec3(texture(uCurve, vec2(c.r * 255.0/256.0 + 0.5/256.0, 0.5)).r,
-           texture(uCurve, vec2(c.g * 255.0/256.0 + 0.5/256.0, 0.5)).g,
-           texture(uCurve, vec2(c.b * 255.0/256.0 + 0.5/256.0, 0.5)).b);
-  vec3 g = texture(uLut, c * ((uLutN-1.0)/uLutN) + 0.5/uLutN).rgb;
-  c = mix(c, g, uMix);
   // ---------- luz: halação e difusão
   float asp = uTexel.x / uTexel.y;
   if (uHalo > 0.0) {   // halação: brilho avermelhado em volta das luzes fortes
@@ -329,12 +346,13 @@ void main(){
     }
     if (bq > 0.0) {
       vec3 gl = acc / 24.0 * bq * vec3(1.0, 0.96, 0.88);   // leve calor nas luzes, como filtro antigo
-      c = 1.0 - (1.0 - c) * (1.0 - gl * 0.9);
+      c = 1.0 - (1.0 - c) * (1.0 - gl * 1.5);
+      c = mix(c, max(c, avg / 24.0), bq * 0.3);             // filtro de difusão também baixa o contraste perto das luzes
       c = c * (1.0 - bq * 0.06) + bq * vec3(0.04, 0.035, 0.028);
     } else {
       // sombras invadem as luzes: escurece o que tem vizinhança escura, sem borrar o detalhe
       float m = -bq, dl = 1.0 - luma(avg / 24.0);
-      c *= 1.0 - m * 0.55 * dl * dl * smoothstep(0.08, 0.7, luma(c));
+      c *= 1.0 - m * 0.9 * dl * dl * smoothstep(0.08, 0.7, luma(c));
       c = c * (1.0 - m * 0.04) + m * vec3(0.022, 0.02, 0.018);
     }
   }
@@ -469,7 +487,7 @@ void main(){
   o = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
-const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
+const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uBright', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
   'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
   'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
@@ -578,7 +596,7 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.overTex);
     gl.uniform1f(u.uLutN, this.lutN);
     const f = (n, x) => gl.uniform1f(u[n], x);
-    f('uMix', s.mix); f('uExp', s.exp); f('uCon', s.con); f('uHigh', s.high); f('uShad', s.shad); f('uWhite', s.white);
+    f('uMix', s.mix); f('uExp', s.exp); f('uBright', s.bright || 0); f('uCon', s.con); f('uHigh', s.high); f('uShad', s.shad); f('uWhite', s.white);
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);

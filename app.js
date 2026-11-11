@@ -23,6 +23,11 @@ for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk',
 const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
+// erros guardados para o Diagnóstico (⋯ › Diagnóstico)
+const diagErrs = [];
+addEventListener('error', (e) => diagErrs.push(String(e.message || e.error)));
+addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + String(e.reason?.message || e.reason)));
+
 let preview, aux;
 try {
   preview = new Renderer(view);
@@ -41,7 +46,7 @@ const store = {
 let state = defaults();
 let photo = null;
 let bypass = false;
-let zoom = null;          // lupa 100%: { cx, cy } no centro da janela, em coordenadas da foto (0..1)
+let zoom = null;          // zoom: { cx, cy, s } — centro da janela em coordenadas da foto (0..1) e escala (1 = foto inteira)
 const lutCache = new Map();
 const userLuts = [];
 
@@ -107,16 +112,26 @@ function draw() {
   if (!photo || raf) return;
   raf = requestAnimationFrame(() => { raf = 0; drawNow(); });
 }
+// geometria do zoom: k = pixels de tela por pixel da foto; 100% = tamanho final da exportação; vai até 200%
+function zoomGeom(s) {
+  const v0 = computeView(state, photo.w, photo.h, { zoom: [0, 0, 1, 1] });
+  const es = exportScale(v0), FW = v0.innerW * es, FH = v0.innerH * es, { SW, SH } = stagePx();
+  const fitK = Math.min(SW / v0.innerW, SH / v0.innerH), maxK = Math.max(es * 2, fitK);
+  const k = clamp(fitK * s, fitK, maxK), DW = v0.innerW * k, DH = v0.innerH * k;
+  const w = Math.max(1, Math.round(Math.min(SW, DW))), h = Math.max(1, Math.round(Math.min(SH, DH)));
+  return { k, es, fitK, maxS: maxK / fitK, s100: es / fitK, FW, FH, DW, DH, w, h, zw: w / DW, zh: h / DH };
+}
 function drawNow() {
   syncTextures();
   const { SW, SH, dpr } = stagePx();
   const src = Math.max(photo.w, photo.h);
   let v, w, h, full, ov = null;
+  let zg = null;
   if (zoom) {
-    const v0 = computeView(state, photo.w, photo.h, { zoom: [0, 0, 1, 1] });
-    const es = exportScale(v0), FW = v0.innerW * es, FH = v0.innerH * es;
-    w = Math.round(Math.min(SW, FW)); h = Math.round(Math.min(SH, FH));
-    const zw = w / FW, zh = h / FH;
+    zg = zoomGeom(zoom.s);
+    const { FW, FH, zw, zh } = zg; w = zg.w; h = zg.h;
+    // ampliou além da prévia (2048 px): carrega uma versão maior da foto, uma vez só
+    if (preview.imgKey === 'preview' && zg.k > (preview.texW / photo.w) * 1.05) preview.setImage(scaled(photo.bitmap, Math.min(CAP(), 4096)), 'hi');
     zoom.cx = clamp(zoom.cx, zw / 2, 1 - zw / 2); zoom.cy = clamp(zoom.cy, zh / 2, 1 - zh / 2);
     v = computeView(state, photo.w, photo.h, { zoom: [zoom.cx - zw / 2, zoom.cy - zh / 2, zw, zh] });
     full = { w: FW, h: FH, src };
@@ -130,9 +145,11 @@ function drawNow() {
     ov = makeOverlay(state, v, w, h, frameNo(photo.name), overlayPrev);
   }
   overlayPrev = ov;
-  preview.render(w, h, renderParams(state), full, bypass, { ...v, overlay: ov?.canvas, overlayKey: ov?.key });
+  try { preview.render(w, h, renderParams(state), full, bypass, { ...v, overlay: ov?.canvas, overlayKey: ov?.key }); }
+  catch (e) { diagErrs.push('desenho: ' + e.message); throw e; }
   view.style.width = w / dpr + 'px'; view.style.height = h / dpr + 'px';
-  last = { v, w, h, full, dpr };
+  last = { v, w, h, full, dpr, zg };
+  if (zg) $('zoomTag').textContent = `${Math.round((zg.k / zg.es) * 100)}% · dois toques para a foto inteira`;
   positionOverlays();
 }
 const fit = (W, H, M) => { const s = Math.min(1, M / Math.max(W, H)); return [W * s, H * s]; };
@@ -189,6 +206,7 @@ const TOOL_FMT = {
 const ENDS = { sharp: ['◂ desfoque', 'nitidez ▸'] };
 const ADJ = [
   { k: 'exp', n: 'Exposição', min: -200, max: 200 },
+  { k: 'bright', n: 'Brilho' },
   { k: 'con', n: 'Contraste' }, { k: 'high', n: 'Luzes' }, { k: 'shad', n: 'Sombras' },
   { k: 'temp', n: 'Temperatura' }, { k: 'tint', n: 'Matiz' }, { k: 'vib', n: 'Vibração' }, { k: 'sat', n: 'Saturação' },
   { k: 'clar', n: 'Claridade' }, { k: 'depth', n: 'Cor profunda', min: 0 },
@@ -199,7 +217,7 @@ const ADJ = [
 const near = (a, b, t = 0.02) => Math.abs(a - b) <= t;
 const P_SHARP = { p: 'sharp', n: 'Nitidez', i: 'sharp', rows: [
   { k: 'sharp', n: 'Quantidade' },
-  { k: 'srad', n: 'Raio', min: 5, max: 30, scale: 10, fmt: (v) => (v / 10).toFixed(1) },
+  { k: 'srad', n: 'Raio', min: 5, max: 30, scale: 10, fmt: (v) => (v / 10).toFixed(1), off: (s) => s.sharp <= 0 },   // raio só vale para a nitidez
 ] };
 const P_GRAIN = { p: 'grain', n: 'Grão', i: 'grain', on: { grain: 0.35 },
   chips: [
@@ -212,7 +230,7 @@ const P_GRAIN = { p: 'grain', n: 'Grão', i: 'grain', on: { grain: 0.35 },
     { k: 'grain', n: 'Intensidade', min: 0 },
     { k: 'gsize', n: 'Escala', min: 8, max: 40, scale: 10, fmt: (v) => (v / 10).toFixed(1) },
   ] };
-const P_GLOW = { p: 'bloom', n: 'Brilho', i: 'bloom', rows: [
+const P_GLOW = { p: 'bloom', n: 'Difusão', i: 'bloom', rows: [
   { k: 'bloom', n: 'Quantidade' },
   { k: 'bloomR', n: 'Área', min: 0 },
 ] };
@@ -321,6 +339,7 @@ function syncPanel() {
     const v = Math.round(state[r.k] * sc);
     inp.value = v; fillRange(inp, defaults()[r.k] * sc);
     row.querySelector('output').textContent = r.fmt ? r.fmt(v) : String(v);
+    const off = !!r.off?.(state); row.classList.toggle('off', off); inp.disabled = off;
   }
 }
 $('pOk').onclick = () => closeSheet(true);
@@ -973,16 +992,25 @@ cbox.addEventListener('pointerup', endCrop);
 cbox.addEventListener('pointercancel', endCrop);
 
 // ------------------------------------------------------------ lupa 100%
+// on = true: vai para 100% (lupa); a pinça usa setZoomScale
 function setZoom(on, cx = 0.5, cy = 0.5) {
   if (on) {
     if (!photo) return;
     if (mode === 'crop') setMode('films');
-    const v0 = computeView(state, photo.w, photo.h, { zoom: [0, 0, 1, 1] });
-    const es = exportScale(v0), { SW, SH } = stagePx();
-    if (v0.innerW * es <= SW && v0.innerH * es <= SH) { toast('A foto inteira já aparece em 100%'); return; }
-    zoom = { cx, cy };
+    const g = zoomGeom(1);
+    if (g.s100 <= 1.02) { toast('A foto inteira já aparece em 100%'); return; }
+    zoom = { cx, cy, s: g.s100 };
   } else zoom = null;
   markTools(); draw();
+}
+function setZoomScale(s, cx, cy) {
+  if (!photo) return;
+  const g = zoomGeom(1);
+  s = clamp(s, 1, g.maxS);
+  const was = !!zoom;
+  zoom = s <= 1.01 ? null : { cx, cy, s };
+  if (was !== !!zoom) markTools();
+  draw();
 }
 
 // ------------------------------------------------------------ sincronizar interface
@@ -1009,6 +1037,7 @@ async function openPhoto(file) {
     $('btnExport').disabled = false;
     draw(); paintThumbs();
     toast(note || 'Foto aberta');
+    setTimeout(() => { if (photo && centerPixel()?.every((x) => x === 0)) toast('A foto não apareceu? Abra ⋯ › Diagnóstico e me mande um print'); }, 1200);
   } catch (e) {
     toast(e.message || 'Não consegui abrir essa imagem.');
     console.error(e);
@@ -1033,6 +1062,7 @@ let tap = { t: 0, x: 0, y: 0 }, holdTimer = 0, pan = null;
 view.addEventListener('pointerdown', (e) => {
   if (!photo || cropEditing()) return;
   e.preventDefault();
+  if (pinch) return;
   const now = performance.now();
   if (now - tap.t < 320 && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 30) {
     tap.t = 0; clearTimeout(holdTimer); holdOff();
@@ -1043,15 +1073,64 @@ view.addEventListener('pointerdown', (e) => {
     return setZoom(true, clamp(ux, 0, 1), clamp(uy, 0, 1));
   }
   tap = { t: now, x: e.clientX, y: e.clientY };
-  if (zoom) { pan = { x: e.clientX, y: e.clientY, cx: zoom.cx, cy: zoom.cy }; view.setPointerCapture(e.pointerId); return; }
+  if (zoom) { pan = { x: e.clientX, y: e.clientY, cx: zoom.cx, cy: zoom.cy }; try { view.setPointerCapture(e.pointerId); } catch { /* ok */ } return; }
   holdTimer = setTimeout(holdOn, 170);
 });
 view.addEventListener('pointermove', (e) => {
   if (!pan || !zoom || !last) return;
-  zoom.cx = pan.cx - ((e.clientX - pan.x) * last.dpr) / last.full.w;
-  zoom.cy = pan.cy - ((e.clientY - pan.y) * last.dpr) / last.full.h;
+  if (pinch) return;
+  const g = last.zg || zoomGeom(zoom.s);
+  zoom.cx = pan.cx - ((e.clientX - pan.x) * last.dpr) / g.DW;
+  zoom.cy = pan.cy - ((e.clientY - pan.y) * last.dpr) / g.DH;
   draw();
 });
+
+// ------------------------------------------------------------ pinça (dois dedos) em qualquer aba, menos no Corte; ctrl+roda no computador
+const touches = new Map();
+let pinch = null;
+// ponto da tela -> coordenada da foto (0..1), com ou sem zoom
+function photoUv(px, py) {
+  const r = view.getBoundingClientRect(), v = last.v;
+  if (zoom) {
+    const g = last.zg || zoomGeom(zoom.s);
+    return [zoom.cx + ((px - (r.left + r.width / 2)) * last.dpr) / g.DW, zoom.cy + ((py - (r.top + r.height / 2)) * last.dpr) / g.DH];
+  }
+  return [((px - r.left) / r.width - v.inner[0]) / (v.inner[2] - v.inner[0]), ((py - r.top) / r.height - v.inner[1]) / (v.inner[3] - v.inner[1])];
+}
+// escala s mantendo o ponto da foto `uv` debaixo do ponto da tela (px, py)
+function zoomAround(s, uv, px, py) {
+  const g = zoomGeom(clamp(s, 1, zoomGeom(1).maxS)), r = view.getBoundingClientRect();
+  const cxs = r.left + r.width / 2, cys = r.top + r.height / 2;
+  setZoomScale(s, uv[0] - ((px - cxs) * last.dpr) / g.DW, uv[1] - ((py - cys) * last.dpr) / g.DH);
+}
+$('stage').addEventListener('pointerdown', (e) => {
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2 && photo && last && mode !== 'crop') {
+    clearTimeout(holdTimer); holdOff(); pan = null; tap.t = 0;
+    const [a, b] = [...touches.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: zoom ? zoom.s : 1, uv: photoUv(mx, my) };
+  }
+}, true);
+addEventListener('pointermove', (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!pinch || touches.size < 2) return;
+  const [a, b] = [...touches.values()];
+  zoomAround(pinch.s0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0, pinch.uv, (a.x + b.x) / 2, (a.y + b.y) / 2);
+});
+const touchEnd = (e) => {
+  touches.delete(e.pointerId);
+  if (touches.size < 2 && pinch) { pinch = null; pan = null; if (zoom && zoom.s < 1.05) setZoomScale(1); }
+};
+addEventListener('pointerup', touchEnd);
+addEventListener('pointercancel', touchEnd);
+// iPhone: impede o zoom da página inteira com dois dedos
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+$('stage').addEventListener('wheel', (e) => {
+  if (!photo || !last || mode === 'crop' || !(e.ctrlKey || zoom)) return;
+  e.preventDefault();
+  zoomAround((zoom ? zoom.s : 1) * Math.exp(-e.deltaY * 0.01), photoUv(e.clientX, e.clientY), e.clientX, e.clientY);
+}, { passive: false });
 const release = () => { clearTimeout(holdTimer); pan = null; holdOff(); };
 addEventListener('pointerup', release);
 addEventListener('pointercancel', release);
@@ -1245,6 +1324,49 @@ $('fileBackup').addEventListener('change', async (e) => {
     setTimeout(() => location.reload(), 900);
   } catch (err) { console.error(err); toast('Falha ao restaurar: ' + err.message); }
 });
+
+// ------------------------------------------------------------ diagnóstico: mostra na tela por que a foto não aparece
+function centerPixel() {
+  if (!preview || !last) return null;
+  const g = preview.gl, px = new Uint8Array(4);
+  g.readPixels(Math.floor(last.w / 2), Math.floor(last.h / 2), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+  return [...px.slice(0, 3)];
+}
+function diagnose() {
+  const L = [], ua = navigator.userAgent;
+  L.push(`Pellicula · ${isNative() ? 'app instalado (APK)' : 'navegador'}`);
+  L.push((ua.match(/Android [\d.]+|iPhone OS [\d_]+|Chrome\/[\d.]+|Version\/[\d.]+/g) || [ua.slice(0, 80)]).join(' · '));
+  if (!preview) L.push('WebGL2: não iniciou');
+  else {
+    const gl = preview.gl, dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    L.push('GPU: ' + (dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)));
+    L.push(`Contexto perdido: ${gl.isContextLost() ? 'SIM' : 'não'} · textura máx: ${preview.maxTex}`);
+    L.push(`Float linear: ${gl.getExtension('OES_texture_float_linear') ? 'sim' : 'não'} · cor float: ${gl.getExtension('EXT_color_buffer_float') ? 'sim' : 'não'}`);
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d'); x.fillStyle = '#c86432'; x.fillRect(0, 0, 64, 64);
+      const t = new Renderer(document.createElement('canvas'));
+      t.setImage(c, 'diag'); t.render(32, 32, renderParams(defaults()), { w: 64, h: 64, src: 64 });
+      const px = new Uint8Array(4); t.gl.readPixels(16, 16, 1, 1, t.gl.RGBA, t.gl.UNSIGNED_BYTE, px);
+      L.push(`Teste de desenho: ${px[0]},${px[1]},${px[2]} (o certo é perto de 200,100,50)`);
+      t.gl.getExtension('WEBGL_lose_context')?.loseContext();
+    } catch (e) { L.push('Teste de desenho: FALHOU · ' + e.message); }
+    if (photo && last) {
+      const p = centerPixel();
+      L.push(`Centro da foto: ${p.join(',')} · desenho ${last.w}×${last.h} · tela ${view.style.width} × ${view.style.height}`);
+      L.push(`Foto: ${photo.bitmap.width}×${photo.bitmap.height} (${photo.bitmap.constructor.name})`);
+    } else L.push('Nenhuma foto aberta (abra uma e rode de novo)');
+    L.push('Erro GL: ' + gl.getError());
+  }
+  L.push(diagErrs.length ? 'Erros: ' + diagErrs.slice(-4).join(' | ') : 'Erros: nenhum');
+  return L.join('\n');
+}
+$('btnDiag').onclick = async () => {
+  let txt; try { txt = diagnose(); } catch (e) { txt = 'Diagnóstico falhou: ' + e.message; }
+  $('askNote').classList.add('diag');
+  await ask({ title: 'Diagnóstico', note: txt });
+  $('askNote').classList.remove('diag');
+};
 
 // ------------------------------------------------------------ aviso, PWA
 let tt;
