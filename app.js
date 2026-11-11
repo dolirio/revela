@@ -1085,25 +1085,25 @@ const isMobile = () => /Android|iPhone|iPad/i.test(navigator.userAgent);
 // app instalado pelo APK (Capacitor): o WebView não baixa nem compartilha arquivos sozinho
 const isNative = () => !!window.Capacitor?.isNativePlatform?.();
 const toBase64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
-async function deliverNative(files) {
+async function deliverNative(files, dir = 'Pictures', label = 'Imagens') {
   const C = window.Capacitor, P = C.Plugins || {};
   const Filesystem = P.Filesystem || C.registerPlugin('Filesystem'), Share = P.Share || C.registerPlugin('Share');
   let saved = 0;
   for (const f of files) {
     const data = await toBase64(f);
     try {   // Android 11+: grava direto em Imagens/Pellicula, e a Galeria encontra
-      await Filesystem.writeFile({ path: `Pictures/Pellicula/${f.name}`, data, directory: 'EXTERNAL_STORAGE', recursive: true });
+      await Filesystem.writeFile({ path: `${dir}/Pellicula/${f.name}`, data, directory: 'EXTERNAL_STORAGE', recursive: true });
       saved++;
     } catch {   // sem acesso: abre o compartilhar do Android
       const w = await Filesystem.writeFile({ path: f.name, data, directory: 'CACHE' });
       try { await Share.share({ title: f.name, files: [w.uri] }); } catch { /* cancelado */ }
     }
   }
-  if (saved) toast(saved === 1 ? 'Salva em Imagens › Pellicula' : `${saved} fotos salvas em Imagens › Pellicula`);
+  if (saved) toast(saved === 1 ? `Salvo em ${label} › Pellicula` : `${saved} fotos salvas em ${label} › Pellicula`);
   return saved;
 }
-async function deliver(files) {
-  if (isNative()) return deliverNative(files);
+async function deliver(files, nativeDir) {
+  if (isNative()) return nativeDir ? deliverNative(files, ...nativeDir) : deliverNative(files);
   if (isMobile() && navigator.canShare && navigator.canShare({ files })) {
     try { await navigator.share({ files }); return; } catch { /* cancelado */ }
   }
@@ -1198,6 +1198,53 @@ async function importLut(file) {
   } catch (e) { toast(`${file.name}: ${e.message}`); }
 }
 $('fileLut').addEventListener('change', async (e) => { for (const f of e.target.files) await importLut(f); e.target.value = ''; });
+
+// ------------------------------------------------------------ backup: receitas, filmes do Lab e LUTs num arquivo só
+const BACKUP_KEYS = ['revela.recipes', 'revela.filmLooks', 'revela.looks'];
+async function allLutRecs() {
+  const db = await idb();
+  return new Promise((res, rej) => { const q = db.transaction(STORE).objectStore(STORE).getAll(); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+}
+$('btnBackup').onclick = async () => {
+  try {
+    const ls = {};
+    for (const k of BACKUP_KEYS) { const v = store.get(k, null); if (v != null) ls[k] = v; }
+    let luts = [];
+    try { luts = (await allLutRecs()).map(({ id, name, text }) => ({ id, name, text })); } catch { /* sem IndexedDB */ }
+    const nRec = (ls['revela.recipes'] || []).length, nFilm = Object.keys(ls['revela.filmLooks'] || {}).length;
+    if (!nRec && !nFilm && !luts.length && !ls['revela.looks']) return toast('Nada para salvar: sem receitas, LUTs ou filmes ajustados');
+    const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const json = JSON.stringify({ app: 'pellicula', backup: 1, date: d.toISOString(), ls, luts });
+    const file = new File([json], `pellicula-backup-${day}.json`, { type: 'application/json' });
+    const n = await deliver([file], ['Documents', 'Documentos']);
+    if (!isNative()) toast(`Backup: ${nRec} receitas, ${luts.length} LUTs, ${nFilm} filmes do Lab`);
+    else if (n) toast(`Backup salvo em Documentos › Pellicula`);
+  } catch (e) { console.error(e); toast('Falha no backup: ' + e.message); }
+};
+$('btnRestore').onclick = () => $('fileBackup').click();
+$('fileBackup').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  let b;
+  try { b = JSON.parse(await f.text()); } catch { return toast('Esse arquivo não é um backup do Pellicula'); }
+  if (!b || b.app !== 'pellicula' || typeof b.ls !== 'object') return toast('Esse arquivo não é um backup do Pellicula');
+  const recs = Array.isArray(b.ls['revela.recipes']) ? b.ls['revela.recipes'] : [];
+  const films = b.ls['revela.filmLooks'] && typeof b.ls['revela.filmLooks'] === 'object' ? b.ls['revela.filmLooks'] : {};
+  const luts = Array.isArray(b.luts) ? b.luts.filter((l) => l && l.id && typeof l.text === 'string') : [];
+  const when = b.date ? new Date(b.date).toLocaleDateString('pt-BR') : '';
+  const ok = await ask({ title: 'Restaurar backup', note: `Backup${when ? ' de ' + when : ''}: ${recs.length} receitas, ${luts.length} LUTs, ${Object.keys(films).length} filmes do Lab. Junta com o que já está aqui; itens com o mesmo nome são substituídos pelos do backup.` });
+  if (!ok) return;
+  try {
+    const mine = store.get('revela.recipes', []);
+    for (const r of recs) { const i = mine.findIndex((x) => x.id && x.id === r.id); if (i >= 0) mine[i] = r; else mine.push(r); }
+    if (recs.length && !store.set('revela.recipes', mine)) throw new Error('sem espaço para as receitas');
+    if (Object.keys(films).length) store.set('revela.filmLooks', { ...store.get('revela.filmLooks', {}), ...films });
+    if (Array.isArray(b.ls['revela.looks'])) store.set('revela.looks', b.ls['revela.looks']);
+    for (const l of luts) { parseCube(l.text); await saveLut({ id: l.id, name: l.name || l.id, text: l.text }); }
+    toast('Backup restaurado');
+    setTimeout(() => location.reload(), 900);
+  } catch (err) { console.error(err); toast('Falha ao restaurar: ' + err.message); }
+});
 
 // ------------------------------------------------------------ aviso, PWA
 let tt;
