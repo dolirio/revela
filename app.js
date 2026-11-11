@@ -16,8 +16,8 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'eCancel', 'dCancel', 'uCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'eOk', 'dOk', 'rOk', 'uOk']) setIcon(id, 'ok');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'eCancel', 'dCancel', 'uCancel', 'pCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'eOk', 'dOk', 'rOk', 'uOk', 'pOk']) setIcon(id, 'ok');
 const NAV = { films: 'Filmes', recipes: 'Receitas', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
@@ -171,8 +171,8 @@ function closeSheet(keep) {
   if (!openSheetId) return;
   if (!keep && sheetSnap) { state = withDefaults(JSON.parse(sheetSnap)); draw(); }
   $(openSheetId).classList.remove('on');
-  $('dock').classList.remove('tall');
-  openSheetId = null; sheetSnap = null; curTool = null;
+  $('dock').classList.remove('tall', 'med');
+  openSheetId = null; sheetSnap = null; curTool = null; curPanel = null;
   $('m-' + mode).classList.add('on');
   commit(); syncUI(); draw();
 }
@@ -187,20 +187,43 @@ const TOOL_FMT = {
 const ENDS = { sharp: ['◂ desfoque', 'nitidez ▸'] };
 const ADJ = [
   { k: 'exp', n: 'Exposição', min: -200, max: 200 },
-  { k: 'con', n: 'Contraste' }, { k: 'high', n: 'Realces' }, { k: 'shad', n: 'Sombras' },
-  { k: 'white', n: 'Brancos' }, { k: 'black', n: 'Pretos' },
+  { k: 'con', n: 'Contraste' }, { k: 'high', n: 'Luzes' }, { k: 'shad', n: 'Sombras' },
   { k: 'temp', n: 'Temperatura' }, { k: 'tint', n: 'Matiz' }, { k: 'vib', n: 'Vibração' }, { k: 'sat', n: 'Saturação' },
-  { k: 'depth', n: 'Cor profunda', min: 0 },
+  { k: 'clar', n: 'Claridade' }, { k: 'depth', n: 'Cor profunda', min: 0 },
   { s: 'hsl', n: 'Cor', i: 'hsl' }, { s: 'curve', n: 'Curvas', i: 'curve' },
-  { k: 'clar', n: 'Claridade' },
+  { k: 'white', n: 'Brancos' }, { k: 'black', n: 'Pretos' },
 ];
+// painéis com vários controles. chips: grupos de botões (opções prontas); rows: controles deslizantes
+const near = (a, b, t = 0.02) => Math.abs(a - b) <= t;
+const P_SHARP = { p: 'sharp', n: 'Nitidez', i: 'sharp', rows: [
+  { k: 'sharp', n: 'Quantidade' },
+  { k: 'srad', n: 'Raio', min: 5, max: 30, scale: 10, fmt: (v) => (v / 10).toFixed(1) },
+] };
+const P_GRAIN = { p: 'grain', n: 'Grão', i: 'grain', on: { grain: 0.35 },
+  chips: [
+    { n: 'Tamanho', opts: [['Fino', { gsize: 1.1 }], ['Médio', { gsize: 1.7 }], ['Grosso', { gsize: 2.8 }]],
+      pick: (s) => (s.gsize < 1.4 ? 0 : s.gsize < 2.25 ? 1 : 2) },
+    { n: 'Tipo', opts: [['Prata', { gcolor: 0, grough: 0.3 }], ['Negativo', { gcolor: 0.35, grough: 0.45 }], ['Colorido', { gcolor: 1, grough: 0.7 }]],
+      pick: (s) => (s.gcolor < 0.15 ? 0 : s.gcolor < 0.7 ? 1 : 2) },
+  ],
+  rows: [
+    { k: 'grain', n: 'Intensidade', min: 0 },
+    { k: 'gsize', n: 'Escala', min: 8, max: 40, scale: 10, fmt: (v) => (v / 10).toFixed(1) },
+  ] };
+const P_GLOW = { p: 'bloom', n: 'Brilho', i: 'bloom', rows: [
+  { k: 'bloom', n: 'Quantidade' },
+  { k: 'bloomR', n: 'Área', min: 0 },
+] };
+const P_HALO = { p: 'halo', n: 'Halação', i: 'halo', rows: [
+  { k: 'halo', n: 'Intensidade', min: 0 },
+  { k: 'haloR', n: 'Raio', min: 0 },
+  { k: 'haloT', n: 'Limiar', min: 0 },
+] };
 const TEX = [
   { a: 'zoom', n: 'Lupa 100%', i: 'zoom' },
-  { k: 'sharp', n: 'Nitidez', i: 'sharp' }, { k: 'srad', n: 'Raio', min: 5, max: 30, scale: 10 },
+  P_SHARP, P_GRAIN, P_GLOW, P_HALO,
+  { k: 'vlens', n: 'Lente antiga', min: 0 },
   { k: 'eblur', n: 'Borda suave', min: 0 },
-  { k: 'bloom', n: 'Difusão', min: 0 }, { k: 'halo', n: 'Halação', min: 0 },
-  { k: 'grain', n: 'Grão', min: 0 }, { k: 'gsize', n: 'Tam. grão', min: 10, max: 40, scale: 10 },
-  { k: 'grough', n: 'Aspereza', min: 0 }, { k: 'gcolor', n: 'Grão de cor', min: 0 },
   { k: 'paper', n: 'Papel', min: 0 },
 ];
 const FX = [
@@ -224,12 +247,82 @@ const ACTIONS = {
 };
 function buildTools(box, list) {
   for (const t of list) {
-    const b = document.createElement('button'); b.className = 'tool'; b.dataset.k = t.k || t.s || 'act_' + t.a;
+    const b = document.createElement('button'); b.className = 'tool'; b.dataset.k = t.p ? 'p_' + t.p : t.k || t.s || 'act_' + t.a;
+    if (t.p) b.dataset.keys = [...t.rows.map((r) => r.k), ...(t.chips ? ['gcolor', 'grough'] : [])].join(',');
     b.innerHTML = `<div class="ring">${icon(t.i || t.k)}</div><span>${t.n}</span>`;
-    b.onclick = () => (t.a ? ACTIONS[t.a]() : t.s ? openSpecial(t.s) : openSlider(t));
+    b.onclick = () => (t.a ? ACTIONS[t.a]() : t.s ? openSpecial(t.s) : t.p ? openPanel(t) : openSlider(t));
     box.append(b);
   }
 }
+
+// ------------------------------------------------------------ número grande sobre a foto enquanto arrasta
+let bigTimer = 0;
+function flashVal(label, text) {
+  const el = $('bigVal');
+  el.querySelector('small').textContent = label || '';
+  el.querySelector('b').textContent = text;
+  el.classList.add('on');
+  clearTimeout(bigTimer);
+  bigTimer = setTimeout(() => el.classList.remove('on'), 650);
+}
+const signed = (v) => (v > 0 ? '+' + v : String(v));
+
+// ------------------------------------------------------------ painel com vários controles
+let curPanel = null;
+function openPanel(t) {
+  openSheet('panelSheet');
+  curPanel = t;
+  $('pTitle').textContent = t.n;
+  const body = $('pBody'); body.innerHTML = '';
+  for (const g of t.chips || []) {
+    const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', g.n);
+    g.opts.forEach(([label, set], i) => {
+      const b = document.createElement('button'); b.textContent = label; b.dataset.i = i;
+      b.onclick = () => {
+        Object.assign(state, set);
+        if (t.on) for (const [k, v] of Object.entries(t.on)) if (!state[k]) state[k] = v;
+        syncPanel(); draw();
+      };
+      seg.append(b);
+    });
+    body.append(seg);
+  }
+  for (const r of t.rows) {
+    const row = document.createElement('div'); row.className = 'prow';
+    const sc = r.scale ?? 100, min = r.min ?? -100, max = r.max ?? 100;
+    row.innerHTML = `<span>${r.n}</span><div class="rw${min < 0 ? ' bi' : ''}"><input type="range" min="${min}" max="${max}" step="1" aria-label="${r.n}"></div><output></output>`;
+    const inp = row.querySelector('input');
+    inp.addEventListener('input', () => {
+      const d = defaults()[r.k] * sc;
+      let v = +inp.value;
+      if (Math.abs(v - d) <= (max - min) * 0.012) { v = d; inp.value = d; }
+      state[r.k] = v / sc; syncPanel(); draw();
+      flashVal(r.n, r.fmt ? r.fmt(v) : min < 0 ? signed(v) : String(v));
+    });
+    inp.addEventListener('dblclick', () => { state[r.k] = defaults()[r.k]; syncPanel(); draw(); });
+    row.dataset.k = r.k;
+    body.append(row);
+  }
+  const tall = (t.chips?.length || 0) * 40 + t.rows.length * 34 + 56 > 158;
+  $('dock').classList.toggle('med', tall);
+  syncPanel(); positionOverlays();
+}
+function syncPanel() {
+  const t = curPanel; if (!t) return;
+  const body = $('pBody');
+  (t.chips || []).forEach((g, gi) => {
+    const k = g.pick(state);
+    body.querySelectorAll('.seg')[gi].querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.i === k));
+  });
+  for (const r of t.rows) {
+    const row = body.querySelector(`.prow[data-k="${r.k}"]`), inp = row.querySelector('input'), sc = r.scale ?? 100;
+    const v = Math.round(state[r.k] * sc);
+    inp.value = v; fillRange(inp, defaults()[r.k] * sc);
+    row.querySelector('output').textContent = r.fmt ? r.fmt(v) : String(v);
+  }
+}
+$('pOk').onclick = () => closeSheet(true);
+$('pCancel').onclick = () => closeSheet(false);
 buildTools($('t-adjust'), ADJ); buildTools($('t-tex'), TEX); buildTools($('t-fx'), FX); buildTools($('t-crop'), GEO);
 
 let curTool = null;
@@ -262,6 +355,8 @@ $('sRange').addEventListener('input', () => {
   let v = +$('sRange').value;
   if (Math.abs(v - d) <= (+$('sRange').max - +$('sRange').min) * 0.012) { v = d; $('sRange').value = d; } // encaixa no padrão
   state[curTool.k] = v / sc; showSliderVal(); draw();
+  const fmt = TOOL_FMT[curTool.k];
+  flashVal(curTool.n, fmt && curTool.k !== 'sharp' ? fmt(v) : +$('sRange').min < 0 ? signed(v) : String(v));
 });
 $('sReset').onclick = () => { state[curTool.k] = defaults()[curTool.k]; $('sRange').value = Math.round(state[curTool.k] * (curTool.scale ?? 100)); showSliderVal(); draw(); };
 $('sOk').onclick = () => closeSheet(true);
@@ -277,6 +372,7 @@ function markTools() {
     else if (k === 'curve') set = !!curveData(state.curve);
     else if (k === 'leak') set = state.leak > 0;
     else if (k === 'date') set = !!state.date;
+    else if (b.dataset.keys) { const main = b.dataset.keys.split(',')[0]; set = state[main] !== d[main]; } // marcado quando o efeito está ligado
     else if (!k.startsWith('act_')) set = JSON.stringify(state[k]) !== JSON.stringify(d[k]);
     b.classList.toggle('set', set);
   });
@@ -334,7 +430,7 @@ function openFilmSheet(name) {
   openSheet('filmSheet');
 }
 function syncFav() { $('fFav').textContent = favs.has(state.look) ? '★ favorito' : '☆ favoritar'; }
-$('fRange').addEventListener('input', () => { state.mix = +$('fRange').value / 100; $('fVal').textContent = $('fRange').value; draw(); });
+$('fRange').addEventListener('input', () => { state.mix = +$('fRange').value / 100; $('fVal').textContent = $('fRange').value; draw(); flashVal('Filme', $('fRange').value); });
 $('fFav').onclick = () => {
   favs.has(state.look) ? favs.delete(state.look) : favs.add(state.look);
   store.set('revela.fav', [...favs]); syncFav(); syncFilms();
@@ -660,9 +756,11 @@ function syncDust() {
   const r = $('uRange'), v = Math.round(state.dust * 100); r.value = v; fillRange(r, 0);
   $('uVal').textContent = v > 0 ? `Clara ${v}` : v < 0 ? `Escura ${-v}` : '0';
 }
+$('uSeed').innerHTML = icon('dice');
 $('uRange').addEventListener('input', () => {
   let v = +$('uRange').value; if (Math.abs(v) <= 2) { v = 0; $('uRange').value = 0; }
   state.dust = v / 100; syncDust(); draw();
+  flashVal('Poeira', signed(v));
 });
 $('uRange').addEventListener('dblclick', () => { state.dust = 0; syncDust(); draw(); });
 $('uSeed').onclick = () => { state.dustSeed = (state.dustSeed + 1 + Math.floor(Math.random() * 97)) % 997; if (!state.dust) state.dust = 0.5; syncDust(); draw(); };

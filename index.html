@@ -104,6 +104,29 @@
   .pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .pills button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
   .pills button.on { border-color: var(--accent); color: var(--accent); }
+  /* painel com vários controles (grão, brilho, halo, nitidez) */
+  #dock.med .ctx { height: 236px; }
+  #pBody { display: grid; gap: 4px; }
+  #pBody .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; }
+  #pBody .seg button { flex: 1; padding: 7px 4px; font-size: 12.5px; color: var(--muted); }
+  #pBody .seg button + button { border-left: 1px solid var(--line); }
+  #pBody .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  #pBody .prow { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  #pBody .prow output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+  #pBody .prow input[type=range] { height: 30px; }
+  #dustTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
+  #dustTypes::-webkit-scrollbar { display: none; }
+  #dustTypes button { flex: 0 0 auto; }
+  .dicerow { display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px; align-items: center; gap: 8px; }
+  .dicerow output { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .dice { width: 40px; height: 40px; border-radius: 50%; background: var(--raise); display: grid; place-items: center; color: var(--text); }
+  .dice svg { width: 22px; height: 22px; }
+  .dice:active { transform: rotate(-25deg); }
+  #bigVal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; pointer-events: none;
+    color: #fff; text-shadow: 0 1px 12px #000a, 0 0 2px #0008; opacity: 0; transition: opacity .25s; }
+  #bigVal.on { opacity: 1; transition: opacity .05s; }
+  #bigVal b { font-size: 64px; font-weight: 200; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  #bigVal small { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .85; margin-bottom: 4px; }
   #curveSheet { flex-direction: row; gap: 14px; align-items: center; }
   #curve { height: 140px; width: 140px; flex: 0 0 auto; touch-action: none; background: var(--raise); border-radius: 6px; }
   #curveSheet .side { flex: 1; display: grid; gap: 8px; }
@@ -210,6 +233,7 @@
     <div class="g" style="top:33.33%;left:0;right:0;height:1px"></div><div class="g" style="top:66.66%;left:0;right:0;height:1px"></div>
     <div class="h" data-c="0"></div><div class="h" data-c="1"></div><div class="h" data-c="2"></div><div class="h" data-c="3"></div></div>
   <div id="zoomTag">100% · arraste para mover · dois toques para sair</div>
+  <div id="bigVal" aria-hidden="true"><small></small><b></b></div>
 </main>
 
 <section id="dock">
@@ -277,11 +301,15 @@
       <div class="mini"><span>Força</span><input type="range" id="leakRange" min="0" max="100"><output></output></div>
       <div class="foot"><button class="ib" id="lCancel" aria-label="Cancelar"></button><button class="reset" id="leakSeed">variar posição</button><button class="ib" id="lOk" aria-label="Confirmar"></button></div>
     </div>
+    <div class="sheet" id="panelSheet">
+      <div id="pBody"></div>
+      <div class="foot"><button class="ib" id="pCancel" aria-label="Cancelar"></button><div class="t" id="pTitle"></div><button class="ib" id="pOk" aria-label="Confirmar"></button></div>
+    </div>
     <div class="sheet" id="dustSheet">
-      <div class="head"><span class="val" id="uVal">0</span><button class="reset" id="uSeed">variar</button></div>
       <div class="pills" id="dustTypes"></div>
-      <div class="rw bi"><input type="range" id="uRange" min="-100" max="100"></div>
-      <div class="ends on"><span>◂ escura</span><span>clara ▸</span></div>
+      <div class="dicerow"><button class="dice" id="uSeed" aria-label="Sortear outra poeira" title="Sortear outra poeira"></button>
+        <div class="rw bi"><input type="range" id="uRange" min="-100" max="100"></div><output id="uVal">0</output></div>
+      <div class="ends on" style="padding-left:52px"><span>◂ escura</span><span>clara ▸</span></div>
       <div class="foot"><button class="ib" id="uCancel" aria-label="Cancelar"></button><div class="t">Poeira</div><button class="ib" id="uOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="recSheet">

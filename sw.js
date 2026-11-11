@@ -1,5 +1,5 @@
 // Cache do app para funcionar offline. Mude a versão ao atualizar arquivos.
-const CACHE = 'revela-v8';
+const CACHE = 'revela-v10';
 const FILES = ['./', 'index.html', 'app.js', 'looks.js', 'looks-data.js', 'renderer.js', 'core.js', 'icons.js', 'recipes.js', 'vendor/libheif-bundle.mjs', 'lab.html', 'lab.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', (e) => e.waitUntil(

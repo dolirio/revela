@@ -62,6 +62,8 @@ const P = {
   rotL: '<path d="M4 9a8 8 0 1 1 1.5 8"/><path d="M4 4v5h5"/>',
   rotR: '<path d="M20 9a8 8 0 1 0-1.5 8"/><path d="M20 4v5h-5"/>',
   flip: '<path d="M12 3v18" stroke-dasharray="2 2"/><path d="M9 7L4 17h5zM15 7l5 10h-5z"/>',
+  dice: '<rect x="3" y="3" width="13" height="13" rx="2.5"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M16 8h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-3"/><circle cx="17" cy="17" r="1" fill="currentColor"/>',
+  vlens: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5" stroke-dasharray="2 2"/><path d="M4 12h1.5M18.5 12H20" stroke="#e0574b"/>',
   cropReset: '<path d="M6 2v16h16"/><path d="M2 6h16v16"/><path d="M10 10l4 4M14 10l-4 4"/>',
 };
 export function icon(name) {

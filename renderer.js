@@ -3,9 +3,9 @@ import { identityLut } from './looks.js';
 // Valores padrão de todos os parâmetros que o shader entende.
 export const RDEF = {
   mix: 1, exp: 0, con: 0, high: 0, shad: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
-  clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, chroma: 0,
+  clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
   grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, paper: 0,
-  fade: 0, halo: 0, vig: 0, leak: 0, dust: 0, scratch: 0,
+  fade: 0, halo: 0, haloR: 0.5, haloT: 0.5, vig: 0, leak: 0, dust: 0, scratch: 0,
 };
 const HSL_ZERO = new Float32Array(8);
 
@@ -19,7 +19,7 @@ precision highp sampler3D;
 in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler2D uCurve; uniform sampler3D uLut; uniform sampler2D uOver;
 uniform float uLutN, uMix, uExp, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
-uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uChroma, uSrcScale, uTexLong;
+uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uBloomR, uChroma, uSrcScale, uTexLong, uVLens, uHaloR, uHaloT, uClarR;
 uniform float uFade, uGrain, uGrainSize, uGRough, uGColor, uPaper, uPxScale;
 uniform float uVig, uHalo, uHaloLod, uClarLod, uBypass, uDust, uDustType, uDustSeed, uScratch, uLeak, uSeed;
 uniform vec2 uRes, uTexel, uOut;
@@ -171,11 +171,15 @@ void main(){
 
   float rr0 = length((iu - 0.5) * 2.0) / 1.4142;   // 0 no centro, 1 no canto
   // ---------- ótica: suavidade, desfoque de borda, aberração, nitidez
-  float bs = max(uSoft, -uSharp);   // controle de nitidez à esquerda do zero = desfoque
-  float br = ((bs * 0.0012 + bs * bs * 0.004) + uEBlur * 0.007 * smoothstep(0.25, 1.0, rr0) * smoothstep(0.25, 1.0, rr0)) * uTexLong;
+  // "Nitidez" à esquerda do zero amacia só os detalhes finos (raio pequeno); "suavidade" das receitas é mais forte
+  float sn = max(-uSharp, 0.0);
+  float edge2 = smoothstep(0.25, 1.0, rr0); edge2 *= edge2;
+  float br = (uSoft * 0.0012 + uSoft * uSoft * 0.004 + sn * 0.0004 + sn * sn * 0.0011
+            + (uEBlur * 0.007 + uVLens * 0.0065) * edge2) * uTexLong;
   if (br > 0.35) c = blurAt(su, br);
-  if (uChroma > 0.0) {
-    vec2 off = (iu - 0.5) * uChroma * 0.006;
+  float chr = uChroma + uVLens * 1.1;   // lente antiga: franjas coloridas que crescem para as bordas
+  if (chr > 0.0) {
+    vec2 off = (iu - 0.5) * chr * 0.006;
     c.r = texture(uImg, srcUv(iu + off)).r;
     c.b = texture(uImg, srcUv(iu - off)).b;
   }
@@ -189,22 +193,37 @@ void main(){
     }
     b /= 8.0;
     float d = luma(texture(uImg, su).rgb) - luma(b);
-    c = clamp(c + d * uSharp * 2.2, 0.0, 1.0);   // só luminância: sem franjas coloridas
+    d = sign(d) * max(abs(d) - 0.004, 0.0);         // ignora ruído muito fino
+    d = d / (1.0 + abs(d) * 6.0);                    // contornos fortes não ganham halo
+    c = clamp(c + d * uSharp * 1.6, 0.0, 1.0);       // só luminância: sem franjas coloridas
   }
   if (uClar != 0.0) {
-    float lb = luma(textureLod(uImg, su, uClarLod).rgb), l = luma(c);
-    float m = 1.0 - pow(abs(l*2.0 - 1.0), 2.0);
-    c = clamp(c + (l - lb) * uClar * 0.9 * m, 0.0, 1.0);
+    // claridade = contraste local em escala média (volume), sem mexer no brilho geral nem nos contornos fortes
+    float R = max(uClarR, 1.0), lod = max(0.0, log2(R) - 1.5);
+    float lb = luma(textureLod(uImg, su, lod).rgb) * 0.2;
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * 0.7854 + 0.2, rr = (i % 2 == 0) ? R : R * 0.55;
+      lb += luma(textureLod(uImg, su + vec2(cos(a), sin(a)) * rr * uTexel, lod).rgb) * 0.1;
+    }
+    float l = luma(c), d = l - lb;
+    d *= 1.0 / (1.0 + (d / 0.14) * (d / 0.14));       // protege bordas fortes: sem halo e sem borrar contornos
+    float m = 1.0 - pow(abs(l * 2.0 - 1.0), 2.0);     // atua nos meios-tons
+    c = clamp(c + d * uClar * (uClar > 0.0 ? 0.85 : 1.0) * m, 0.0, 1.0);
   }
   // ---------- tom e cor
   vec3 lin = pow(max(c, 0.0), vec3(2.2)) * exp2(uExp);
   lin *= vec3(1.0 + 0.18*uTemp + 0.06*uTint, 1.0 - 0.12*uTint, 1.0 - 0.18*uTemp + 0.06*uTint);
   c = pow(clamp(lin, 0.0, 1.0), vec3(1.0/2.2));
-  float lo = -uBlack * 0.1, hi = 1.0 - uWhite * 0.1;
-  c = clamp((c - lo) / (hi - lo), 0.0, 1.0);
+  // brancos e pretos: mexem só nas pontas (o meio-tom quase não muda)
+  c = clamp(c + uWhite * 0.12 * smoothstep(0.4, 1.0, c) + uBlack * 0.1 * (1.0 - smoothstep(0.0, 0.6, c)), 0.0, 1.0);
   {
+    // luzes e sombras com faixas estreitas: cada uma mexe só na sua parte, os meios-tons quase não mudam
     float l = luma(c);
-    float nl = l + uShad * 1.2 * l * (1.0-l) * (1.0-l) + uHigh * 1.2 * l * l * (1.0-l);
+    float hw = smoothstep(0.42, 0.92, l), sw = 1.0 - smoothstep(0.08, 0.58, l);
+    float dh = uHigh > 0.0 ? uHigh * 0.30 * hw * (1.0 - l) * 2.0      // clarear sem estourar o branco
+                           : uHigh * 0.17 * hw * (1.0 - 0.7 * smoothstep(0.85, 1.0, l)); // recuperar detalhe nas luzes
+    float ds = uShad * 0.30 * sw * min(l * 2.0, 1.0);                  // o preto puro continua preto
+    float nl = clamp(l + dh + ds, 0.0, 1.0);
     c = clamp(c * (nl / max(l, 1e-4)), 0.0, 1.0);
   }
   float k = uCon;
@@ -241,31 +260,44 @@ void main(){
   c = mix(c, g, uMix);
   // ---------- luz: halação e difusão
   float asp = uTexel.x / uTexel.y;
-  if (uHalo > 0.0) {
+  if (uHalo > 0.0) {   // halação: brilho avermelhado em volta das luzes fortes
+    float hr = 0.0025 + 0.011 * uHaloR, t0 = mix(0.3, 0.92, uHaloT);
+    float hl = max(0.0, uHaloLod + (uHaloR - 0.5) * 2.0);
     vec3 acc = vec3(0.0);
     for (int i = 0; i < 12; i++) {
       float a = float(i) * 0.5236;
       for (int j = 1; j <= 2; j++) {
-        vec2 off = vec2(cos(a), sin(a)) * 0.007 * float(j) * vec2(asp, 1.0);
-        vec3 s = textureLod(uImg, su + off, uHaloLod).rgb;
-        acc += s * smoothstep(0.62, 1.0, luma(s));
+        vec2 off = vec2(cos(a), sin(a)) * hr * float(j) * vec2(asp, 1.0);
+        vec3 s = textureLod(uImg, su + off, hl).rgb;
+        acc += s * smoothstep(t0, min(t0 + 0.35, 1.0), luma(s));
       }
     }
     c += (acc / 24.0) * vec3(1.0, 0.33, 0.12) * uHalo * 1.6;
   }
-  if (uBloom > 0.0) {   // difusão: brilho largo e suave nas luzes, como um filtro de névoa
-    vec3 acc = vec3(0.0);
+  float bq = uBloom + uVLens * 0.4;   // brilho: positivo = luzes se espalham (difusão); negativo = sombras se espalham
+  if (bq != 0.0) {
+    float rad = 0.016 * (0.3 + 1.5 * uBloomR);
+    float bl = max(0.0, uHaloLod + 1.5 + (uBloomR - 0.5) * 2.0);
+    float t0 = mix(0.55, 0.2, uBloomR);
+    vec3 acc = vec3(0.0), avg = vec3(0.0);
     for (int i = 0; i < 12; i++) {
       float a = float(i) * 0.5236 + 0.26;
       for (int j = 1; j <= 2; j++) {
-        vec2 off = vec2(cos(a), sin(a)) * 0.016 * float(j) * vec2(asp, 1.0);
-        vec3 s = textureLod(uImg, su + off, uHaloLod + 1.5).rgb;
-        acc += s * smoothstep(0.35, 1.0, luma(s));
+        vec2 off = vec2(cos(a), sin(a)) * rad * float(j) * vec2(asp, 1.0);
+        vec3 s = textureLod(uImg, su + off, bl).rgb;
+        acc += s * smoothstep(t0, 1.0, luma(s)); avg += s;
       }
     }
-    vec3 gl = acc / 24.0 * uBloom;
-    c = 1.0 - (1.0 - c) * (1.0 - gl * 0.85);
-    c = c * (1.0 - uBloom * 0.06) + uBloom * 0.035;
+    if (bq > 0.0) {
+      vec3 gl = acc / 24.0 * bq * vec3(1.0, 0.96, 0.88);   // leve calor nas luzes, como filtro antigo
+      c = 1.0 - (1.0 - c) * (1.0 - gl * 0.9);
+      c = c * (1.0 - bq * 0.06) + bq * vec3(0.04, 0.035, 0.028);
+    } else {
+      // sombras invadem as luzes: escurece o que tem vizinhança escura, sem borrar o detalhe
+      float m = -bq, dl = 1.0 - luma(avg / 24.0);
+      c *= 1.0 - m * 0.55 * dl * dl * smoothstep(0.08, 0.7, luma(c));
+      c = c * (1.0 - m * 0.04) + m * vec3(0.022, 0.02, 0.018);
+    }
   }
   if (uLeak > 0.0) {
     vec2 a = vec2(uRes.x / uRes.y, 1.0);
@@ -276,6 +308,10 @@ void main(){
   }
   c = c * (1.0 - 0.22*uFade) + 0.09*uFade;
   c *= 1.0 - uVig * smoothstep(0.3, 1.0, rr0) * 0.75;
+  if (uVLens > 0.0) {   // lente antiga: queda de luz nas bordas e contraste mais baixo
+    c *= 1.0 - uVLens * 0.28 * smoothstep(0.35, 1.05, rr0);
+    c = mix(c, vec3(luma(c)) * 0.15 + c * 0.85 + 0.03, uVLens * 0.35);
+  }
   // ---------- data impressa (exposta no filme: fica sob o grão)
   if (uOverOn > 0.5) { vec4 ov = texture(uOver, uInner.xy + iu * (uInner.zw - uInner.xy)); c = 1.0 - (1.0 - c) * (1.0 - ov.rgb * ov.a); }
   // ---------- sujeira
@@ -332,7 +368,8 @@ void main(){
 }`;
 
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
-  'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uChroma', 'uSrcScale', 'uTexLong',
+  'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
+  'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
   'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPxScale', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
@@ -444,12 +481,14 @@ export class Renderer {
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
     f('uGColor', s.gcolor); f('uPaper', s.paper); f('uVig', s.vig); f('uHalo', s.halo);
+    f('uBloomR', s.bloomR); f('uHaloR', s.haloR); f('uHaloT', s.haloT); f('uVLens', s.vlens);
     f('uDust', s.dust); f('uDustType', s.dustType ?? 1); f('uDustSeed', s.dustSeed ?? 0); f('uScratch', s.scratch); f('uLeak', s.leak); f('uSeed', s.seed ?? 0); f('uBypass', bypass ? 1 : 0);
     const tl = Math.max(this.texW, this.texH);
     f('uTexLong', tl);
     f('uSrcScale', full.src ? Math.min(1, tl / full.src) : 1);
     f('uHaloLod', Math.max(0, Math.log2(tl * 0.005)));
     f('uClarLod', Math.max(0, Math.log2(tl * 0.012)));
+    f('uClarR', tl * 0.022);
     const iw = (v.inner[2] - v.inner[0]) * w;
     f('uPxScale', Math.max(1e-3, (full.w * v.zoom[2]) / Math.max(iw, 1)));
     gl.uniform2f(u.uRes, full.w, full.h);
