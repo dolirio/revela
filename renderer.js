@@ -29,6 +29,7 @@ uniform mat3 uGeo, uPersp; uniform float uLens;
 uniform vec4 uInner, uZoom, uBorder;
 uniform vec3 uFrameCol; uniform float uFrameRound, uFrameRough, uHoles, uOverOn;
 uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
+uniform vec4 uPrint;   // cópia em papel: x = maciez, y = acutância, z = luz espalhada no papel, w = maciez na borda (lente)
 uniform vec4 uLeakP; uniform float uLeakType, uLeakSeed, uScrType, uScrSeed, uChromaType;
 
 float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
@@ -359,8 +360,30 @@ void main(){
   float sn = max(-uSharp, 0.0);
   float edge2 = smoothstep(0.25, 1.0, rr0); edge2 *= edge2;
   float br = (uSoft * 0.0012 + uSoft * uSoft * 0.004 + sn * 0.003 + sn * sn * 0.003
-            + (uEBlur * 0.007 + uVLens * 0.0065) * edge2) * uTexLong;
+            + (uEBlur * 0.007 + uVLens * 0.0065) * edge2) * uTexLong
+            + (uPrint.x + uPrint.w * edge2) * uTexLong;    // cópia: ampliador e papel apagam o detalhe microscópico
   if (br > 0.35) c = blurAt(su, br);
+  if (uPrint.y > 0.0) {
+    // ...mas mantêm o contraste das formas (escala média): "macia, mas nítida"
+    float R = 0.006 * uTexLong, lod = max(0.0, log2(R) - 1.5), lb = 0.0;
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * 0.7854 + 0.2;
+      lb += luma(textureLod(uImg, su + vec2(cos(a), sin(a)) * R * uTexel, lod).rgb);
+    }
+    float l = luma(c), d = l - lb / 8.0;
+    d *= 1.0 / (1.0 + (d / 0.18) * (d / 0.18));
+    c = clamp(c + d * uPrint.y * 0.6 * (1.0 - pow(abs(l * 2.0 - 1.0), 2.0)), 0.0, 1.0);
+  }
+  if (uPrint.z > 0.0) {
+    // a luz entra no papel, anda um pouco por baixo da imagem e volta: as luzes acendem levemente as sombras vizinhas
+    float R = 0.012 * uTexLong, lod = max(0.0, log2(R) - 1.0);
+    vec3 w = textureLod(uImg, su, lod).rgb * 0.2;
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * 0.7854 + 0.4;
+      w += textureLod(uImg, su + vec2(cos(a), sin(a)) * R * uTexel, lod).rgb * 0.1;
+    }
+    c += max(w - c, 0.0) * uPrint.z;
+  }
   // Aberração cromática. Lateral: zero no centro, cresce rápido para as bordas (r²), vermelho para fora e azul
   // para dentro, com a borda menos nítida. Franja roxa (longitudinal): halo roxo nos escuros colados a luzes fortes,
   // em qualquer lugar da foto. Lente barata: lateral forte e descentrada + um pouco de franja.
@@ -608,11 +631,30 @@ void main(){
     vec2 pq = iu * uRes / lg;                         // 0..1 no lado maior: o desenho acompanha a foto, não a tela
     float sd = uPaperSeed;
     float P = uPaper;
-    if (pt == 0) {          // fotográfico: fibra leve, preto de papel, um pouco menos de cor
-      float t = paperTex(pq * 900.0 + sd * 11.1) * min(1.0, (lg / 900.0) / uPxScale);
-      c = c * (1.0 - P * 0.07) + P * vec3(0.045, 0.04, 0.035);
-      c *= 1.0 + t * P * 0.1;
-      c = mix(c, vec3(luma(c)), P * 0.06);
+    if (pt == 0 || pt >= 5) {
+      // cópia fotográfica passada no scanner (luz plana): preto e branco do papel, ombro suave nas luzes e a
+      // superfície. A maciez, a acutância e a luz espalhada já entraram na ótica (uPrint).
+      // 5 brilhante liso, 0 lustre (casca de laranja), 6 fosco, 7 instantânea (inspirado na instax mini)
+      float l = luma(c);
+      vec3 blk = pt == 5 ? vec3(0.036, 0.034, 0.032) : pt == 0 ? vec3(0.052, 0.049, 0.045)
+               : pt == 6 ? vec3(0.1, 0.096, 0.09) : vec3(0.074, 0.084, 0.092);
+      vec3 wht = pt == 7 ? vec3(0.955, 0.944, 0.915) : pt == 6 ? vec3(0.94, 0.935, 0.92) : vec3(0.968, 0.962, 0.95);
+      vec3 sh = c * 1.1 / (1.0 + 0.1 * c);                // luzes chegam ao branco em curva, sem cortar seco
+      vec3 m = blk + (wht - blk) * clamp(sh, 0.0, 1.0);
+      if (pt == 7) {                                      // química instantânea: meios um pouco frios, luzes quentes e menos cor
+        m *= mix(vec3(0.985, 1.0, 1.015), vec3(1.0, 0.99, 0.97), smoothstep(0.3, 0.9, l));
+        m = mix(m, vec3(luma(m)), 0.12 * smoothstep(0.55, 1.0, l));
+        m *= 1.0 - 0.16 * smoothstep(0.35, 1.05, rr0);    // lente simples: cantos mais escuros
+      }
+      c = mix(c, m, P);
+      // superfície: no scanner o relevo aparece mais nos escuros (o brilho da superfície soma onde há pouca imagem)
+      float fine = min(1.0, (lg / 1400.0) / uPxScale), mid = min(1.0, (lg / 320.0) / uPxScale);
+      float t;
+      if (pt == 0) t = (fbm2(pq * 260.0 + sd * 3.1) - 0.5) * 0.85 * mid + (gnoise(pq * 1400.0 + sd * 7.7) - 0.5) * 0.15 * fine;
+      else if (pt == 6) t = (gnoise(pq * 1400.0 + sd * 7.7) - 0.5) * 0.8 * fine + (gnoise(pq * 520.0 + sd) - 0.5) * 0.25 * mid;
+      else t = (gnoise(pq * 1400.0 + sd * 7.7) - 0.5) * 0.25 * fine;
+      float amp = pt == 0 ? 0.055 : pt == 6 ? 0.05 : 0.02;
+      c += t * amp * P * (0.15 + 0.85 * (1.0 - luma(c)));
     } else if (pt == 1) {   // marfim: papel fosco de algodão, branco creme e preto aberto
       float t = paperTex(pq * 700.0 + sd * 11.1) * min(1.0, (lg / 700.0) / uPxScale);
       vec3 paperW = vec3(0.965, 0.935, 0.855), ink = vec3(0.11, 0.095, 0.085);
@@ -652,10 +694,17 @@ void main(){
   o = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
+// cópia em papel: maciez (fração do lado maior), acutância, luz espalhada no papel, maciez extra na borda
+const PRINT = { 5: [0.0004, 0.4, 0.06, 0], 0: [0.0006, 0.35, 0.1, 0], 6: [0.0009, 0.3, 0.16, 0], 7: [0.0013, 0.25, 0.22, 0.0035] };
+function printParams(s) {
+  const p = s.paper > 0 && PRINT[s.paperType];
+  return p ? p.map((v) => v * s.paper) : [0, 0, 0, 0];
+}
+
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uBright', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
   'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
-  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
+  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
   'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType'];
@@ -765,7 +814,7 @@ export class Renderer {
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
-    f('uGColor', s.gcolor); f('uPaper', s.paper); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
+    f('uGColor', s.gcolor); f('uPaper', s.paper); gl.uniform4fv(u.uPrint, printParams(s)); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
     f('uGfx', s.gfx); f('uGfxAmt', s.gfxAmt); f('uGfxSize', s.gfxSize); f('uGfxCon', s.gfxCon);
     const gc = s.gfxCols || [[0, 0, 0], [1, 1, 1], [1, 1, 1]];
     gl.uniform3fv(u.uGfxA, gc[0]); gl.uniform3fv(u.uGfxB, gc[1]); gl.uniform3fv(u.uGfxC, gc[2] || gc[1]); f('uVig', s.vig); f('uHalo', s.halo);

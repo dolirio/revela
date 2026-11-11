@@ -793,20 +793,31 @@ $('uCancel').onclick = () => closeSheet(false);
 $('dCancel').onclick = () => closeSheet(false);
 
 // papel: tipo, variação (dado) e intensidade
-const PAPER_TYPES = ['Nenhum', 'Fotográfico', 'Marfim', 'Tela', 'Revista', 'Fotocópia'];
-const PAPER_ON = [0, 0.6, 0.7, 0.6, 1, 1];   // intensidade inicial ao escolher o tipo
-PAPER_TYPES.forEach((n, i) => {
-  const b = document.createElement('button'); b.textContent = n; b.dataset.i = i;
+// t = tipo no renderer (a ordem na tela é outra, para não mudar receitas salvas); on = intensidade ao escolher
+const PAPER_TYPES = [
+  { n: 'Nenhum', t: -1, note: 'Como a foto fica impressa e passada no scanner: macia mas nítida, com o preto e o branco do papel.' },
+  { n: 'Brilhante', t: 5, on: 0.6, note: 'Papel brilhante liso: pretos fundos, quase sem textura.' },
+  { n: 'Lustre', t: 0, on: 0.6, note: 'Papel lustre, a "casca de laranja": relevo suave que aparece mais nos escuros.' },
+  { n: 'Fosco', t: 6, on: 0.6, note: 'Papel fosco: preto mais aberto, mais luz espalhada, textura fina.' },
+  { n: 'Instantânea', t: 7, on: 0.6, note: 'Inspirado na instax mini: lente simples e macia, imagem leitosa, sombras frias e luzes quentes.' },
+  { n: 'Marfim', t: 1, on: 0.7, note: 'Papel de algodão fosco, branco creme.' },
+  { n: 'Tela', t: 2, on: 0.6, note: 'Impressão em tela, com a trama do tecido.' },
+  { n: 'Revista', t: 3, on: 1, note: 'Retícula de gráfica em papel couché.' },
+  { n: 'Fotocópia', t: 4, on: 1, note: 'Xerox em preto e branco.' },
+];
+PAPER_TYPES.forEach((p, i) => {
+  const b = document.createElement('button'); b.textContent = p.n; b.dataset.t = p.t;
   b.onclick = () => {
-    if (i === 0) state.paper = 0;
-    else { if (!state.paper || state.paperType !== i - 1) state.paper = PAPER_ON[i]; state.paperType = i - 1; }
+    if (p.t < 0) state.paper = 0;
+    else { if (!state.paper || state.paperType !== p.t) state.paper = p.on; state.paperType = p.t; }
     syncPaper(); draw();
   };
   $('paperTypes').append(b);
 });
 function syncPaper() {
-  const on = state.paper > 0 ? state.paperType + 1 : 0;
-  document.querySelectorAll('#paperTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === on));
+  const on = state.paper > 0 ? state.paperType : -1;
+  document.querySelectorAll('#paperTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.t === on));
+  $('ppNote').textContent = (PAPER_TYPES.find((p) => p.t === on) || PAPER_TYPES[0]).note;
   const r = $('ppRange'), v = Math.round(state.paper * 100); r.value = v; fillRange(r, 0);
   $('ppVal').textContent = String(v);
   $('ppSeed').disabled = !state.paper;
