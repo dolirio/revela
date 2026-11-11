@@ -1082,7 +1082,28 @@ async function renderToBlob(bitmap, w0, h0, s, name) {
   return { blob, w: ow, h: oh };
 }
 const isMobile = () => /Android|iPhone|iPad/i.test(navigator.userAgent);
+// app instalado pelo APK (Capacitor): o WebView não baixa nem compartilha arquivos sozinho
+const isNative = () => !!window.Capacitor?.isNativePlatform?.();
+const toBase64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+async function deliverNative(files) {
+  const C = window.Capacitor, P = C.Plugins || {};
+  const Filesystem = P.Filesystem || C.registerPlugin('Filesystem'), Share = P.Share || C.registerPlugin('Share');
+  let saved = 0;
+  for (const f of files) {
+    const data = await toBase64(f);
+    try {   // Android 11+: grava direto em Imagens/Pellicula, e a Galeria encontra
+      await Filesystem.writeFile({ path: `Pictures/Pellicula/${f.name}`, data, directory: 'EXTERNAL_STORAGE', recursive: true });
+      saved++;
+    } catch {   // sem acesso: abre o compartilhar do Android
+      const w = await Filesystem.writeFile({ path: f.name, data, directory: 'CACHE' });
+      try { await Share.share({ title: f.name, files: [w.uri] }); } catch { /* cancelado */ }
+    }
+  }
+  if (saved) toast(saved === 1 ? 'Salva em Imagens › Pellicula' : `${saved} fotos salvas em Imagens › Pellicula`);
+  return saved;
+}
 async function deliver(files) {
+  if (isNative()) return deliverNative(files);
   if (isMobile() && navigator.canShare && navigator.canShare({ files })) {
     try { await navigator.share({ files }); return; } catch { /* cancelado */ }
   }
@@ -1100,8 +1121,9 @@ $('btnExport').addEventListener('click', async () => {
   try {
     await new Promise((r) => setTimeout(r, 30));
     const { blob, w, h } = await renderToBlob(photo.bitmap, photo.w, photo.h, state, photo.name);
-    await deliver([new File([blob], `${photo.name}_pellicula.jpg`, { type: 'image/jpeg' })]);
-    toast(`Foto exportada (${w}×${h})`);
+    const n = await deliver([new File([blob], `${photo.name}_pellicula.jpg`, { type: 'image/jpeg' })]);
+    if (!isNative()) toast(`Foto exportada (${w}×${h})`);
+    else if (n) toast(`Salva em Imagens › Pellicula (${w}×${h})`);
   } catch (e) {
     console.error(e); toast('Falha ao exportar: ' + e.message);
   } finally {
@@ -1183,7 +1205,7 @@ function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('on');
   clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2800);
 }
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNative()) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
