@@ -153,7 +153,8 @@
   .rowb { display: flex; gap: 8px; flex-wrap: wrap; }
   .rowb button, .btn { border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 13px; }
   .rowb button.on { border-color: var(--accent); color: var(--accent); }
-  input[type=text] { font: inherit; color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; flex: 1; }
+  /* 16px: abaixo disso o Safari do iPhone dá zoom ao tocar no campo */
+  input[type=text] { font: inherit; font-size: 16px; color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; flex: 1; }
   .item { display: flex; align-items: center; gap: 8px; background: var(--raise); border-radius: 8px; padding: 6px 8px 6px 12px; }
   .item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; }
@@ -193,26 +194,13 @@
   #menu button, #menu a { text-align: left; padding: 10px 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 14px; }
   #menu button:hover, #menu a:hover { background: #ffffff0d; }
 
-  /* receitas */
-  .cats .sp { flex: 1; } .cats .act { color: var(--accent); }
+  /* filmes */
   @media (max-width: 420px) { .cats { gap: 14px; } }
   .finfo { margin: 6px 16px 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 15px; }
   .finfo b { color: var(--text); font-weight: 600; margin-right: 4px; }
-  .film .sub { display: block; font-size: 10px; color: #6f685e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
   .note { margin: 0; text-align: center; color: var(--muted); font-size: 13px; }
   .rowb.center { justify-content: center; align-items: center; }
   #dock.tall .ctx { height: min(56vh, 460px); }
-  #recEditor { justify-content: flex-start; padding: 10px 0 0; gap: 0; }
-  #recEditor .top { display: flex; gap: 8px; padding: 0 16px 6px; }
-  #recEditor .list { overflow-y: auto; flex: 1; padding: 0 16px 6px; }
-  #recEditor .foot { padding: 0 18px 4px; }
-  .grp { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; margin: 12px 0 4px; }
-  .frow { display: grid; grid-template-columns: minmax(0, 1fr) 36px 96px 36px; align-items: center; gap: 4px; padding: 3px 0; border-bottom: 1px solid #ffffff08; }
-  .frow > span { font-size: 13.5px; }
-  .frow output { text-align: center; font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--text); }
-  .frow output.chg { color: var(--accent); }
-  .frow .st { width: 34px; height: 34px; border-radius: 50%; background: var(--raise); font-size: 18px; line-height: 1; }
-  .frow select { grid-column: 2 / 5; font: inherit; color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; }
 
   @media (min-width: 900px) {
     #dock { width: 100%; max-width: 760px; justify-self: center; border-radius: 14px 14px 0 0; }
@@ -331,6 +319,11 @@
       <div id="gfxRows"></div>
       <p class="note" id="gfxNote">Transforma a foto em impressão gráfica: meio-tom de jornal, retícula em cores ou duas e três tintas.</p>
       <div class="foot"><button class="ib" id="gfxCancel" aria-label="Cancelar"></button><div class="t">Gráfico</div><button class="ib" id="gfxOk" aria-label="Confirmar"></button></div>
+    </div>
+    <div class="sheet" id="askSheet">
+      <p class="note" id="askNote"></p>
+      <div class="rowb center" id="askRow"><input type="text" id="askInput" maxlength="32" autocomplete="off" enterkeyhint="done" aria-label="Nome"></div>
+      <div class="foot"><button class="ib" id="askCancel" aria-label="Cancelar"></button><div class="t" id="askTitle"></div><button class="ib" id="askOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="recSheet">
       <p class="note" id="rNote"></p>

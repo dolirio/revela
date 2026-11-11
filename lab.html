@@ -46,28 +46,26 @@
 </head>
 <body>
 <header>
-  <div class="brand"><a href="./">Re<span>vela</span></a> · Lab</div>
+  <div class="brand"><a href="./">Pelli<span>cula</span></a> · Lab</div>
   <button id="btnOpen">Abrir foto</button>
-  <button id="btnExport" class="primary">Exportar looks</button>
+  <button id="btnExport" class="primary">Exportar filmes</button>
   <input id="fileImg" type="file" accept="image/*" hidden>
 </header>
 <main id="stage"><canvas id="view"></canvas><div id="badge">Original</div></main>
 <aside id="side">
   <div class="bar">
-    <select id="selLook" aria-label="Look"></select>
-    <button id="btnNew">Duplicar</button>
-    <button id="btnDel">Excluir</button>
-  </div>
-  <div class="bar">
-    <input type="text" id="inName" aria-label="Nome do look">
+    <select id="selLook" aria-label="Filme"></select>
     <button id="btnReset">Desfazer edições</button>
   </div>
-  <p class="hint">As mudanças são salvas neste aparelho e aparecem no app na hora. Segure a foto para ver o original.</p>
+  <p class="hint" id="filmRef"></p>
+  <label class="chk"><input type="checkbox" id="chkCh" checked> Mostrar grão e caráter do filme</label>
+  <p class="hint">As mudanças são salvas neste aparelho e aparecem no app ao abrir de novo. Filmes editados ficam com • na lista.
+    Segure a foto para ver o original.</p>
   <div id="controls"></div>
   <details>
     <summary>Restaurar tudo</summary>
-    <p class="hint">Apaga todas as edições deste aparelho e volta aos looks do arquivo looks-data.js.</p>
-    <button id="btnFactory">Restaurar looks de fábrica</button>
+    <p class="hint">Apaga as edições de todos os filmes neste aparelho e volta ao que veio com o app.</p>
+    <button id="btnFactory">Restaurar filmes de fábrica</button>
   </details>
 </aside>
 <div id="toast" role="status"></div>

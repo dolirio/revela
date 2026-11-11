@@ -5,6 +5,8 @@
 // look: parâmetros da LUT (ver makeLook em looks.js)
 // ch:   caráter do filme, aplicado junto com a cor (grão de acordo com o ISO, halação, desbotado...)
 
+import { FILM_LOOKS } from './film-looks.js';
+
 // grão por faixa de ISO: [intensidade, tamanho, aspereza, cor]
 const G = {
   50: [0.08, 0.9, 0.18, 0.2], 100: [0.13, 1.05, 0.25, 0.3], 160: [0.17, 1.15, 0.3, 0.32], 200: [0.25, 1.4, 0.38, 0.36],
@@ -204,3 +206,18 @@ export const FILMS = [
 // Chaves de caráter que um filme pode definir. Ao trocar de filme, o caráter do anterior sai
 // (se você não mexeu nele) e o do novo entra; luz, cor, corte e moldura ficam como estão.
 export const CH_KEYS = ['grain', 'gsize', 'grough', 'gcolor', 'halo', 'haloR', 'haloT', 'bloom', 'bloomR', 'fade', 'vig', 'vlens'];
+
+// ---------------------------------------------------------------- ajustes do Laboratório
+const copy = (o) => JSON.parse(JSON.stringify(o));
+// look de cada filme como está escrito acima (antes de qualquer ajuste)
+export const FILM_SRC = Object.fromEntries(FILMS.map((f) => [f.id, copy(f.look)]));
+// 1) ajustes publicados (film-looks.js)
+for (const f of FILMS) if (FILM_LOOKS[f.id]) f.look = copy(FILM_LOOKS[f.id]);
+// look "de fábrica" desta versão do app: o que o botão Desfazer edições do Laboratório restaura
+export const FILM_FILE = Object.fromEntries(FILMS.map((f) => [f.id, copy(f.look)]));
+// 2) ajustes feitos no Laboratório deste aparelho
+const LS = 'revela.filmLooks';
+export function savedFilmLooks() { try { return JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch { return {}; } }
+export function saveFilmLooks(o) { try { localStorage.setItem(LS, JSON.stringify(o)); return true; } catch { return false; } }
+export function clearFilmLooks() { try { localStorage.removeItem(LS); } catch { /* ok */ } }
+for (const [id, l] of Object.entries(savedFilmLooks())) { const f = FILMS.find((x) => x.id === id); if (f && l) f.look = copy(l); }

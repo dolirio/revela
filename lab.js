@@ -1,4 +1,5 @@
-import { LOOKS as FILE_LOOKS, getLooks, saveLooks, clearSavedLooks, buildLutData } from './looks.js';
+import { buildLutData } from './looks.js';
+import { FILMS, FILM_CATS, FILM_FILE, FILM_SRC, saveFilmLooks, clearFilmLooks } from './films.js';
 import { Renderer } from './renderer.js';
 
 const $ = (id) => document.getElementById(id);
@@ -21,16 +22,19 @@ function norm(r) {
   };
 }
 const round = (v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : Array.isArray(v) ? v.map(round) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, round(x)])) : v);
-function toRecipe(l) {
-  const o = { id: l.id, name: l.name, group: l.bw ? 'P&B' : 'Cor' };
-  for (const [k, v] of Object.entries(l)) if (!['id', 'name', '_bw'].includes(k) && v !== null) o[k] = round(v);
+// look editado -> objeto "look" de films.js (sem campos de interface)
+function toLook(l) {
+  const o = {};
+  for (const [k, v] of Object.entries(l)) if (!['id', 'name', '_bw', 'film'].includes(k) && v !== null) o[k] = round(v);
   if (!o.hues.length) delete o.hues;
   if (!o.split.amt) delete o.split;
   return o;
 }
-
-let looks = clone(getLooks()).map(norm);
+const filmLook = (f, look) => ({ ...norm({ id: f.id, name: f.code, ...clone(look) }), film: f });
+let looks = FILMS.map((f) => filmLook(f, f.look));
 let cur = 0;
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const isEdited = (L) => !same(toLook(L), toLook(filmLook(L.film, FILM_FILE[L.id])));
 
 // ------------------------------------------------------------ imagem
 let photo;
@@ -73,7 +77,7 @@ function draw() {
     const st = $('stage'), dpr = Math.min(devicePixelRatio || 1, 2);
     const sc = Math.min(1, (st.clientWidth - 20) * dpr / photo.w, (st.clientHeight - 20) * dpr / photo.h);
     const w = Math.max(1, Math.round(photo.w * sc)), h = Math.max(1, Math.round(photo.h * sc));
-    R.render(w, h, NEUTRAL, photo, bypass);
+    R.render(w, h, $('chkCh').checked ? { ...NEUTRAL, ...looks[cur].film.ch } : NEUTRAL, photo, bypass);
     view.style.width = w / dpr + 'px'; view.style.height = h / dpr + 'px';
   });
 }
@@ -96,7 +100,11 @@ let saveT;
 function changed() {
   rebuild();
   clearTimeout(saveT);
-  saveT = setTimeout(() => { if (!saveLooks(looks.map(toRecipe))) toast('Não foi possível salvar neste navegador'); }, 300);
+  saveT = setTimeout(() => {
+    const o = Object.fromEntries(looks.filter(isEdited).map((L) => [L.id, toLook(L)]));
+    if (!saveFilmLooks(o)) toast('Não foi possível salvar neste navegador');
+    fillSelect();
+  }, 300);
 }
 
 // ------------------------------------------------------------ controles
@@ -129,7 +137,7 @@ function slider(label, path, min, max, step, obj = looks[cur]) {
 const openState = {};
 function renderControls() {
   const L = looks[cur];
-  $('inName').value = L.name;
+  $('filmRef').textContent = `inspirado no ${L.film.ref} · ${L.film.kind}`;
   const box = $('controls'); box.innerHTML = '';
   for (const s of SECTIONS) {
     const d = document.createElement('details');
@@ -169,36 +177,31 @@ function renderControls() {
 
 function fillSelect() {
   const sel = $('selLook');
-  sel.innerHTML = looks.map((l, i) => `<option value="${i}">${l.name}</option>`).join('');
+  sel.innerHTML = FILM_CATS.filter((c) => c.id !== 'mine').map((c) => `<optgroup label="${c.n}">` +
+    looks.map((l, i) => (l.film.cat === c.id ? `<option value="${i}">${l.name}${isEdited(l) ? ' •' : ''}</option>` : '')).join('') + '</optgroup>').join('');
   sel.value = cur;
 }
 $('selLook').addEventListener('change', (e) => { cur = +e.target.value; renderControls(); rebuild(); });
-$('inName').addEventListener('input', (e) => { looks[cur].name = e.target.value || 'Sem nome'; $('selLook').options[cur].textContent = looks[cur].name; changed(); });
-$('btnNew').onclick = () => {
-  const c = clone(looks[cur]); c.id = 'look_' + Date.now().toString(36); c.name = looks[cur].name + ' (cópia)';
-  looks.splice(cur + 1, 0, c); cur++; fillSelect(); renderControls(); changed();
-};
-$('btnDel').onclick = () => {
-  if (looks.length <= 1) return toast('Precisa existir pelo menos um look');
-  if (!confirm(`Excluir "${looks[cur].name}"?`)) return;
-  looks.splice(cur, 1); cur = Math.max(0, cur - 1); fillSelect(); renderControls(); changed();
-};
+$('chkCh').addEventListener('change', draw);
 $('btnReset').onclick = () => {
-  const f = FILE_LOOKS.find((l) => l.id === looks[cur].id);
-  if (!f) return toast('Este look não existe no arquivo original');
-  looks[cur] = norm(clone(f)); fillSelect(); renderControls(); changed(); toast('Edições desfeitas');
+  const L = looks[cur];
+  looks[cur] = filmLook(L.film, FILM_FILE[L.id]); renderControls(); changed(); toast('Edições deste filme desfeitas');
 };
 $('btnFactory').onclick = () => {
-  if (!confirm('Apagar todas as edições deste aparelho?')) return;
-  clearSavedLooks(); looks = clone(FILE_LOOKS).map(norm); cur = 0; fillSelect(); renderControls(); rebuild(); toast('Looks de fábrica restaurados');
+  if (!confirm('Apagar as edições de todos os filmes neste aparelho?')) return;
+  clearFilmLooks(); looks = FILMS.map((f) => filmLook(f, FILM_FILE[f.id])); fillSelect(); renderControls(); rebuild(); toast('Filmes de fábrica restaurados');
 };
 $('btnExport').onclick = () => {
-  const txt = '// Receitas dos looks. Este arquivo pode ser substituído pelo exportado no Laboratório (lab.html).\nexport const LOOKS = ' +
-    JSON.stringify(looks.map(toRecipe), null, 2) + ';\n';
+  // só o que difere do films.js entra no arquivo
+  const o = {};
+  for (const L of looks) { const lk = toLook(L); if (!same(lk, toLook(filmLook(L.film, FILM_SRC[L.id])))) o[L.id] = lk; }
+  const txt = '// Ajustes de cor dos filmes feitos no Laboratório (lab.html → Exportar filmes).\n' +
+    '// Cada entrada substitui o "look" do filme com o mesmo id em films.js. Vazio = usa o films.js como está.\n' +
+    'export const FILM_LOOKS = ' + JSON.stringify(o, null, 2) + ';\n';
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/javascript' })); a.download = 'looks-data.js'; a.click();
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/javascript' })); a.download = 'film-looks.js'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast('looks-data.js exportado');
+  toast(`film-looks.js exportado (${Object.keys(o).length} filme${Object.keys(o).length === 1 ? '' : 's'} ajustado${Object.keys(o).length === 1 ? '' : 's'})`);
 };
 
 let tt;

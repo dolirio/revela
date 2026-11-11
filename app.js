@@ -18,8 +18,8 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk']) setIcon(id, 'ok');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk']) setIcon(id, 'ok');
 const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
@@ -389,6 +389,21 @@ const saveUserRecipes = () => { if (!store.set('revela.recipes', userRecipes)) t
 const findRecipe = (id) => userRecipes.find((r) => r.id === id);
 const filmById = (id) => FILMS.find((f) => f.id === id);
 
+// pergunta dentro do app (nome ou confirmação), no lugar das janelas do navegador
+let askDone = null;
+function ask({ title, note = '', value = null }) {
+  return new Promise((resolve) => {
+    openSheet('askSheet');
+    $('askTitle').textContent = title; $('askNote').textContent = note;
+    $('askRow').style.display = value === null ? 'none' : '';
+    if (value !== null) { $('askInput').value = value; setTimeout(() => { $('askInput').focus(); $('askInput').select(); }, 50); }
+    askDone = (ok) => { askDone = null; const v = $('askInput').value.trim(); closeSheet(true); resolve(value === null ? ok : ok ? v : null); };
+  });
+}
+$('askOk').onclick = () => askDone?.(true);
+$('askCancel').onclick = () => (askDone ? askDone(false) : closeSheet(false));
+$('askInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); askDone?.(true); } });
+
 // troca de filme: muda só a cor e o caráter do filme; luz, ajustes, corte e moldura ficam
 function applyFilm(id) {
   const d = defaults(), prev = state.filmCh || {};
@@ -416,9 +431,9 @@ function editSnapshot() {
   for (const k of [...KEEP_KEYS, 'recipe', 'filmCh']) delete s[k];
   return s;
 }
-function saveAsMine() {
+async function saveAsMine() {
   const base = filmById(state.look)?.code;
-  const name = (prompt('Nome do seu filme', base ? `${base} meu` : `Meu ${userRecipes.length + 1}`) || '').trim();
+  const name = await ask({ title: 'Salvar como meu', note: 'Guarda a edição atual (menos corte, moldura e data) em Minhas.', value: base ? `${base} meu` : `Meu ${userRecipes.length + 1}` });
   if (!name) return false;
   const rec = { id: 'u' + Date.now().toString(36), name, s: editSnapshot() };
   userRecipes.push(rec); saveUserRecipes();
@@ -543,24 +558,23 @@ function openRecSheet(r) {
   $('rNote').textContent = f ? `Feito a partir do ${f.code} (inspirado no ${f.ref}).` : 'Seu filme, com todos os ajustes salvos.';
   openSheet('recSheet');
 }
-$('rRen').onclick = () => {
-  const r = sheetRecipe, name = (prompt('Novo nome', r.name) || '').trim();
+$('rRen').onclick = async () => {
+  const r = sheetRecipe, name = await ask({ title: 'Renomear', value: r.name });
   if (!name) return;
-  r.name = name; saveUserRecipes(); $('rTitle').textContent = name; buildStrip();
+  r.name = name; saveUserRecipes(); buildStrip(); syncFilms();
 };
-$('rUpd').onclick = () => {
+$('rUpd').onclick = async () => {
   const r = sheetRecipe;
-  if (!confirm(`Substituir “${r.name}” pela edição atual?`)) return;
-  const snap = sheetSnap ? JSON.parse(sheetSnap) : state;
-  const s = JSON.parse(JSON.stringify(snap)); for (const k of [...KEEP_KEYS, 'recipe', 'filmCh']) delete s[k];
-  delete r.spec; r.s = s; saveUserRecipes(); closeSheet(true); buildStrip(); toast(`“${r.name}” atualizado`);
+  if (!(await ask({ title: 'Atualizar', note: `Substituir “${r.name}” pela edição atual?` }))) return;
+  const s = JSON.parse(JSON.stringify(state)); for (const k of [...KEEP_KEYS, 'recipe', 'filmCh']) delete s[k];
+  delete r.spec; r.s = s; saveUserRecipes(); buildStrip(); toast(`“${r.name}” atualizado`);
 };
-$('rDel').onclick = () => {
+$('rDel').onclick = async () => {
   const r = sheetRecipe;
-  if (!confirm(`Excluir “${r.name}”?`)) return;
+  if (!(await ask({ title: 'Excluir', note: `Excluir “${r.name}”? Não dá para desfazer.` }))) return;
   userRecipes = userRecipes.filter((x) => x.id !== r.id); saveUserRecipes();
   if (state.recipe === r.id) state.recipe = null;
-  closeSheet(true); buildStrip(); toast('Excluído');
+  buildStrip(); syncFilms(); toast('Excluído');
 };
 $('rOk').onclick = () => closeSheet(true);
 
