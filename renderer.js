@@ -5,6 +5,7 @@ export const RDEF = {
   mix: 1, exp: 0, con: 0, high: 0, shad: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
   clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
   grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, paper: 0, paperType: 0, paperSeed: 0,
+  gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0,
   fade: 0, halo: 0, haloR: 0.5, haloT: 0.5, vig: 0, leak: 0, dust: 0, scratch: 0,
 };
 const HSL_ZERO = new Float32Array(8);
@@ -21,6 +22,7 @@ uniform sampler2D uImg; uniform sampler2D uCurve; uniform sampler3D uLut; unifor
 uniform float uLutN, uMix, uExp, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
 uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uBloomR, uChroma, uSrcScale, uTexLong, uVLens, uHaloR, uHaloT, uClarR;
 uniform float uFade, uGrain, uGrainSize, uGRough, uGColor, uPaper, uPaperType, uPaperSeed, uPxScale;
+uniform float uGfx, uGfxAmt, uGfxSize, uGfxCon; uniform vec3 uGfxA, uGfxB, uGfxC;
 uniform float uVig, uHalo, uHaloLod, uClarLod, uBypass, uDust, uDustType, uDustSeed, uScratch, uLeak, uSeed;
 uniform vec2 uRes, uTexel, uOut;
 uniform mat3 uGeo, uPersp; uniform float uLens;
@@ -77,6 +79,8 @@ float canvasTex(vec2 p){
   float h = mix(wy * sin(f.x * 3.14159), wx * sin(f.y * 3.14159), top) * th;
   return (h - 0.42) + (vnoise(p * 3.1) - 0.5) * 0.25;
 }
+// retícula CMYK: g = posição na grade de pontos, w = 0 quando o ponto é pequeno demais na tela
+vec3 cmykScreen(vec3 x, vec2 g, float w, float aj, vec3 paperW);
 // um canal da retícula: grade girada, ponto redondo do tamanho da cobertura
 float htDot(vec2 p, float ang, float v, float sharpW){
   vec2 q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * p;
@@ -85,6 +89,16 @@ float htDot(vec2 p, float ang, float v, float sharpW){
   float aa = max(fwidth(d), 1e-4) * 0.8;
   float dot = 1.0 - smoothstep(r - aa, r + aa, d);
   return mix(v, dot, sharpW);                                        // pequeno demais na tela: vira a cobertura média
+}
+vec3 cmykScreen(vec3 x, vec2 g, float w, float aj, vec3 paperW){
+  x = clamp(x, 0.0, 1.0);
+  float k = 1.0 - max(max(x.r, x.g), x.b), kk = k * 0.75;
+  vec3 cmy = clamp((1.0 - x - kk) / max(1.0 - kk, 1e-3), 0.0, 1.0);
+  float dc = htDot(g, 0.2618 + aj, cmy.r, w), dm = htDot(g, 1.309 + aj, cmy.g, w);
+  float dy = htDot(g, 0.0 + aj, cmy.b, w), dk = htDot(g, 0.7854 + aj, kk, w);
+  vec3 r = paperW * mix(vec3(1.0), vec3(0.05, 0.6, 0.88), dc) * mix(vec3(1.0), vec3(0.9, 0.12, 0.52), dm)
+         * mix(vec3(1.0), vec3(1.0, 0.9, 0.08), dy) * mix(vec3(1.0), vec3(0.1, 0.1, 0.11), dk);
+  return pow(r, vec3(0.88));                       // ganho de ponto e tinta um pouco mais clara
 }
 
 // ---------- poeira: cada modelo é uma combinação fixa de camadas; a intensidade só muda a opacidade
@@ -381,6 +395,29 @@ void main(){
     float w = 0.2 + 0.8 * exp(-pow((l - 0.42) / 0.34, 2.0));   // mais visível nos meios-tons e sombras
     c += n * amp * w;
   }
+  // ---------- gráfico: meio-tom, meio-tom em cores, duotônico, tritônico
+  if (uGfx > 0.5 && uGfxAmt > 0.0) {
+    int gt = int(uGfx + 0.5);
+    float lg = max(uRes.x, uRes.y);
+    vec2 pq = iu * uRes / lg;
+    float N = mix(240.0, 36.0, uGfxSize);           // pontos no lado maior
+    float w = smoothstep(2.0, 5.0, (lg / N) / uPxScale);
+    float l = clamp((luma(c) - 0.5) * (1.0 + uGfxCon * 1.4) + 0.5, 0.0, 1.0);
+    if (gt >= 3) l = mix(l, l * l * (3.0 - 2.0 * l), 0.4);   // tintas: um pouco mais de contraste
+    vec3 r;
+    if (gt == 1) {          // meio-tom: um só preto, ponto a 45°
+      float d = htDot(pq * N, 0.7854, pow(1.0 - l, 1.1), w);
+      r = mix(vec3(0.955, 0.95, 0.935), vec3(0.07, 0.07, 0.075), d);
+    } else if (gt == 2) {   // meio-tom em cores
+      vec3 x = clamp((c - 0.5) * (1.0 + uGfxCon * 1.4) + 0.5, 0.0, 1.0);
+      r = cmykScreen(x, pq * N, w, 0.0, vec3(0.97, 0.965, 0.95));
+    } else if (gt == 3) {   // duotônico: tinta escura -> tinta clara
+      r = mix(uGfxA, uGfxB, l);
+    } else {                // tritônico: sombras -> meios-tons -> luzes
+      r = l < 0.5 ? mix(uGfxA, uGfxB, l * 2.0) : mix(uGfxB, uGfxC, (l - 0.5) * 2.0);
+    }
+    c = mix(c, r, uGfxAmt);
+  }
   // ---------- papel
   if (uPaper > 0.0) {
     int pt = int(uPaperType + 0.5);
@@ -412,16 +449,7 @@ void main(){
       float ppc = (lg / N) / uPxScale;                 // pixels de tela por ponto
       float w = smoothstep(2.0, 5.0, ppc);
       vec2 g = pq * N + vec2(0.37, 0.71) * sd;
-      vec3 x = clamp(c, 0.0, 1.0);
-      float k = 1.0 - max(max(x.r, x.g), x.b), kk = k * 0.75;
-      vec3 cmy = clamp((1.0 - x - kk) / max(1.0 - kk, 1e-3), 0.0, 1.0);
-      float aj = sd * 0.013;
-      float dc = htDot(g, 0.2618 + aj, cmy.r, w), dm = htDot(g, 1.309 + aj, cmy.g, w);
-      float dy = htDot(g, 0.0 + aj, cmy.b, w), dk = htDot(g, 0.7854 + aj, kk, w);
-      vec3 paperW = vec3(0.955, 0.95, 0.935);
-      vec3 r = paperW * mix(vec3(1.0), vec3(0.05, 0.6, 0.88), dc) * mix(vec3(1.0), vec3(0.9, 0.12, 0.52), dm)
-             * mix(vec3(1.0), vec3(1.0, 0.9, 0.08), dy) * mix(vec3(1.0), vec3(0.1, 0.1, 0.11), dk);
-      r = pow(r, vec3(0.88));                          // ganho de ponto e tinta um pouco mais clara
+      vec3 r = cmykScreen(c, g, w, sd * 0.013, vec3(0.955, 0.95, 0.935));
       c = mix(c, r, P);
     } else {                // fotocópia: preto e branco duro, toner granulado, faixas do cilindro
       float lum = luma(c);
@@ -444,7 +472,7 @@ void main(){
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
   'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
-  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPaperSeed', 'uPxScale', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
+  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
   'uLeakA', 'uLeakB', 'uLeakCA', 'uLeakCB'];
@@ -554,7 +582,10 @@ export class Renderer {
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
-    f('uGColor', s.gcolor); f('uPaper', s.paper); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed); f('uVig', s.vig); f('uHalo', s.halo);
+    f('uGColor', s.gcolor); f('uPaper', s.paper); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
+    f('uGfx', s.gfx); f('uGfxAmt', s.gfxAmt); f('uGfxSize', s.gfxSize); f('uGfxCon', s.gfxCon);
+    const gc = s.gfxCols || [[0, 0, 0], [1, 1, 1], [1, 1, 1]];
+    gl.uniform3fv(u.uGfxA, gc[0]); gl.uniform3fv(u.uGfxB, gc[1]); gl.uniform3fv(u.uGfxC, gc[2] || gc[1]); f('uVig', s.vig); f('uHalo', s.halo);
     f('uBloomR', s.bloomR); f('uHaloR', s.haloR); f('uHaloT', s.haloT); f('uVLens', s.vlens);
     f('uDust', s.dust); f('uDustType', s.dustType ?? 1); f('uDustSeed', s.dustSeed ?? 0); f('uScratch', s.scratch); f('uLeak', s.leak); f('uSeed', s.seed ?? 0); f('uBypass', bypass ? 1 : 0);
     const tl = Math.max(this.texW, this.texH);

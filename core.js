@@ -15,6 +15,7 @@ export function defaults() {
     temp: 0, tint: 0, sat: 0, vib: 0, depth: 0, clar: 0,
     sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, halo: 0, haloR: 0.5, haloT: 0.5, vlens: 0,
     grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, paper: 0, paperType: 0, paperSeed: 0,
+    gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0, gfxDuo: 0, gfxTri: 0,
     fade: 0, vig: 0, chroma: 0,
     leak: 0, leakType: 0, leakSeed: 1, dust: 0, dustType: 1, dustSeed: 0, scratch: 0, seed: 0,
     hsl: Array.from({ length: 8 }, () => ({ h: 0, s: 0, l: 0 })),
@@ -298,6 +299,19 @@ export function leakData(type, seed) {
   return { a: [p1[0], p1[1], 0.35 + r() * 0.35, 1], b: [p2[0], p2[1], 0.2 + r() * 0.3, 0.7], ca: L.a, cb: L.b };
 }
 
+// Gráfico: paletas de duotônico (escura, clara) e tritônico (sombras, meios-tons, luzes)
+const hx = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+export const GFX_DUO = [
+  ['Noite', '#14203f', '#f8efd6'], ['Vinho', '#4a0c1e', '#ffc7cc'], ['Mata', '#0d382a', '#e6f79a'],
+  ['Ameixa', '#381461', '#ffa852'], ['Limão-rosa', '#1a1418', '#ff9db4'], ['Sépia', '#2e1a0c', '#faead0'],
+  ['Mar', '#0c3f73', '#ff8cbe'], ['Grafite', '#1c1d20', '#d9dde0'],
+].map(([n, a, b]) => ({ n, c: [hx(a), hx(b)] }));
+export const GFX_TRI = [
+  ['Poente', '#260d40', '#e64d5a', '#ffe08c'], ['Oceano', '#051433', '#1a8099', '#e6f7eb'],
+  ['Selênio', '#140f14', '#736166', '#f7f2eb'], ['Limão-rosa', '#1f3319', '#ed6b8c', '#fcf2b3'],
+  ['Neon', '#1a054d', '#0099d9', '#f2ff80'], ['Cobre', '#1a0d08', '#99522e', '#fae6c7'],
+].map(([n, a, b, c]) => ({ n, c: [hx(a), hx(b), hx(c)] }));
+
 // Parâmetros para o renderer a partir do estado
 export function renderParams(s) {
   return {
@@ -306,6 +320,7 @@ export function renderParams(s) {
     hslS: new Float32Array(s.hsl.map((x) => x.s)),
     hslL: new Float32Array(s.hsl.map((x) => x.l)),
     leakData: s.leak > 0 ? leakData(s.leakType, s.leakSeed) : null,
+    gfxCols: s.gfx === 3 ? (GFX_DUO[s.gfxDuo] || GFX_DUO[0]).c : s.gfx === 4 ? (GFX_TRI[s.gfxTri] || GFX_TRI[0]).c : null,
   };
 }
 

@@ -118,9 +118,17 @@
   #paperTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
   #paperTypes::-webkit-scrollbar { display: none; }
   #paperTypes button { flex: 0 0 auto; }
-  #pBody .prow { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-  #pBody .prow output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
-  #pBody .prow input[type=range] { height: 30px; }
+  #gfxRows { display: grid; gap: 2px; }
+  #gfxTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
+  #gfxTypes::-webkit-scrollbar { display: none; }
+  #gfxTypes button { flex: 0 0 auto; }
+  .swatches { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 4px 18px; flex: 0 0 auto; }
+  .swatches::-webkit-scrollbar { display: none; }
+  .swatches .sw { flex: 0 0 auto; width: 44px; height: 26px; border-radius: 7px; box-shadow: inset 0 0 0 1px #ffffff22; }
+  .swatches .sw.on { box-shadow: 0 0 0 2px var(--dock), 0 0 0 4px var(--accent); }
+  #pBody .prow, #gfxRows .prow { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  #gfxRows .prow output, #pBody .prow output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+  #gfxRows .prow input[type=range], #pBody .prow input[type=range] { height: 30px; }
   #dustTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
   #dustTypes::-webkit-scrollbar { display: none; }
   #dustTypes button { flex: 0 0 auto; }
@@ -317,6 +325,13 @@
       <div class="ruler" id="rulerBox" tabindex="0" role="slider" aria-label="Valor da correção"><canvas id="ruler"></canvas></div>
       <div class="foot"><button class="ib" id="gCancel" aria-label="Cancelar"></button><div class="t">Ajustar</div><button class="ib" id="gOk" aria-label="Confirmar"></button></div>
     </div>
+    <div class="sheet" id="gfxSheet">
+      <div class="pills" id="gfxTypes"></div>
+      <div class="swatches" id="gfxSw"></div>
+      <div id="gfxRows"></div>
+      <p class="note" id="gfxNote">Transforma a foto em impressão gráfica: meio-tom de jornal, retícula em cores ou duas e três tintas.</p>
+      <div class="foot"><button class="ib" id="gfxCancel" aria-label="Cancelar"></button><div class="t">Gráfico</div><button class="ib" id="gfxOk" aria-label="Confirmar"></button></div>
+    </div>
     <div class="sheet" id="recSheet">
       <p class="note" id="rNote"></p>
       <div class="rowb center"><button id="rRen">Renomear</button><button id="rUpd">Atualizar com a edição atual</button><button id="rDel">Excluir</button></div>
@@ -340,6 +355,7 @@
   <button id="btnCopy">Copiar ajustes</button>
   <button id="btnPaste">Colar ajustes</button>
   <button id="btnBatch">Editar várias fotos…</button>
+  <button id="btnGfx">Gráfico…</button>
   <button id="btnResetAll">Redefinir tudo</button>
   <a href="lab.html">Laboratório de filmes</a>
 </div>

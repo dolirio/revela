@@ -2,7 +2,7 @@ import { getLooks, LUT_N, buildLutData, identityLut, parseCube } from './looks.j
 import { Renderer } from './renderer.js';
 import { icon } from './icons.js';
 import {
-  defaults, withDefaults, GEO_KEYS, KEEP_KEYS, computeView, curveData, curveFn, renderParams, decodeFile, isImageFile,
+  defaults, withDefaults, GFX_DUO, GFX_TRI, GEO_KEYS, KEEP_KEYS, computeView, curveData, curveFn, renderParams, decodeFile, isImageFile,
   HSL_NAMES, HSL_COLORS, ASPECTS, FRAMES, LEAKS, makeOverlay, autoDate,
 } from './core.js';
 import { specToState } from './recipes.js';
@@ -18,8 +18,8 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk']) setIcon(id, 'ok');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk']) setIcon(id, 'ok');
 const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
@@ -832,6 +832,56 @@ $('gReset').onclick = () => setGeoVal(0);
 $('gOk').onclick = () => closeSheet(true);
 $('gCancel').onclick = () => closeSheet(false);
 
+// ------------------------------------------------------------ gráfico (só pelo menu ⋯): meio-tom, cores, duotônico, tritônico
+const GFX_TYPES = ['Nenhum', 'Meio-tom', 'Meio-tom em cores', 'Duotônico', 'Tritônico'];
+const GFX_ROWS = {
+  size: { k: 'gfxSize', n: 'Ponto', min: 0, max: 100 },
+  con: { k: 'gfxCon', n: 'Contraste', min: -100, max: 100 },
+  amt: { k: 'gfxAmt', n: 'Intensidade', min: 0, max: 100 },
+};
+GFX_TYPES.forEach((n, i) => {
+  const b = document.createElement('button'); b.textContent = n; b.dataset.i = i;
+  b.onclick = () => { state.gfx = i; if (i && !state.gfxAmt) state.gfxAmt = 1; buildGfx(); draw(); };
+  $('gfxTypes').append(b);
+});
+const css3 = (c) => `rgb(${c.map((x) => Math.round(x * 255)).join(',')})`;
+function openGfx() {
+  if (!photo) { toast('Abra uma foto primeiro'); return; }
+  openSheet('gfxSheet'); $('dock').classList.add('med'); buildGfx();
+}
+function buildGfx() {
+  document.querySelectorAll('#gfxTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === state.gfx));
+  const sw = $('gfxSw'); sw.innerHTML = '';
+  const pal = state.gfx === 3 ? GFX_DUO : state.gfx === 4 ? GFX_TRI : null;
+  sw.style.display = pal ? '' : 'none';
+  if (pal) pal.forEach((p, i) => {
+    const b = document.createElement('button'); b.className = 'sw'; b.title = p.n; b.setAttribute('aria-label', p.n);
+    b.style.background = `linear-gradient(90deg, ${p.c.map(css3).join(', ')})`;
+    b.classList.toggle('on', i === (state.gfx === 3 ? state.gfxDuo : state.gfxTri));
+    b.onclick = () => { if (state.gfx === 3) state.gfxDuo = i; else state.gfxTri = i; buildGfx(); draw(); flashVal(state.gfx === 3 ? 'Duotônico' : 'Tritônico', p.n); };
+    sw.append(b);
+  });
+  const rows = $('gfxRows'); rows.innerHTML = '';
+  const keys = state.gfx === 1 || state.gfx === 2 ? ['size', 'con', 'amt'] : state.gfx ? ['con', 'amt'] : [];
+  for (const key of keys) {
+    const r = GFX_ROWS[key], row = document.createElement('div'); row.className = 'prow';
+    row.innerHTML = `<span>${r.n}</span><div class="rw${r.min < 0 ? ' bi' : ''}"><input type="range" min="${r.min}" max="${r.max}" step="1" aria-label="${r.n}"></div><output></output>`;
+    const inp = row.querySelector('input'), out = row.querySelector('output'), d = defaults()[r.k] * 100;
+    const show = () => { const v = Math.round(state[r.k] * 100); inp.value = v; out.textContent = r.min < 0 ? signed(v) : String(v); fillRange(inp, r.min < 0 ? 0 : r.min); };
+    inp.addEventListener('input', () => {
+      let v = +inp.value; if (r.min < 0 && Math.abs(v) <= 2) v = 0;
+      state[r.k] = v / 100; show(); draw(); flashVal(r.n, r.min < 0 ? signed(v) : String(v));
+    });
+    inp.addEventListener('dblclick', () => { state[r.k] = d / 100; show(); draw(); });
+    show(); rows.append(row);
+  }
+  $('gfxNote').style.display = state.gfx ? 'none' : '';
+}
+$('btnGfx').onclick = () => openGfx();
+$('gfxOk').onclick = () => closeSheet(true);
+$('gfxCancel').onclick = () => closeSheet(false);
+function syncGfxMenu() { $('btnGfx').textContent = state.gfx ? `Gráfico: ${GFX_TYPES[state.gfx]}` : 'Gráfico…'; }
+
 // ------------------------------------------------------------ corte: proporção, moldura, corte livre, grade
 const ASPECT_NAMES = { livre: 'Livre', orig: 'Original', '1:1': '1:1', '4:5': '4:5', '5:4': '5:4', '3:2': '3:2', '2:3': '2:3', '16:9': '16:9', '9:16': '9:16' };
 for (const a of Object.keys(ASPECTS)) {
@@ -923,7 +973,7 @@ function setZoom(on, cx = 0.5, cy = 0.5) {
 
 // ------------------------------------------------------------ sincronizar interface
 function syncUI() {
-  syncFilms(); markTools();
+  syncFilms(); markTools(); syncGfxMenu();
   document.querySelectorAll('#aspects button').forEach((b) => b.classList.toggle('on', b.dataset.a === state.aspect));
   document.querySelectorAll('#frames button').forEach((b) => b.classList.toggle('on', b.dataset.fr === state.frame));
   positionOverlays();
