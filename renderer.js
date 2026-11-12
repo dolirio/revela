@@ -35,6 +35,33 @@ uniform vec4 uPrint;   // cópia em papel: x = maciez, y = acutância, z = luz e
 uniform vec4 uLeakP; uniform float uLeakType, uLeakSeed, uScrType, uScrSeed, uChromaType;
 
 float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+// Jato de tinta: medido numa cópia real (impressora jato de tinta de tanque, papel brilhante, qualidade máxima,
+// passada no scanner da própria impressora). Por faixa de L* (0, 10 ... 100): L* de saída, ganho de croma e
+// desvio de a*, b*. Preto sobe para L* ~23 e esfria, meios ganham cor, brancos ficam neutros.
+const float IJ_L[11] = float[11](22.866, 26.272, 30.666, 35.536, 42.157, 50.771, 59.084, 70.110, 81.375, 89.884, 95.145);
+const float IJ_G[11] = float[11](0.403, 0.439, 0.562, 0.692, 0.860, 1.072, 1.240, 1.363, 1.421, 1.081, 0.292);
+const float IJ_A[11] = float[11](6.320, -0.028, -1.233, -1.172, -0.831, -0.277, -0.041, -0.952, -1.659, -1.232, -0.380);
+const float IJ_B[11] = float[11](-1.895, -1.478, -3.659, -4.629, -3.773, -2.553, -2.080, -2.745, -6.355, -6.572, -1.287);
+float ijAt(float L, int w) {
+  float x = clamp(L / 10.0, 0.0, 10.0); int i = int(min(floor(x), 9.0)); float f = x - float(i);
+  if (w == 0) return mix(IJ_L[i], IJ_L[i + 1], f);
+  if (w == 1) return mix(IJ_G[i], IJ_G[i + 1], f);
+  if (w == 2) return mix(IJ_A[i], IJ_A[i + 1], f);
+  return mix(IJ_B[i], IJ_B[i + 1], f);
+}
+vec3 s2l(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+vec3 l2s(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+vec3 toLab(vec3 c) {
+  vec3 xyz = mat3(0.4124, 0.2126, 0.0193, 0.3576, 0.7152, 0.1192, 0.1805, 0.0722, 0.9505) * s2l(c) / vec3(0.9505, 1.0, 1.089);
+  vec3 f = mix(xyz * 7.787 + 16.0 / 116.0, pow(max(xyz, 1e-6), vec3(1.0 / 3.0)), step(0.008856, xyz));
+  return vec3(116.0 * f.y - 16.0, 500.0 * (f.x - f.y), 200.0 * (f.y - f.z));
+}
+vec3 fromLab(vec3 l) {
+  float fy = (l.x + 16.0) / 116.0; vec3 f = vec3(fy + l.y / 500.0, fy, fy - l.z / 200.0);
+  vec3 xyz = mix((f - 16.0 / 116.0) / 7.787, f * f * f, step(0.206893, f)) * vec3(0.9505, 1.0, 1.089);
+  return l2s(mat3(3.2406, -0.9689, 0.0557, -1.5372, 1.8758, -0.2040, -0.4986, 0.0415, 1.0570) * xyz);
+}
+
 float hash(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
   return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }
@@ -698,7 +725,24 @@ void main(){
     vec2 pq = iu * uRes / lg;                         // 0..1 no lado maior: o desenho acompanha a foto, não a tela
     float sd = uPaperSeed;
     float P = uPaper;
-    if (pt == 0 || pt >= 5) {
+    if (pt == 8) {
+      // jato de tinta + scanner: em 0,5 (força média) fica igual à cópia medida; acima disso exagera até 1,5x
+      float k = min(P * 2.0, 1.5);
+      vec3 L = toLab(c);
+      float g = mix(1.0, ijAt(L.x, 1), k);
+      // azuis e cianos: a tinta não alcança, ficam acinzentados (íris azul vira cinza-azulado)
+      float cool = clamp(-L.z / max(length(L.yz), 1e-3), 0.0, 1.0);
+      g *= mix(1.0, 0.3, cool * min(k, 1.0));
+      vec3 M = vec3(mix(L.x, ijAt(L.x, 0), k), L.y * g + ijAt(L.x, 2) * k, L.z * g + ijAt(L.x, 3) * k);
+      c = fromLab(M);
+      // textura: pontos da tinta e ruído do scanner, sem cor, quase nada nos pretos e forte nos meios e claros
+      float N = min(2600.0, lg * 0.9);
+      float vis = min(1.0, (lg / N) / uPxScale);
+      float t = (hash(floor(pq * N) + sd * 13.7) - 0.5) * 0.75 + (gnoise(pq * N * 0.5 + sd * 5.1) - 0.5) * 0.5;
+      float l = L.x / 100.0;                              // luz da foto antes de o preto subir
+      float w = 0.06 + smoothstep(0.12, 0.5, l) * (1.0 - 0.2 * smoothstep(0.75, 1.0, l));
+      c += t * 0.125 * k * w * vis;
+    } else if (pt == 0 || pt >= 5) {
       // cópia fotográfica passada no scanner (luz plana): preto e branco do papel, ombro suave nas luzes e a
       // superfície. A maciez, a acutância e a luz espalhada já entraram na ótica (uPrint).
       // 5 brilhante liso, 0 lustre (casca de laranja), 6 fosco, 7 instantânea (inspirado na instax mini)
@@ -762,7 +806,7 @@ void main(){
 }`;
 
 // cópia em papel: maciez (fração do lado maior), acutância, luz espalhada no papel, maciez extra na borda
-const PRINT = { 5: [0.0004, 0.4, 0.06, 0], 0: [0.0006, 0.35, 0.1, 0], 6: [0.0009, 0.3, 0.16, 0], 7: [0.0013, 0.25, 0.22, 0.0035] };
+const PRINT = { 8: [0, 0.45, 0.04, 0], 5: [0.0004, 0.4, 0.06, 0], 0: [0.0006, 0.35, 0.1, 0], 6: [0.0009, 0.3, 0.16, 0], 7: [0.0013, 0.25, 0.22, 0.0035] };
 function printParams(s) {
   const p = s.paper > 0 && PRINT[s.paperType];
   return p ? p.map((v) => v * s.paper) : [0, 0, 0, 0];
