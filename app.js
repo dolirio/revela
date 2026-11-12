@@ -31,7 +31,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v37';
+const BUILD = 'v38';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 // ------------------------------------------------------------ placa de vídeo: escada de segurança
@@ -1414,6 +1414,72 @@ $('btnExport').addEventListener('click', async () => {
     btn.disabled = false; btn.textContent = 'Exportar'; if (thumbSrc) paintThumbs();
   }
 });
+
+// ------------------------------------------------------------ exportar para o Instagram
+// O feed mostra até 1080 px de largura e aceita de 4:5 (em pé) a 1,91:1 (deitada); fora disso ele recorta sozinho
+// e recomprime pior. Aqui a foto já sai em 1080 px, reduzida com qualidade, e quem escolhe o que fazer com a sobra é
+// você: bordas brancas (a foto inteira aparece) ou recorte do centro.
+const IG_W = 1080, IG_MIN = 4 / 5, IG_MAX = 1.91;
+let igPick = null;
+function igChoice(tall) {
+  return new Promise((resolve) => {
+    $('igNote').textContent = tall
+      ? 'A foto é mais alta que 4:5, o máximo que o feed do Instagram mostra em pé. Escolha como ajustar:'
+      : 'A foto é mais larga que 1,91:1, o máximo que o feed do Instagram mostra deitada. Escolha como ajustar:';
+    igPick = (v) => { igPick = null; closeSheet(true); resolve(v); };
+    openSheet('igSheet');
+  });
+}
+$('igPad').onclick = () => igPick?.('pad');
+$('igCrop').onclick = () => igPick?.('crop');
+$('igCancel').onclick = () => (igPick ? igPick(null) : closeSheet(false));
+// reduz pela metade enquanto der (cada passo com suavização boa) e faz o último passo no tamanho exato
+function shrinkTo(src, sx, sy, sw, sh, w, h) {
+  let cur = src, cx = sx, cy = sy, cw = sw, ch = sh;
+  while (cw / 2 >= w && ch / 2 >= h) {
+    const c = document.createElement('canvas'); c.width = Math.round(cw / 2); c.height = Math.round(ch / 2);
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cur, cx, cy, cw, ch, 0, 0, c.width, c.height);
+    cur = c; cx = cy = 0; cw = c.width; ch = c.height;
+  }
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cur, cx, cy, cw, ch, 0, 0, w, h);
+  return c;
+}
+$('btnIg').onclick = async () => {
+  if (!photo) { toast('Abra uma foto primeiro'); return; }
+  closeSheet(true);
+  const v = computeView(state, photo.w, photo.h), r = v.outW / v.outH;
+  let how = null;
+  if (r < IG_MIN - 0.005 || r > IG_MAX + 0.005) { how = await igChoice(r < IG_MIN); if (!how) return; }
+  const btn = $('btnExport'); btn.disabled = true; btn.textContent = 'Gerando…';
+  try {
+    await new Promise((res) => setTimeout(res, 30));
+    const { blob } = await renderToBlob(photo.bitmap, photo.w, photo.h, state, photo.name);
+    const bmp = await createImageBitmap(blob), W = bmp.width, H = bmp.height;
+    const R = how ? (r < IG_MIN ? IG_MIN : IG_MAX) : W / H;   // proporção final
+    const ow = IG_W, oh = Math.round(IG_W / R);
+    let out;
+    if (how === 'crop') {   // recorta o centro na proporção limite
+      const cw = r < IG_MIN ? W : Math.round(H * R), ch = r < IG_MIN ? Math.round(W / R) : H;
+      out = shrinkTo(bmp, (W - cw) / 2, (H - ch) / 2, cw, ch, ow, oh);
+    } else if (how === 'pad') {   // a foto inteira, centrada em branco
+      const s = Math.min(ow / W, oh / H), fw = Math.round(W * s), fh = Math.round(H * s);
+      const img = shrinkTo(bmp, 0, 0, W, H, fw, fh);
+      out = document.createElement('canvas'); out.width = ow; out.height = oh;
+      const x = out.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, ow, oh);
+      x.drawImage(img, Math.round((ow - fw) / 2), Math.round((oh - fh) / 2));
+    } else out = W <= ow ? shrinkTo(bmp, 0, 0, W, H, W, H) : shrinkTo(bmp, 0, 0, W, H, ow, oh);
+    bmp.close?.();
+    const jb = await new Promise((res) => out.toBlob(res, 'image/jpeg', 0.92));
+    const n = await deliver([new File([jb], `${photo.name}_instagram.jpg`, { type: 'image/jpeg' })]);
+    if (!isNative()) toast(`Pronta para o Instagram (${out.width}×${out.height})`);
+    else if (n) toast(`Salva em Imagens › Pellicula (${out.width}×${out.height})`);
+  } catch (e) {
+    console.error(e); toast('Falha ao exportar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Exportar'; if (thumbSrc) paintThumbs();
+  }
+};
 
 // ------------------------------------------------------------ lote
 $('btnBatch').onclick = () => $('fileBatch').click();

@@ -4,19 +4,20 @@
 import { FILMS } from './films.js';
 
 const ch = (id) => ({ ...(FILMS.find((f) => f.id === id)?.ch || {}) });
-// papel: tipos do renderer (5 brilhante, 0 lustre, 6 fosco, 7 instantânea)
+// papel: tipos do renderer (5 brilhante, 0 lustre, 6 fosco, 7 instantânea); paperTone/paperCol multiplicam
+// (1 = medido), paperWarm soma (−1 frio, +1 quente)
 const BRILHANTE = 5, LUSTRE = 0, FOSCO = 6, INSTANT = 7;
 const C = (id, name, note, film, o) => ({ id, name, note, film, s: { look: film, mix: 1, ...ch(film), ...o } });
 
 export const CLIMAS = [
   C('c_tarde', 'Tarde dourada', 'fim de tarde: pele quente, luz que transborda', 'f_kg200',
-    { fcol: 0.35, ftone: 0.15, shad: 0.15, bloom: 0.15, paper: 0.4, paperType: LUSTRE }),
+    { fcol: 0.35, ftone: 0.15, shad: 0.15, bloom: 0.15, paper: 0.4, paperType: LUSTRE, paperWarm: 0.25 }),
   C('c_manha', 'Manhã fria', 'luz azulada da manhã, suave e limpa', 'f_fpn160',
-    { fcol: -0.3, ftone: 0.3, high: -0.1, paper: 0.4, paperType: BRILHANTE }),
+    { fcol: -0.3, ftone: 0.3, high: -0.1, paper: 0.4, paperType: BRILHANTE, paperWarm: -0.2 }),
   C('c_retrato', 'Retrato macio', 'pele luminosa e macia, sombras abertas', 'f_kp400p2',
     { ftone: 0.2, sharp: -0.15, bloom: 0.12, paper: 0.5, paperType: LUSTRE }),
   C('c_album', 'Álbum de família', 'cópia de álbum: cor contida, papel com textura', 'f_kc200',
-    { fade: 0.12, vig: 0.12, paper: 0.6, paperType: LUSTRE }),
+    { fade: 0.12, vig: 0.12, paper: 0.6, paperType: LUSTRE, paperWarm: 0.15 }),
   C('c_praia', 'Verão na praia', 'sol forte, cor viva, céu claro', 'f_ku400',
     { ftone: 0.35, fcol: 0.15, high: -0.15, paper: 0.3, paperType: BRILHANTE }),
   C('c_nublado', 'Inverno nublado', 'dia cinza, verdes densos, frio', 'f_fs400',
@@ -27,6 +28,9 @@ export const CLIMAS = [
     { ftone: -0.2, shad: 0.1, halo: 0.25 }),
   C('c_festa', 'Festa instantânea', 'foto instantânea inspirada na instax mini', 'f_inst',
     { ftone: 0.1, paper: 0.5, paperType: INSTANT }),
+  // papel com o azul da instax mais marcado e menos "estourado": Tom contido, Cor e Temperatura puxando para o frio
+  C('c_instfria', 'Instantânea fria', 'instax em dia de sombra: azul mais marcado, contraste preservado', 'f_inst',
+    { paper: 0.5, paperType: INSTANT, paperTone: 0.6, paperCol: 1.3, paperWarm: -0.25 }),
   C('c_paisagem', 'Paisagem em slide', 'slide subexposto: céu denso, cor saturada', 'f_fv50',
     { mix: 0.85, ftone: -0.15, fcol: 0.05 }),
   C('c_rua', 'Rua em P&B', 'preto fechado, grão marcado', 'f_kt1600',
