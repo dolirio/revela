@@ -26,7 +26,7 @@ export const CLIMAS = [
   C('c_noite', 'Noite na cidade', 'luzes de rua, sombras azuladas, halação nas lâmpadas', 'f_kv500',
     { ftone: -0.2, shad: 0.1, halo: 0.25 }),
   C('c_festa', 'Festa instantânea', 'foto instantânea inspirada na instax mini', 'f_inst',
-    { ftone: 0.1, paper: 0.6, paperType: INSTANT }),
+    { ftone: 0.1, paper: 0.5, paperType: INSTANT }),
   C('c_paisagem', 'Paisagem em slide', 'slide subexposto: céu denso, cor saturada', 'f_fv50',
     { mix: 0.85, ftone: -0.15, fcol: 0.05 }),
   C('c_rua', 'Rua em P&B', 'preto fechado, grão marcado', 'f_kt1600',

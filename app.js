@@ -33,7 +33,7 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v34';
+const BUILD = 'v35';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
@@ -462,17 +462,34 @@ $('askOk').onclick = () => askDone?.(true);
 $('askCancel').onclick = () => (askDone ? askDone(false) : closeSheet(false));
 $('askInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); askDone?.(true); } });
 
-// troca de filme: muda só a cor e o caráter do filme; luz, ajustes, corte e moldura ficam
+// ------------------------------------------------------------ filtro como camada
+// Filme, Clima e "Minhas" são uma camada por cima da foto (como presets no Lightroom e filtros no VSCO).
+// Trocar de filtro tira o que o filtro anterior tinha colocado e põe o do novo, mas tudo o que você ajustou
+// à mão (luz, cor, textura, efeitos, corte, moldura) continua. A intensidade e o "afinar" (Tom e Cor) são
+// do filtro e voltam ao padrão de cada um. Foto nova começa do zero (ver openPhoto).
+const LOOK_KEYS = ['look', 'mix', 'ftone', 'fcol', 'recipe', 'filmCh'];
+const SEED_KEYS = ['seed', 'leakSeed', 'dustSeed', 'scrSeed', 'paperSeed'];
+const sameVal = (a, b) => (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 1e-6 : JSON.stringify(a) === JSON.stringify(b));
+// o que difere do que o filtro atual colocou (ou do padrão, onde ele não mexe) foi ajustado à mão
+function handEdits() {
+  const d = defaults(), layer = state.filmCh || {}, out = {};
+  for (const k of Object.keys(d)) {
+    if (LOOK_KEYS.includes(k) || SEED_KEYS.includes(k) || KEEP_KEYS.includes(k)) continue;
+    if (!sameVal(state[k], k in layer ? layer[k] : d[k])) out[k] = JSON.parse(JSON.stringify(state[k]));
+  }
+  return out;
+}
+function applyLayer(layer, look) {
+  const mine = handEdits(), seeds = Object.fromEntries(SEED_KEYS.map((k) => [k, state[k]]));
+  state = withDefaults({ ...layer, ...mine, ...keepNow(), ...seeds, ...look });
+  state.filmCh = Object.keys(layer).length ? layer : null;
+  syncUI(); draw(); commit();
+}
 function applyFilm(id) {
-  const d = defaults(), prev = state.filmCh || {};
-  for (const [k, v] of Object.entries(prev)) if (near(state[k], v, 1e-6)) state[k] = d[k];
-  const f = filmById(id), ch = f ? { ...f.ch } : {};
+  const d = defaults(), f = filmById(id), ch = f ? JSON.parse(JSON.stringify(f.ch)) : {};
   // um filme sempre define o grão (mesmo que seja "sem grão")
   if (f) for (const k of ['grain', 'gsize', 'grough', 'gcolor']) if (!(k in ch)) ch[k] = d[k];
-  Object.assign(state, ch);
-  state.filmCh = Object.keys(ch).length ? ch : null;
-  state.look = id; state.mix = 1; state.ftone = 0; state.fcol = 0; state.recipe = null;
-  syncUI(); draw(); commit();
+  applyLayer(ch, { look: id, mix: 1, ftone: 0, fcol: 0, recipe: null });
 }
 function recipeParams(r) {
   if (r.spec) return specToState(r.spec);
@@ -481,8 +498,13 @@ function recipeParams(r) {
   return o;
 }
 function applyRecipe(r) {
-  state = withDefaults({ ...recipeParams(r), ...keepNow(), recipe: r.id, filmCh: null, seed: state.seed, leakSeed: state.leakSeed });
-  syncUI(); draw(); commit();
+  const p = recipeParams(r), d = defaults(), layer = {};
+  // a camada do Clima (ou do seu filme salvo) é o que ele muda em relação ao padrão
+  for (const [k, v] of Object.entries(p)) {
+    if (LOOK_KEYS.includes(k) || SEED_KEYS.includes(k) || KEEP_KEYS.includes(k) || !(k in d)) continue;
+    if (!sameVal(v, d[k])) layer[k] = JSON.parse(JSON.stringify(v));
+  }
+  applyLayer(layer, { look: p.look ?? 'none', mix: p.mix ?? 1, ftone: p.ftone ?? 0, fcol: p.fcol ?? 0, recipe: r.id });
 }
 function editSnapshot() {
   const s = JSON.parse(JSON.stringify(state));
