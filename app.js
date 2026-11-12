@@ -33,7 +33,9 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v30';
+const BUILD = 'v31';
+// "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
+const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
 // nível do desenho (ver renderer.js): começa completo; se a placa de vídeo travar, o aparelho guarda um nível
 // mais leve para o próximo início. GL_REV sobe quando o shader mudar a ponto de valer tentar o completo de novo.
@@ -548,7 +550,7 @@ function buildStrip() {
     }
   } else {
     for (const f of FILMS.filter((x) => x.cat === cat)) {
-      const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · inspirado no ${f.ref}`;
+      const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · ${insp(f.ref)}`;
       b.onclick = () => (state.look === f.id && !state.recipe ? openFilmSheet(f.code) : applyFilm(f.id));
       strip.append(b);
     }
@@ -565,7 +567,7 @@ function syncFilms() {
   let title, text;
   if (r && isClima(r)) { title = r.name; text = f ? `${r.note} · a partir do ${f.code}` : r.note; }
   else if (r) { title = r.name; text = f ? `seu filme · feito a partir do ${f.code}` : 'seu filme'; }
-  else if (f) { title = f.code; text = `inspirado no ${f.ref} · ${f.kind}`; }
+  else if (f) { title = f.code; text = `${insp(f.ref)} · ${f.kind}`; }
   else if (state.look !== 'none') { title = lookName(state.look); text = 'LUT importada'; }
   else { title = 'Original'; text = 'toque num filme para aplicar; toque de novo para a intensidade'; }
   const info = $('filmInfo'); info.innerHTML = '<b></b><span></span>';
@@ -634,7 +636,7 @@ function openRecSheet(r) {
   sheetRecipe = r;
   $('rTitle').textContent = r.name;
   const f = filmById(r.spec ? r.spec.film : r.s?.look);
-  $('rNote').textContent = f ? `Feito a partir do ${f.code} (inspirado no ${f.ref}).` : 'Seu filme, com todos os ajustes salvos.';
+  $('rNote').textContent = f ? `Feito a partir do ${f.code} (${insp(f.ref)}).` : 'Seu filme, com todos os ajustes salvos.';
   openSheet('recSheet');
 }
 $('rRen').onclick = async () => {
@@ -1058,7 +1060,8 @@ for (const a of Object.keys(ASPECTS)) {
   b.onclick = () => { state.aspect = a; state.crop = [0, 0, 1, 1]; syncUI(); draw(); commit(); };
   $('aspects').append(b);
 }
-for (const k of Object.keys(FRAMES)) {
+// sem moldura de instantânea (pedido do usuário): fica só o efeito do papel Instantânea; edições antigas ainda abrem
+for (const k of Object.keys(FRAMES).filter((k) => k !== 'instant')) {
   const b = document.createElement('button'); b.textContent = FRAMES[k]?.name || 'Nenhuma'; b.dataset.fr = k;
   b.onclick = () => { state.frame = k; syncUI(); draw(); commit(); if (k !== 'none' && mode === 'crop') toast('A moldura aparece ao sair do Corte'); };
   $('frames').append(b);

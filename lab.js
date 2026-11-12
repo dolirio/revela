@@ -137,7 +137,7 @@ function slider(label, path, min, max, step, obj = looks[cur]) {
 const openState = {};
 function renderControls() {
   const L = looks[cur];
-  $('filmRef').textContent = `inspirado no ${L.film.ref} · ${L.film.kind}`;
+  $('filmRef').textContent = `inspirado ${/^(câmera|cópia)/i.test(L.film.ref) ? 'na' : 'no'} ${L.film.ref} · ${L.film.kind}`;
   const box = $('controls'); box.innerHTML = '';
   for (const s of SECTIONS) {
     const d = document.createElement('details');
