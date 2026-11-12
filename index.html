@@ -54,7 +54,7 @@
   .cats { display: flex; gap: 18px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; }
   .cats button { color: var(--muted); font-size: 13px; letter-spacing: .02em; white-space: nowrap; padding: 2px 0; }
   .cats button.on { color: var(--text); font-weight: 600; }
-  #strip { gap: 8px; }
+  #strip { gap: 8px; padding-top: 5px; } /* espaço para o contorno verde da miniatura escolhida não ser cortado */
   .film { flex: 0 0 auto; width: 76px; text-align: center; font-size: 11px; color: var(--muted); position: relative; }
   .film canvas, .film .ph { width: 76px; height: 76px; border-radius: 6px; display: block; background: #26221e; }
   .film .nm { display: block; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -207,6 +207,21 @@
   @media (min-width: 900px) {
     #dock { width: 100%; max-width: 760px; justify-self: center; border-radius: 14px 14px 0 0; }
     .ctx { height: 170px; }
+  }
+
+  /* deitado (celular na horizontal), tablet deitado e computador: foto à esquerda, painel à direita */
+  @media (orientation: landscape) and (max-height: 600px), (min-width: 1000px) and (min-aspect-ratio: 5/4) {
+    body { grid-template-columns: minmax(0, 1fr) min(420px, 46vw); grid-template-rows: auto minmax(0, 1fr); }
+    header { grid-column: 1; padding-left: calc(10px + env(safe-area-inset-left, 0px)); }
+    #stage { grid-column: 1; grid-row: 2; padding-left: calc(12px + env(safe-area-inset-left, 0px)); }
+    #dock, #dock.med, #dock.tall { grid-column: 2; grid-row: 1 / span 2; max-width: none; width: auto; justify-self: stretch;
+      border-radius: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line);
+      padding: var(--safe-t) env(safe-area-inset-right, 0px) var(--safe-b) 0; }
+    #dock .ctx, #dock.med .ctx, #dock.tall .ctx { height: auto; flex: 1; min-height: 0; }
+    /* controles perto da barra de abas, onde o polegar alcança */
+    .mode, .sheet { justify-content: flex-end; padding-bottom: 10px; }
+    #menu { right: calc(min(420px, 46vw) + 10px); }
+    #toast { left: calc((100vw - min(420px, 46vw)) / 2); }
   }
 </style>
 </head>

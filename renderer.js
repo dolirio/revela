@@ -783,11 +783,22 @@ export const IDENT_VIEW = {
 };
 
 export class Renderer {
-  constructor(canvas) {
-    this.canvas = canvas;
+  // safe: modo seguro para placas de vídeo que falham no caminho normal (envio de pixels cru, LUT 8 bits, sem mipmap)
+  constructor(canvas, safe = false) {
+    this.canvas = canvas; this.safe = safe; this.lost = false; this.onRestore = null; this.log = [];
     const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true, premultipliedAlpha: false, antialias: false });
     if (!gl) throw new Error('Este navegador não suporta WebGL2.');
     this.gl = gl;
+    // a placa de vídeo pode derrubar o contexto (memória, tempo de desenho); recupera sozinho quando ele volta
+    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; this.log.push('contexto perdido'); });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.lost = false; this.log.push('contexto recuperado');
+      try { this._init(); this.onRestore?.(); } catch (err) { this.log.push('recuperar: ' + err.message); }
+    });
+    this._init();
+  }
+  _init() {
+    const gl = this.gl, t0 = performance.now();
     const sh = (type, src) => {
       const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
@@ -817,12 +828,27 @@ export class Renderer {
     this.setLut(identityLut(2), 2);
     this.setCurve(null);
     this.imgKey = null;
+    this.initMs = Math.round(performance.now() - t0);
+  }
+  // pixels crus da fonte (canvas, ImageBitmap ou imagem), para o modo seguro
+  static pixels(src) {
+    const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(src, 0, 0);
+    return x.getImageData(0, 0, c.width, c.height).data;
+  }
+  glErr(where) {
+    const e = this.gl.getError();
+    if (e) this.log.push(`${where}: erro GL ${e}`);
+    return e;
   }
   setImage(src, key) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.imgTex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    if (this.safe) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, src.width, src.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, Renderer.pixels(src));
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     gl.generateMipmap(gl.TEXTURE_2D);
+    this.glErr('foto');
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -832,7 +858,12 @@ export class Renderer {
   setLut(data, n) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lutTex);
-    gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA16F, n, n, n, 0, gl.RGBA, gl.FLOAT, data);
+    if (this.safe) {
+      const b = new Uint8Array(data.length);
+      for (let i = 0; i < data.length; i++) b[i] = Math.max(0, Math.min(255, Math.round(data[i] * 255)));
+      gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, n, n, n, 0, gl.RGBA, gl.UNSIGNED_BYTE, b);
+    } else gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA16F, n, n, n, 0, gl.RGBA, gl.FLOAT, data);
+    this.glErr('LUT');
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR],
       [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE]])
       gl.texParameteri(gl.TEXTURE_3D, k, v);
@@ -865,6 +896,7 @@ export class Renderer {
   // full: {w,h} da área da foto em pixels da foto final; src: lado maior da foto final (para converter raios).
   // view: geometria e moldura (computeView).
   render(w, h, st, full, bypass = false, view = IDENT_VIEW) {
+    if (this.lost) return;
     const gl = this.gl, u = this.u, s = { ...RDEF, ...st }, v = { ...IDENT_VIEW, ...view };
     if (this.canvas.width !== w) this.canvas.width = w;
     if (this.canvas.height !== h) this.canvas.height = h;

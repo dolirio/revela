@@ -30,10 +30,19 @@ addEventListener('error', (e) => diagErrs.push(String(e.message || e.error)));
 addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + String(e.reason?.message || e.reason)));
 
 let preview, aux;
+// modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
+let safeMode = false;
+// guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
+const BUILD = 'v27';
+try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
 try {
-  preview = new Renderer(view);
-  aux = new Renderer(document.createElement('canvas'));
+  preview = new Renderer(view, safeMode);
+  aux = new Renderer(document.createElement('canvas'), safeMode);
+  // a placa de vídeo derrubou e devolveu o contexto: envia a foto de novo e redesenha
+  preview.onRestore = () => { lutOnPreview = curveOnPreview = null; if (photo) { preview.setImage(scaled(photo.bitmap, 2048), 'preview'); draw(); } };
+  aux.onRestore = () => { aux.imgKey = null; paintThumbs(); };
 } catch (e) {
+  diagErrs.push('iniciar: ' + e.message);
   $('empty').textContent = 'Não foi possível iniciar: ' + e.message;
 }
 const CAP = () => Math.min(aux.maxTex, 8192);
@@ -1133,7 +1142,7 @@ async function openPhoto(file) {
     $('btnExport').disabled = false;
     draw(); paintThumbs();
     toast(note || 'Foto aberta');
-    setTimeout(() => { if (photo && centerPixel()?.every((x) => x === 0)) toast('A foto não apareceu? Abra ⋯ › Diagnóstico e me mande um print'); }, 1200);
+    last = null; setTimeout(selfCheck, 1200);
   } catch (e) {
     toast(e.message || 'Não consegui abrir essa imagem.');
     console.error(e);
@@ -1428,6 +1437,29 @@ function centerPixel() {
   g.readPixels(Math.floor(last.w / 2), Math.floor(last.h / 2), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
   return [...px.slice(0, 3)];
 }
+// a foto não apareceu: tenta o modo seguro uma vez; se ainda assim falhar, abre o Diagnóstico sozinho
+// desenho que nunca chegou à tela fica transparente (o shader sempre escreve alfa 1); foto escura não conta
+function blank() {
+  if (preview.lost || !last) return true;
+  const g = preview.gl, px = new Uint8Array(4);
+  g.readPixels(Math.floor(last.w / 2), Math.floor(last.h / 2), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+  return px[3] === 0;
+}
+function selfCheck(n = 0) {
+  if (!photo) return;
+  // ainda não desenhou (aparelho lento, placa preparando o desenho): espera até ~8 s antes de concluir
+  if ((!last || preview.lost) && n < 7) { setTimeout(() => selfCheck(n + 1), 1000); return; }
+  if (!blank()) return;
+  if (!safeMode) {
+    diagErrs.push('foto em branco: ligando o modo seguro');
+    safeMode = preview.safe = aux.safe = true;
+    try { localStorage.setItem('pellicula.safe', BUILD); } catch {}
+    lutOnPreview = curveOnPreview = null; aux.imgKey = null;
+    try { preview.setImage(scaled(photo.bitmap, 2048), 'preview'); } catch (e) { diagErrs.push('modo seguro: ' + e.message); }
+    draw(); paintThumbs();
+    setTimeout(() => { if (photo && blank()) showDiag(); }, 1200);
+  } else showDiag();
+}
 function diagnose() {
   const L = [], ua = navigator.userAgent;
   L.push(`Pellicula · ${isNative() ? 'app instalado (APK)' : 'navegador'}`);
@@ -1437,6 +1469,9 @@ function diagnose() {
     const gl = preview.gl, dbg = gl.getExtension('WEBGL_debug_renderer_info');
     L.push('GPU: ' + (dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)));
     L.push(`Contexto perdido: ${gl.isContextLost() ? 'SIM' : 'não'} · textura máx: ${preview.maxTex}`);
+    L.push(`Modo seguro: ${safeMode ? 'sim' : 'não'} · preparo do desenho: ${preview.initMs ?? '?'} ms`);
+    const rl = [...preview.log.map((x) => 'prévia ' + x), ...aux.log.map((x) => 'miniaturas ' + x)];
+    if (rl.length) L.push('Placa de vídeo: ' + rl.slice(-4).join(' | '));
     L.push(`Float linear: ${gl.getExtension('OES_texture_float_linear') ? 'sim' : 'não'} · cor float: ${gl.getExtension('EXT_color_buffer_float') ? 'sim' : 'não'}`);
     try {
       const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -1451,18 +1486,27 @@ function diagnose() {
       const p = centerPixel();
       L.push(`Centro da foto: ${p.join(',')} · desenho ${last.w}×${last.h} · tela ${view.style.width} × ${view.style.height}`);
       L.push(`Foto: ${photo.bitmap.width}×${photo.bitmap.height} (${photo.bitmap.constructor.name})`);
-    } else L.push('Nenhuma foto aberta (abra uma e rode de novo)');
+    } else if (photo) L.push(`Foto aberta (${photo.bitmap.width}×${photo.bitmap.height}), mas nada foi desenhado`);
+    else L.push('Nenhuma foto aberta (abra uma e rode de novo)');
     L.push('Erro GL: ' + gl.getError());
   }
   L.push(diagErrs.length ? 'Erros: ' + diagErrs.slice(-4).join(' | ') : 'Erros: nenhum');
   return L.join('\n');
 }
-$('btnDiag').onclick = async () => {
+// abre o Diagnóstico já copiado; tocar no texto copia de novo
+let diagOpen = false;
+async function showDiag() {
+  if (diagOpen) return;
+  diagOpen = true;
   let txt; try { txt = diagnose(); } catch (e) { txt = 'Diagnóstico falhou: ' + e.message; }
-  $('askNote').classList.add('diag');
-  await ask({ title: 'Diagnóstico', note: txt });
-  $('askNote').classList.remove('diag');
-};
+  const copy = () => navigator.clipboard?.writeText(txt).then(() => toast('Diagnóstico copiado: é só colar na conversa'), () => {});
+  copy();
+  $('askNote').classList.add('diag'); $('askNote').onclick = copy;
+  await ask({ title: 'Diagnóstico', note: txt + '\n\nToque no texto para copiar e me mande.' });
+  $('askNote').classList.remove('diag'); $('askNote').onclick = null;
+  diagOpen = false;
+}
+$('btnDiag').onclick = showDiag;
 
 // ------------------------------------------------------------ aviso, PWA
 let tt;
