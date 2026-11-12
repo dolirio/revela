@@ -45,6 +45,27 @@ const float IJ_L[11] = float[11](22.866, 26.272, 30.666, 35.536, 42.157, 50.771,
 const float IJ_G[11] = float[11](0.403, 0.439, 0.562, 0.692, 0.860, 1.072, 1.240, 1.363, 1.421, 1.081, 0.292);
 const float IJ_A[11] = float[11](6.320, -0.028, -1.233, -1.172, -0.831, -0.277, -0.041, -0.952, -1.659, -1.232, -0.380);
 const float IJ_B[11] = float[11](-1.895, -1.478, -3.659, -4.629, -3.773, -2.553, -2.080, -2.745, -6.355, -6.572, -1.287);
+// Instantânea: medida em 9 pares reais (instax mini 9 escaneada x foto digital da mesma cena). Por faixa de L*:
+// L* de saída (preto não passa de ~19, branco contido em ~88), ganho de croma e desvio de a*, b* (sombras azuladas,
+// luzes amareladas). Por matiz (0°, 30° ... 330° em Lab): ganho de croma e giro do matiz (verdes e amarelos apagam,
+// azuis ficam, pele puxa para o amarelo).
+const float IX_L[11] = float[11](18.5, 18.9, 21.66, 27.39, 37.05, 49.24, 62.76, 71.38, 82.68, 86.53, 88.0);
+const float IX_G[11] = float[11](0.300, 0.324, 0.856, 1.031, 1.127, 1.000, 0.887, 0.850, 0.323, 0.078, 0.078);
+const float IX_A[11] = float[11](0.10, 0.14, 1.23, 1.19, 0.33, -1.02, -2.01, -2.84, -2.76, -2.79, -2.77);
+const float IX_B[11] = float[11](-0.13, -0.17, -2.94, -6.6, -9.5, -4.9, -0.05, 1.87, 3.55, 2.65, 2.48);
+const float IX_H[12] = float[12](0.897, 0.769, 0.852, 0.614, 0.250, 0.250, 1.343, 1.021, 0.840, 0.960, 1.025, 1.025);
+const float IX_R[12] = float[12](3.5, 4.0, 17.7, 12.2, -8.6, -16.5, -7.6, 6.4, 20.5, 7.7, 5.9, 3.0);
+float ixAt(float L, int w) {
+  float x = clamp(L / 10.0, 0.0, 10.0); int i = int(min(floor(x), 9.0)); float f = x - float(i);
+  if (w == 0) return mix(IX_L[i], IX_L[i + 1], f);
+  if (w == 1) return mix(IX_G[i], IX_G[i + 1], f);
+  if (w == 2) return mix(IX_A[i], IX_A[i + 1], f);
+  return mix(IX_B[i], IX_B[i + 1], f);
+}
+vec2 ixHue(float hdeg) {   // ganho de croma e giro (graus) para o matiz
+  float x = mod(hdeg, 360.0) / 30.0; int i = int(floor(x)) % 12; int j = (i + 1) % 12; float f = fract(x);
+  return vec2(mix(IX_H[i], IX_H[j], f), mix(IX_R[i], IX_R[j], f));
+}
 float ijAt(float L, int w) {
   float x = clamp(L / 10.0, 0.0, 10.0); int i = int(min(floor(x), 9.0)); float f = x - float(i);
   if (w == 0) return mix(IJ_L[i], IJ_L[i + 1], f);
@@ -785,14 +806,19 @@ void main(){
       vec3 blk = pt == 5 ? vec3(0.036, 0.034, 0.032) : pt == 0 ? vec3(0.052, 0.049, 0.045)
                : pt == 6 ? vec3(0.1, 0.096, 0.09) : vec3(0.074, 0.084, 0.092);
       vec3 wht = pt == 7 ? vec3(0.955, 0.944, 0.915) : pt == 6 ? vec3(0.94, 0.935, 0.92) : vec3(0.968, 0.962, 0.95);
-      vec3 sh = c * 1.1 / (1.0 + 0.1 * c);                // luzes chegam ao branco em curva, sem cortar seco
-      vec3 m = blk + (wht - blk) * clamp(sh, 0.0, 1.0);
-      if (pt == 7) {                                      // química instantânea: meios um pouco frios, luzes quentes e menos cor
-        m *= mix(vec3(0.985, 1.0, 1.015), vec3(1.0, 0.99, 0.97), smoothstep(0.3, 0.9, l));
-        m = mix(m, vec3(luma(m)), 0.12 * smoothstep(0.55, 1.0, l));
-        m *= 1.0 - 0.16 * smoothstep(0.35, 1.05, rr0);    // lente simples: cantos mais escuros
+      if (pt == 7) {
+        // instantânea: tabelas medidas (em 0,5 fica igual à instax escaneada; acima exagera até 1,5x)
+        float k = min(P * 2.0, 1.5);
+        vec3 L = toLab(c);
+        vec2 hr = ixHue(degrees(atan(L.z, L.y)));
+        float g = hr.x * ixAt(L.x, 1), a = radians(hr.y);
+        vec2 ab = mat2(cos(a), sin(a), -sin(a), cos(a)) * L.yz * g + vec2(ixAt(L.x, 2), ixAt(L.x, 3));
+        c = fromLab(vec3(mix(L.x, ixAt(L.x, 0), k), mix(L.yz, ab, k)));
+      } else {
+        vec3 sh = c * 1.1 / (1.0 + 0.1 * c);              // luzes chegam ao branco em curva, sem cortar seco
+        vec3 m = blk + (wht - blk) * clamp(sh, 0.0, 1.0);
+        c = mix(c, m, P);
       }
-      c = mix(c, m, P);
       // superfície: no scanner o relevo aparece mais nos escuros (o brilho da superfície soma onde há pouca imagem)
       float fine = min(1.0, (lg / 1400.0) / uPxScale), mid = min(1.0, (lg / 320.0) / uPxScale);
       float t;
@@ -842,7 +868,7 @@ void main(){
 }`;
 
 // cópia em papel: maciez (fração do lado maior), acutância, luz espalhada no papel, maciez extra na borda
-const PRINT = { 8: [0, 0.45, 0.04, 0], 5: [0.0004, 0.4, 0.06, 0], 0: [0.0006, 0.35, 0.1, 0], 6: [0.0009, 0.3, 0.16, 0], 7: [0.0013, 0.25, 0.22, 0.0035] };
+const PRINT = { 8: [0, 0.45, 0.04, 0], 5: [0.0004, 0.4, 0.06, 0], 0: [0.0006, 0.35, 0.1, 0], 6: [0.0009, 0.3, 0.16, 0], 7: [0.0055, 0.25, 0.1, 0.0035] };
 function printParams(s) {
   const p = s.paper > 0 && PRINT[s.paperType];
   return p ? p.map((v) => v * s.paper) : [0, 0, 0, 0];

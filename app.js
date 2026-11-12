@@ -33,7 +33,7 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v31';
+const BUILD = 'v32';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
@@ -870,7 +870,7 @@ const PAPER_TYPES = [
   { n: 'Lustre', t: 0, on: 0.6, note: 'Papel lustre, a "casca de laranja": relevo suave que aparece mais nos escuros.' },
   { n: 'Fosco', t: 6, on: 0.6, note: 'Papel fosco: preto mais aberto, mais luz espalhada, textura fina.' },
   { n: 'Jato de tinta', t: 8, on: 0.5, note: 'Medido numa cópia real: impressora jato de tinta em papel brilhante, passada no scanner. Preto aberto e frio, meios com mais cor, brancos neutros, pontinhos da tinta.' },
-  { n: 'Instantânea', t: 7, on: 0.6, note: 'Inspirado na instax mini: lente simples e macia, imagem leitosa, sombras frias e luzes quentes.' },
+  { n: 'Instantânea', t: 7, on: 0.5, note: 'Medido em instax mini reais, passadas no scanner: preto que nunca fecha, branco contido, sombras azuladas, verdes e amarelos apagados, azuis vivos e imagem macia.' },
   { n: 'Marfim', t: 1, on: 0.7, note: 'Papel de algodão fosco, branco creme.' },
   { n: 'Tela', t: 2, on: 0.6, note: 'Impressão em tela, com a trama do tecido.' },
   { n: 'Revista', t: 3, on: 1, note: 'Retícula de gráfica em papel couché.' },
