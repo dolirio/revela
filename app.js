@@ -33,7 +33,7 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v29';
+const BUILD = 'v30';
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
 // nível do desenho (ver renderer.js): começa completo; se a placa de vídeo travar, o aparelho guarda um nível
 // mais leve para o próximo início. GL_REV sobe quando o shader mudar a ponto de valer tentar o completo de novo.

@@ -44,7 +44,10 @@
 
   /* dock */
   #dock { background: var(--dock); padding-bottom: var(--safe-b); min-width: 0; }
-  .ctx { height: 158px; position: relative; overflow: hidden; }
+  .ctx { min-height: 158px; max-height: 66vh; position: relative; overflow: hidden auto; scrollbar-width: none; }
+  .ctx::-webkit-scrollbar { display: none; }
+  /* a folha aberta entra no fluxo: o painel cresce até caber tudo (antes cortava em cima e embaixo em telas baixas) */
+  #dock:not(.tall) .sheet.on { position: relative; inset: auto; min-height: inherit; padding-top: 8px; padding-bottom: 2px; }
   .mode, .sheet { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; }
   .mode.on, .sheet.on { display: flex; }
   .scrollx { display: flex; overflow-x: auto; scrollbar-width: none; padding: 0 14px; gap: 6px; }
@@ -104,14 +107,13 @@
   .pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .pills button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
   .pills button.on { border-color: var(--accent); color: var(--accent); }
-  .sheet .pills { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
+  .sheet .pills { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; justify-content: safe center; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
   .sheet .pills::-webkit-scrollbar { display: none; }
   .sheet .pills button { flex: 0 0 auto; white-space: nowrap; }
-  .sheet .pills > :first-child { margin-left: auto; } .sheet .pills > :last-child { margin-right: auto; }
   /* arrastar com o mouse nas faixas que rolam para o lado */
   .dragging, .dragging * { cursor: grabbing !important; user-select: none; }
   /* painel com vários controles (grão, brilho, halo, nitidez) */
-  #dock.med .ctx { height: 236px; }
+  #dock.med .ctx { min-height: 236px; }
   #pBody { display: grid; gap: 4px; }
   .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; flex: 0 0 auto; }
   .seg button { flex: 1; padding: 7px 4px; font-size: 12.5px; color: var(--muted); position: relative; }
@@ -212,7 +214,7 @@
 
   @media (min-width: 900px) {
     #dock { width: 100%; max-width: 760px; justify-self: center; border-radius: 14px 14px 0 0; }
-    .ctx { height: 170px; }
+    .ctx { min-height: 170px; }
   }
 
   /* deitado (celular na horizontal), tablet deitado e computador: foto à esquerda, painel à direita */
@@ -223,7 +225,8 @@
     #dock, #dock.med, #dock.tall { grid-column: 2; grid-row: 1 / span 2; max-width: none; width: auto; justify-self: stretch;
       border-radius: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line);
       padding: var(--safe-t) env(safe-area-inset-right, 0px) var(--safe-b) 0; }
-    #dock .ctx, #dock.med .ctx, #dock.tall .ctx { height: auto; flex: 1; min-height: 0; }
+    #dock .ctx, #dock.med .ctx, #dock.tall .ctx { height: auto; flex: 1; min-height: 0; max-height: none; }
+    #dock:not(.tall) .sheet.on, #dock.tall .sheet.on { position: absolute; inset: 0; min-height: 0; overflow-y: auto; }
     /* controles perto da barra de abas, onde o polegar alcança */
     .mode, .sheet { justify-content: flex-end; padding-bottom: 10px; }
     #menu { right: calc(min(420px, 46vw) + 10px); }
