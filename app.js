@@ -33,7 +33,7 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v35';
+const BUILD = 'v36';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
@@ -171,10 +171,13 @@ function drawNow() {
     full = { w: v.innerW * es, h: v.innerH * es, src };
     ov = makeOverlay(state, v, w, h, frameNo(photo.name), overlayPrev);
   }
+  // tamanho na tela em pontos inteiros: meio ponto sobrando vira uma linha clara na borda no Safari do iPhone (3x)
+  const cw = Math.max(1, Math.floor(w / dpr)), chh = Math.max(1, Math.floor(h / dpr));
+  w = Math.max(1, Math.round(cw * dpr)); h = Math.max(1, Math.round(chh * dpr));
   overlayPrev = ov;
   try { preview.render(w, h, renderParams(state), full, bypass, { ...v, overlay: ov?.canvas, overlayKey: ov?.key }); }
   catch (e) { diagErrs.push('desenho: ' + e.message); throw e; }
-  view.style.width = w / dpr + 'px'; view.style.height = h / dpr + 'px';
+  view.style.width = cw + 'px'; view.style.height = chh + 'px';
   last = { v, w, h, full, dpr, zg };
   if (zg) $('zoomTag').textContent = `${Math.round((zg.k / zg.es) * 100)}% · dois toques para a foto inteira`;
   positionOverlays();
