@@ -6,6 +6,7 @@ import {
   HSL_NAMES, HSL_COLORS, ASPECTS, FRAMES, LEAKS, makeOverlay, autoDate,
 } from './core.js';
 import { specToState } from './recipes.js';
+import { CLIMAS } from './climas.js';
 import { FILMS, FILM_CATS } from './films.js';
 
 // looks antigos continuam disponíveis para os filmes salvos em Minhas; os filmes novos entram junto
@@ -409,7 +410,8 @@ if (!FILM_CATS.some((c) => c.id === cat)) cat = 'neg';   // categoria que deixou
 let thumbSrc = null;
 let userRecipes = store.get('revela.recipes', []).map((r, i) => (r.id ? r : { id: `u_old${i}_${Date.now().toString(36)}`, ...r }));
 const saveUserRecipes = () => { if (!store.set('revela.recipes', userRecipes)) toast('Não foi possível salvar neste navegador'); };
-const findRecipe = (id) => userRecipes.find((r) => r.id === id);
+const findRecipe = (id) => userRecipes.find((r) => r.id === id) || CLIMAS.find((r) => r.id === id);
+const isClima = (r) => !!r && CLIMAS.includes(r);
 const filmById = (id) => FILMS.find((f) => f.id === id);
 
 // pergunta dentro do app (nome ou confirmação), no lugar das janelas do navegador
@@ -506,6 +508,13 @@ function buildStrip() {
     imp.innerHTML = `<div class="ph">${icon('lut')}</div><span class="nm">Importar LUT</span>`;
     imp.onclick = () => $('fileLut').click();
     strip.append(add, imp);
+  } else if (cat === 'clima') {
+    // climas: tocar aplica a receita inteira; tocar de novo abre intensidade, Tom e Cor (e "+ salvar como meu")
+    for (const c of CLIMAS) {
+      const b = tile('rec', c.name); b.dataset.rid = c.id; b.title = `${c.name} · ${c.note}`;
+      b.onclick = () => (state.recipe === c.id ? openFilmSheet(c.name) : applyRecipe(c));
+      strip.append(b);
+    }
   } else {
     for (const f of FILMS.filter((x) => x.cat === cat)) {
       const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · inspirado no ${f.ref}`;
@@ -523,7 +532,8 @@ function syncFilms() {
   document.querySelectorAll('#cats button').forEach((b) => b.classList.toggle('on', b.dataset.f === cat));
   const r = state.recipe && findRecipe(state.recipe), f = filmById(state.look);
   let title, text;
-  if (r) { title = r.name; text = f ? `seu filme · feito a partir do ${f.code}` : 'seu filme'; }
+  if (r && isClima(r)) { title = r.name; text = f ? `${r.note} · a partir do ${f.code}` : r.note; }
+  else if (r) { title = r.name; text = f ? `seu filme · feito a partir do ${f.code}` : 'seu filme'; }
   else if (f) { title = f.code; text = `inspirado no ${f.ref} · ${f.kind}`; }
   else if (state.look !== 'none') { title = lookName(state.look); text = 'LUT importada'; }
   else { title = 'Original'; text = 'toque num filme para aplicar; toque de novo para a intensidade'; }

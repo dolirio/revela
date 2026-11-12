@@ -18,7 +18,7 @@ const grain = (iso, { bw = false, mul = 1, cmul = 1 } = {}) => {
 };
 
 export const FILM_CATS = [
-  { id: 'neg', n: 'Negativo' }, { id: 'pb', n: 'P&B' }, { id: 'slide', n: 'Slide' },
+  { id: 'clima', n: 'Climas' }, { id: 'neg', n: 'Negativo' }, { id: 'pb', n: 'P&B' }, { id: 'slide', n: 'Slide' },
   { id: 'old', n: 'Vencido' }, { id: 'mine', n: 'Minhas' },
 ];
 

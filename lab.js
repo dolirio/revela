@@ -177,7 +177,7 @@ function renderControls() {
 
 function fillSelect() {
   const sel = $('selLook');
-  sel.innerHTML = FILM_CATS.filter((c) => c.id !== 'mine').map((c) => `<optgroup label="${c.n}">` +
+  sel.innerHTML = FILM_CATS.filter((c) => c.id !== 'mine' && c.id !== 'clima').map((c) => `<optgroup label="${c.n}">` +
     looks.map((l, i) => (l.film.cat === c.id ? `<option value="${i}">${l.name}${isEdited(l) ? ' •' : ''}</option>` : '')).join('') + '</optgroup>').join('');
   sel.value = cur;
 }
