@@ -271,6 +271,9 @@
     <div class="sheet" id="filmSheet">
       <div class="head"><span class="val" id="fVal">100</span><button class="reset" id="fSave">+ salvar como meu</button></div>
       <input type="range" id="fRange" min="0" max="100">
+      <div class="mini"><span>Tom</span><div class="rw bi"><input type="range" id="fTone" min="-100" max="100" aria-label="Tom do filme"></div><output id="fToneV">0</output></div>
+      <div class="mini"><span>Cor</span><div class="rw bi"><input type="range" id="fCol" min="-100" max="100" aria-label="Cor do filme"></div><output id="fColV">0</output></div>
+      <p class="note" id="fNote">Tom: expor o negativo a mais (+, claro e pastel) ou a menos (−, denso e com mais grão). Cor: filtro quente (+) ou frio (−) na frente da lente.</p>
       <div class="foot"><button class="ib" id="fCancel" aria-label="Cancelar"></button><div class="t" id="fTitle"></div><button class="ib" id="fOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="hslSheet">

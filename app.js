@@ -436,7 +436,7 @@ function applyFilm(id) {
   if (f) for (const k of ['grain', 'gsize', 'grough', 'gcolor']) if (!(k in ch)) ch[k] = d[k];
   Object.assign(state, ch);
   state.filmCh = Object.keys(ch).length ? ch : null;
-  state.look = id; state.mix = 1; state.recipe = null;
+  state.look = id; state.mix = 1; state.ftone = 0; state.fcol = 0; state.recipe = null;
   syncUI(); draw(); commit();
 }
 function recipeParams(r) {
@@ -534,7 +534,22 @@ function syncFilms() {
 function openFilmSheet(name) {
   $('fTitle').textContent = name;
   $('fRange').value = Math.round(state.mix * 100); $('fVal').textContent = $('fRange').value;
-  openSheet('filmSheet');
+  syncTune();
+  openSheet('filmSheet'); $('dock').classList.add('med');
+}
+// afinar o filme: Tom e Cor, com o zero no meio (dois toques zeram)
+function syncTune() {
+  for (const [id, k] of [['fTone', 'ftone'], ['fCol', 'fcol']]) {
+    const r = $(id), v = Math.round((state[k] || 0) * 100);
+    r.value = v; fillRange(r, 0); $(id + 'V').textContent = signed(v);
+  }
+}
+for (const [id, k, n] of [['fTone', 'ftone', 'Tom'], ['fCol', 'fcol', 'Cor']]) {
+  $(id).addEventListener('input', () => {
+    let v = +$(id).value; if (Math.abs(v) <= 3) v = 0;
+    state[k] = v / 100; syncTune(); draw(); flashVal(n, signed(v));
+  });
+  $(id).addEventListener('dblclick', () => { state[k] = 0; syncTune(); draw(); });
 }
 $('fRange').addEventListener('input', () => { state.mix = +$('fRange').value / 100; $('fVal').textContent = $('fRange').value; draw(); flashVal('Filme', $('fRange').value); });
 $('fSave').onclick = () => { closeSheet(true); saveAsMine(); };

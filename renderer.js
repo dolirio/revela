@@ -2,7 +2,7 @@ import { identityLut } from './looks.js';
 
 // Valores padrão de todos os parâmetros que o shader entende.
 export const RDEF = {
-  mix: 1, exp: 0, con: 0, high: 0, shad: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
+  mix: 1, ftone: 0, fcol: 0, exp: 0, con: 0, high: 0, shad: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
   clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
   grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0,
   gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0,
@@ -29,7 +29,8 @@ uniform mat3 uGeo, uPersp; uniform float uLens;
 uniform vec4 uInner, uZoom, uBorder;
 uniform vec3 uFrameCol; uniform float uFrameRound, uFrameRough, uHoles, uOverOn;
 uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
-uniform float uGFmt;   // formato do filme: 1 = 35 mm; menor = quadro maior (grão menor na foto)
+uniform float uGFmt;
+uniform float uFTone, uFCol;   // afinar o filme: Tom (exposição do negativo) e Cor (filtro na frente da lente)   // formato do filme: 1 = 35 mm; menor = quadro maior (grão menor na foto)
 uniform vec4 uPrint;   // cópia em papel: x = maciez, y = acutância, z = luz espalhada no papel, w = maciez na borda (lente)
 uniform vec4 uLeakP; uniform float uLeakType, uLeakSeed, uScrType, uScrSeed, uChromaType;
 
@@ -514,8 +515,28 @@ void main(){
   c = vec3(texture(uCurve, vec2(c.r * 255.0/256.0 + 0.5/256.0, 0.5)).r,
            texture(uCurve, vec2(c.g * 255.0/256.0 + 0.5/256.0, 0.5)).g,
            texture(uCurve, vec2(c.b * 255.0/256.0 + 0.5/256.0, 0.5)).b);
-  vec3 g = texture(uLut, c * ((uLutN-1.0)/uLutN) + 0.5/uLutN).rgb;
-  c = mix(c, g, uMix);
+  // Afinar o filme. Cor: um filtro quente (+) ou frio (-) na frente da lente; a luz já chega filtrada ao filme,
+  // então a cor final continua sendo a do filme. Tom: expor o negativo a mais (+) ou a menos (-).
+  vec3 li = c;
+  if (uFTone != 0.0 || uFCol != 0.0) {
+    vec3 lin = pow(max(c, 0.0), vec3(2.2)) * exp2(uFTone * 0.6)
+             * vec3(1.0 + 0.1 * uFCol, 1.0 + 0.015 * uFCol, 1.0 - 0.13 * uFCol);
+    // clareando, as luzes entram num ombro (contínuo em 0.8, tende ao branco) em vez de cortar seco
+    vec3 sh = mix(lin, 1.0 - 0.2 * exp(-(lin - 0.8) / 0.2), step(0.8, lin));
+    lin = mix(lin, sh, clamp(uFTone * 3.0, 0.0, 1.0));
+    li = clamp(pow(lin, vec3(1.0 / 2.2)), 0.0, 1.0);
+  }
+  vec3 g = texture(uLut, li * ((uLutN-1.0)/uLutN) + 0.5/uLutN).rgb;
+  if (uFTone > 0.0) {          // negativo superexposto: cópia mais suave e pastel, sombras abertas
+    float t = uFTone;
+    g = mix(g, 0.5 + (g - 0.5) * 0.8 + 0.035, t * 0.6);
+    g = mix(vec3(luma(g)), g, 1.0 - 0.16 * t);
+  } else if (uFTone < 0.0) {   // subexposto: mais denso, sombras fechadas, cor mais cheia
+    float t = -uFTone;
+    g = mix(g, g * g * (3.0 - 2.0 * g), t * 0.4);
+    g = mix(vec3(luma(g)), g, 1.0 + 0.1 * t);
+  }
+  c = mix(c, clamp(g, 0.0, 1.0), uMix);
   // cor profunda e Cor (matiz/saturação/luminância por cor) depois do filme: o ajuste aparece mesmo com filme forte
   if (uDepth > 0.0) {   // cor profunda: cores saturadas ficam mais densas (mais escuras e um pouco mais cheias), neutros quase não mudam
     float l = luma(c), s = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
@@ -624,7 +645,7 @@ void main(){
     float lg = max(uRes.x, uRes.y);
     float cellPx = uGrainSize * 1.5 * (lg / 4000.0) * uGFmt;
     float cellEff = max(cellPx, uPxScale * 1.4);
-    float amp = uGrain * 0.17 * (cellPx / cellEff);
+    float amp = uGrain * 0.17 * (cellPx / cellEff) * (1.0 - 0.3 * uFTone * uMix);   // subexposto = mais grão; superexposto = menos
     vec2 p = iu * uRes / cellEff;
     float aa = 0.5 * uPxScale / cellEff;
     float pe = uPrint.x * lg / cellEff;                     // cópia em papel: o grão amacia junto com a imagem
@@ -750,7 +771,7 @@ function printParams(s) {
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uBright', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
   'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
-  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uGFmt', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
+  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uGFmt', 'uFTone', 'uFCol', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
   'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType'];
@@ -856,7 +877,7 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.overTex);
     gl.uniform1f(u.uLutN, this.lutN);
     const f = (n, x) => gl.uniform1f(u[n], x);
-    f('uMix', s.mix); f('uExp', s.exp); f('uBright', s.bright || 0); f('uCon', s.con); f('uHigh', s.high); f('uShad', s.shad); f('uWhite', s.white);
+    f('uMix', s.mix); f('uFTone', s.ftone || 0); f('uFCol', s.fcol || 0); f('uExp', s.exp); f('uBright', s.bright || 0); f('uCon', s.con); f('uHigh', s.high); f('uShad', s.shad); f('uWhite', s.white);
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
