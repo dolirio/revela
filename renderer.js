@@ -4,7 +4,7 @@ import { identityLut } from './looks.js';
 export const RDEF = {
   mix: 1, exp: 0, con: 0, high: 0, shad: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
   clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
-  grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, paper: 0, paperType: 0, paperSeed: 0,
+  grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0,
   gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0,
   fade: 0, halo: 0, haloR: 0.5, haloT: 0.5, vig: 0, leak: 0, dust: 0, scratch: 0,
 };
@@ -29,6 +29,7 @@ uniform mat3 uGeo, uPersp; uniform float uLens;
 uniform vec4 uInner, uZoom, uBorder;
 uniform vec3 uFrameCol; uniform float uFrameRound, uFrameRough, uHoles, uOverOn;
 uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
+uniform float uGFmt;   // formato do filme: 1 = 35 mm; menor = quadro maior (grão menor na foto)
 uniform vec4 uPrint;   // cópia em papel: x = maciez, y = acutância, z = luz espalhada no papel, w = maciez na borda (lente)
 uniform vec4 uLeakP; uniform float uLeakType, uLeakSeed, uScrType, uScrSeed, uChromaType;
 
@@ -309,6 +310,41 @@ vec2 dustOf(vec2 q){
   return a;
 }
 
+// ---------- grão de filme
+// A imagem do filme é feita de grãos: pontos de tamanhos variados, espalhados ao acaso, e quanto mais escuro o tom,
+// mais grãos revelados (modelo booleano, como no trabalho de Newson, Delon e Galerne sobre grão realista).
+// O desenho nasce do próprio tom: o grão é máximo nos meios-tons e some sozinho no branco.
+vec4 hash4(vec3 p){
+  vec4 q = fract(vec4(p.xyzx) * vec4(0.1031, 0.103, 0.0973, 0.1099));
+  q += dot(q, q.wzxy + 33.33);
+  return fract((q.xxyz + q.yzzw) * q.zywx);
+}
+// p: posição em "células" (espaçamento médio entre grãos); D: cobertura pedida (0 branco .. 1 preto);
+// e: maciez da borda (em células); devolve (esperado - cobertura): positivo = mais claro que a média
+float grainLayer(vec2 p, float D, float rough, float e, float sd){
+  const float N = 2.0, RM = 0.42;
+  float a0 = 1.0 - 0.45 * rough, a1 = 0.9 * rough;               // aspereza = tamanhos mais variados
+  float area = 3.14159 * RM * RM * (a0 * a0 + a0 * a1 + a1 * a1 / 3.0);
+  float q = clamp(-log(max(1.0 - D, 0.001)) / (N * area), 0.0, 1.0);
+  vec2 ip = floor(p);
+  float clump = 1.0 + rough * 0.9 * (vnoise(p * 0.23 + sd) - 0.5);  // aglomerados: grãos se juntam em nuvens
+  float qq = clamp(q * clump, 0.0, 1.0);
+  float keep = 1.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 cell = ip + vec2(i, j);
+    for (int k = 0; k < 2; k++) {
+      vec4 h = hash4(vec3(cell, float(k) * 7.31 + sd));
+      if (h.w >= qq) continue;                                    // grão não revelado neste tom
+      float r = RM * (a0 + a1 * h.z);
+      float d = length(p - cell - h.xy);
+      float a = 1.0 - smoothstep(r - e, r + e, d);
+      keep *= 1.0 - a;
+    }
+  }
+  float cov = 1.0 - keep, ex = 1.0 - exp(-N * q * area);
+  return ex - cov;
+}
+
 void main(){
   vec2 ou = vUv, op = ou * uOut;
   // ---------- moldura
@@ -582,23 +618,33 @@ void main(){
   // O grão é calculado em pixels da foto final. Na prévia reduzida, cada pixel da tela cobre vários grãos:
   // a amplitude cai na mesma proporção que cairia ao reduzir a foto exportada, então a prévia bate com o arquivo.
   if (uGrain > 0.0) {
-    float cell = max(uGrainSize, uPxScale);
-    float amp = uGrain * 0.1 * min(1.0, uGrainSize / uPxScale);
-    vec2 p = iu * uRes / cell + uSeed * 17.0;
+    // tamanho do grão relativo ao quadro: Escala vale para uma foto de 4000 px no lado maior; formatos maiores
+    // (120) deixam o grão menor na foto, meio-quadro deixa maior. Na prévia reduzida, cada pixel da tela cobre
+    // vários grãos: o grão é desenhado na escala do pixel e a força cai na mesma proporção da redução.
+    float lg = max(uRes.x, uRes.y);
+    float cellPx = uGrainSize * 1.5 * (lg / 4000.0) * uGFmt;
+    float cellEff = max(cellPx, uPxScale * 1.4);
+    float amp = uGrain * 0.17 * (cellPx / cellEff);
+    vec2 p = iu * uRes / cellEff;
+    float aa = 0.5 * uPxScale / cellEff;
+    float pe = uPrint.x * lg / cellEff;                     // cópia em papel: o grão amacia junto com a imagem
     float rough = uGRough;
-    // fino = uma escala, redondo; áspero = aglomerados maiores e grão mais duro
-    vec3 n;
-    for (int ch = 0; ch < 3; ch++) {
-      vec2 q = p + float(ch) * vec2(31.7, 47.3);
-      float v = (vnoise(q) - 0.5) + (vnoise(q * 1.97 + 11.3) - 0.5) * 0.55 + (vnoise(q * 0.43 + 5.7) - 0.5) * rough * 1.3;
-      v /= 0.3 + rough * 0.18;
-      v = sign(v) * pow(abs(v), 1.0 - rough * 0.3);
-      n[ch] = v;
-      if (uGColor <= 0.0) { n = vec3(v); break; }
-    }
-    n = mix(vec3(n.r), n, uGColor);
     float l = luma(c);
-    float w = 0.2 + 0.8 * exp(-pow((l - 0.42) / 0.34, 2.0));   // mais visível nos meios-tons e sombras
+    vec3 n;
+    if (uGColor <= 0.01) {
+      // prata (P&B): grãos de borda definida
+      n = vec3(grainLayer(p + uSeed * 17.0, clamp(1.0 - l, 0.0, 1.0), rough, max(aa, 0.08) + pe, uSeed));
+    } else {
+      // negativo colorido: três camadas de nuvens de corante, macias; a camada do azul tem grão maior
+      vec3 D = clamp(1.0 - c, 0.0, 1.0);
+      float e = max(aa, 0.3) + pe;
+      n.r = grainLayer(p + uSeed * 17.0, D.r, rough, e, uSeed + 1.0);
+      n.g = grainLayer(p * 1.08 + uSeed * 23.0 + 9.1, D.g, rough, e, uSeed + 2.0);
+      n.b = grainLayer(p * 0.8 + uSeed * 29.0 + 4.7, D.b, rough, e, uSeed + 3.0);
+      float m = (n.r + n.g + n.b) * 0.58;                  // parte em comum (luminância)
+      n = mix(vec3(m), n * 1.15, uGColor);
+    }
+    float w = smoothstep(0.02, 0.16, l);                    // no preto chapado o grão não aparece na cópia
     c += n * amp * w;
   }
   // ---------- gráfico: meio-tom, meio-tom em cores, duotônico, tritônico
@@ -704,7 +750,7 @@ function printParams(s) {
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uBright', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
   'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
-  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
+  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uGFmt', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
   'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType'];
@@ -814,7 +860,7 @@ export class Renderer {
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
-    f('uGColor', s.gcolor); f('uPaper', s.paper); gl.uniform4fv(u.uPrint, printParams(s)); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
+    f('uGColor', s.gcolor); f('uPaper', s.paper); gl.uniform4fv(u.uPrint, printParams(s)); f('uGFmt', [1, 0.45, 1.4][s.gfmt | 0] || 1); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
     f('uGfx', s.gfx); f('uGfxAmt', s.gfxAmt); f('uGfxSize', s.gfxSize); f('uGfxCon', s.gfxCon);
     const gc = s.gfxCols || [[0, 0, 0], [1, 1, 1], [1, 1, 1]];
     gl.uniform3fv(u.uGfxA, gc[0]); gl.uniform3fv(u.uGfxB, gc[1]); gl.uniform3fv(u.uGfxC, gc[2] || gc[1]); f('uVig', s.vig); f('uHalo', s.halo);

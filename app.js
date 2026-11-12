@@ -225,6 +225,9 @@ const P_GRAIN = { p: 'grain', n: 'Grão', i: 'grain', on: { grain: 0.35 },
       pick: (s) => (s.gsize < 1.4 ? 0 : s.gsize < 2.25 ? 1 : 2) },
     { n: 'Tipo', opts: [['Prata', { gcolor: 0, grough: 0.3 }], ['Negativo', { gcolor: 0.35, grough: 0.45 }], ['Colorido', { gcolor: 1, grough: 0.7 }]],
       pick: (s) => (s.gcolor < 0.15 ? 0 : s.gcolor < 0.7 ? 1 : 2) },
+    // formato do quadro: o mesmo filme num quadro maior (120) mostra grão menor na foto; meio-quadro, maior
+    { n: 'Formato', opts: [['35 mm', { gfmt: 0 }], ['120', { gfmt: 1 }], ['Meio-quadro', { gfmt: 2 }]],
+      pick: (s) => s.gfmt | 0 },
   ],
   rows: [
     { k: 'grain', n: 'Intensidade', min: 0 },
@@ -268,7 +271,7 @@ const ACTIONS = {
 function buildTools(box, list) {
   for (const t of list) {
     const b = document.createElement('button'); b.className = 'tool'; b.dataset.k = t.p ? 'p_' + t.p : t.k || t.s || 'act_' + t.a;
-    if (t.p) b.dataset.keys = [...t.rows.map((r) => r.k), ...(t.chips ? ['gcolor', 'grough'] : [])].join(',');
+    if (t.p) b.dataset.keys = [...t.rows.map((r) => r.k), ...(t.chips ? ['gcolor', 'grough', 'gfmt'] : [])].join(',');
     b.innerHTML = `<div class="ring">${icon(t.i || t.k)}</div><span>${t.n}</span>`;
     b.onclick = () => (t.a ? ACTIONS[t.a]() : t.s ? openSpecial(t.s) : t.p ? openPanel(t) : t.geo ? openGeo(t.k) : openSlider(t));
     box.append(b);
@@ -402,6 +405,7 @@ function markTools() {
 
 // ------------------------------------------------------------ Pellicula: filmes e "Minhas"
 let cat = store.get('revela.cat', 'neg');
+if (!FILM_CATS.some((c) => c.id === cat)) cat = 'neg';   // categoria que deixou de existir (ex.: Filtros)
 let thumbSrc = null;
 let userRecipes = store.get('revela.recipes', []).map((r, i) => (r.id ? r : { id: `u_old${i}_${Date.now().toString(36)}`, ...r }));
 const saveUserRecipes = () => { if (!store.set('revela.recipes', userRecipes)) toast('Não foi possível salvar neste navegador'); };
