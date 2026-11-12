@@ -11,7 +11,7 @@ export const KEEP_KEYS = [...GEO_KEYS, 'frame', 'date', 'dateText'];
 export function defaults() {
   return {
     look: 'none', mix: 1, ftone: 0, fcol: 0, recipe: null, filmCh: null,
-    exp: 0, bright: 0, con: 0, high: 0, shad: 0, white: 0, black: 0,
+    exp: 0, bright: 0, con: 0, high: 0, shad: 0, highT: 0.5, shadT: 0.5, lsRad: 0, lsCol: 0, white: 0, black: 0,
     temp: 0, tint: 0, sat: 0, vib: 0, depth: 0, clar: 0,
     sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, halo: 0, haloR: 0.5, haloT: 0.5, vlens: 0,
     grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0,

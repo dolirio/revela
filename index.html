@@ -104,6 +104,12 @@
   .pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .pills button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
   .pills button.on { border-color: var(--accent); color: var(--accent); }
+  .sheet .pills { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
+  .sheet .pills::-webkit-scrollbar { display: none; }
+  .sheet .pills button { flex: 0 0 auto; white-space: nowrap; }
+  .sheet .pills > :first-child { margin-left: auto; } .sheet .pills > :last-child { margin-right: auto; }
+  /* arrastar com o mouse nas faixas que rolam para o lado */
+  .dragging, .dragging * { cursor: grabbing !important; user-select: none; }
   /* painel com vários controles (grão, brilho, halo, nitidez) */
   #dock.med .ctx { height: 236px; }
   #pBody { display: grid; gap: 4px; }
@@ -314,12 +320,13 @@
       <div class="foot"><button class="ib" id="lCancel" aria-label="Cancelar"></button><div class="t">Light leak</div><button class="ib" id="lOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="scrSheet">
+      <div class="seg markseg"><button data-to="dustSheet">Poeira</button><button class="on" data-to="scrSheet">Riscos</button></div>
       <div class="pills" id="scrTypes"></div>
       <p class="note" id="scrNote"></p>
       <div class="dicerow"><button class="dice" id="scrSeed" aria-label="Sortear outros arranhões" title="Sortear outros arranhões"></button>
         <div class="rw bi"><input type="range" id="scrRange" min="-100" max="100"></div><output id="scrVal">0</output></div>
       <div class="ends on" style="padding-left:52px"><span>◂ escuros</span><span>claros ▸</span></div>
-      <div class="foot"><button class="ib" id="scCancel" aria-label="Cancelar"></button><div class="t">Arranhões</div><button class="ib" id="scOk" aria-label="Confirmar"></button></div>
+      <div class="foot"><button class="ib" id="scCancel" aria-label="Cancelar"></button><div class="t">Poeira e riscos</div><button class="ib" id="scOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="chrSheet">
       <div class="pills" id="chrTypes"></div>
@@ -332,11 +339,12 @@
       <div class="foot"><button class="ib" id="pCancel" aria-label="Cancelar"></button><div class="t" id="pTitle"></div><button class="ib" id="pOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="dustSheet">
+      <div class="seg markseg"><button class="on" data-to="dustSheet">Poeira</button><button data-to="scrSheet">Riscos</button></div>
       <div class="pills" id="dustTypes"></div>
       <div class="dicerow"><button class="dice" id="uSeed" aria-label="Sortear outra poeira" title="Sortear outra poeira"></button>
         <div class="rw bi"><input type="range" id="uRange" min="-100" max="100"></div><output id="uVal">0</output></div>
       <div class="ends on" style="padding-left:52px"><span>◂ escura</span><span>clara ▸</span></div>
-      <div class="foot"><button class="ib" id="uCancel" aria-label="Cancelar"></button><div class="t">Poeira</div><button class="ib" id="uOk" aria-label="Confirmar"></button></div>
+      <div class="foot"><button class="ib" id="uCancel" aria-label="Cancelar"></button><div class="t">Poeira e riscos</div><button class="ib" id="uOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="paperSheet">
       <div class="pills" id="paperTypes"></div>

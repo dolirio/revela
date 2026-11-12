@@ -33,10 +33,25 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v28';
+const BUILD = 'v29';
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
+// nível do desenho (ver renderer.js): começa completo; se a placa de vídeo travar, o aparelho guarda um nível
+// mais leve para o próximo início. GL_REV sobe quando o shader mudar a ponto de valer tentar o completo de novo.
+const GL_REV = 1, LV_NAMES = ['só tom e cor', 'leve', 'sem sujeira e gráficos', 'completo'];
+let glLevel = 3;
+try { const v = (localStorage.getItem('revela.gl.lv') || '').split(':'); if (+v[0] === GL_REV) glLevel = Math.max(0, Math.min(3, +v[1])); } catch {}
+Renderer.level = glLevel;
+let glDropped = false;
+function dropLevel(why) {
+  if (glDropped) return;
+  glDropped = true;
+  diagErrs.push(`placa de vídeo travou (${why}) no nível ${glLevel}`);
+  if (glLevel > 0) try { localStorage.setItem('revela.gl.lv', `${GL_REV}:${glLevel - 1}`); } catch {}
+}
 try {
   preview = new Renderer(view, safeMode);
+  view.addEventListener('webglcontextlost', () => dropLevel('desenho'));
+  if (glLevel < 3) setTimeout(() => toast(`Desenho ${LV_NAMES[glLevel]} neste aparelho: alguns efeitos não aparecem`), 1500);
   aux = new Renderer(document.createElement('canvas'), safeMode);
   // a placa de vídeo derrubou e devolveu o contexto: envia a foto de novo e redesenha
   preview.onRestore = () => { lutOnPreview = curveOnPreview = null; if (photo) { preview.setImage(scaled(photo.bitmap, 2048), 'preview'); draw(); } };
@@ -214,10 +229,17 @@ const TOOL_FMT = {
 };
 // controles com zero no meio: texto das pontas
 const ENDS = { sharp: ['◂ desfoque', 'nitidez ▸'] };
+// luzes e sombras: quantidade, faixa de tons, raio (máscara pela vizinhança) e cor; raio e cor valem para as duas
+const P_HIGH = { p: 'high', n: 'Luzes', i: 'high', rows: [
+  { k: 'high', n: 'Quantidade' }, { k: 'highT', n: 'Faixa', min: 0 }, { k: 'lsRad', n: 'Raio', min: 0 }, { k: 'lsCol', n: 'Cor' },
+] };
+const P_SHAD = { p: 'shad', n: 'Sombras', i: 'shad', rows: [
+  { k: 'shad', n: 'Quantidade' }, { k: 'shadT', n: 'Faixa', min: 0 }, { k: 'lsRad', n: 'Raio', min: 0 }, { k: 'lsCol', n: 'Cor' },
+] };
 const ADJ = [
   { k: 'exp', n: 'Exposição', min: -200, max: 200 },
   { k: 'bright', n: 'Brilho' },
-  { k: 'con', n: 'Contraste' }, { k: 'high', n: 'Luzes' }, { k: 'shad', n: 'Sombras' },
+  { k: 'con', n: 'Contraste' }, P_HIGH, P_SHAD,
   { k: 'temp', n: 'Temperatura' }, { k: 'tint', n: 'Matiz' }, { k: 'vib', n: 'Vibração' }, { k: 'sat', n: 'Saturação' },
   { k: 'clar', n: 'Claridade' }, { k: 'depth', n: 'Cor profunda', min: 0 },
   { s: 'hsl', n: 'Cor', i: 'hsl' }, { s: 'curve', n: 'Curvas', i: 'curve' },
@@ -253,7 +275,6 @@ const P_HALO = { p: 'halo', n: 'Halação', i: 'halo', rows: [
   { k: 'haloT', n: 'Limiar', min: 0 },
 ] };
 const TEX = [
-  { a: 'zoom', n: 'Lupa 100%', i: 'zoom' },
   P_SHARP, P_GRAIN, P_GLOW, P_HALO,
   { k: 'vlens', n: 'Lente antiga', min: 0 },
   { k: 'eblur', n: 'Borda suave', min: 0 },
@@ -261,7 +282,7 @@ const TEX = [
 ];
 const FX = [
   { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
-  { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'dust', n: 'Poeira', i: 'dust' }, { s: 'scratch', n: 'Arranhões', i: 'scratch' },
+  { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'marks', n: 'Poeira e riscos', i: 'scratch' },
   { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'date', n: 'Data', i: 'date' },
 ];
 const GEO = [
@@ -406,6 +427,7 @@ function markTools() {
     else if (k === 'curve') set = !!curveData(state.curve);
     else if (k === 'leak') set = state.leak > 0;
     else if (k === 'date') set = !!state.date;
+    else if (k === 'marks') set = !!state.dust || !!state.scratch;
     else if (b.dataset.keys) { const main = b.dataset.keys.split(',')[0]; set = state[main] !== d[main]; } // marcado quando o efeito está ligado
     else if (!k.startsWith('act_')) set = JSON.stringify(state[k]) !== JSON.stringify(d[k]);
     b.classList.toggle('set', set);
@@ -415,7 +437,7 @@ function markTools() {
 
 // ------------------------------------------------------------ Pellicula: filmes e "Minhas"
 let cat = store.get('revela.cat', 'neg');
-if (!FILM_CATS.some((c) => c.id === cat)) cat = 'neg';   // categoria que deixou de existir (ex.: Filtros)
+if (!FILM_CATS.some((c) => c.id === cat)) cat = 'clima';   // categoria que deixou de existir (ex.: Filtros)
 let thumbSrc = null;
 let userRecipes = store.get('revela.recipes', []).map((r, i) => (r.id ? r : { id: `u_old${i}_${Date.now().toString(36)}`, ...r }));
 const saveUserRecipes = () => { if (!store.set('revela.recipes', userRecipes)) toast('Não foi possível salvar neste navegador'); };
@@ -643,7 +665,8 @@ function openSpecial(s) {
   if (s === 'scratch') { syncScr(); openSheet('scrSheet'); }
   if (s === 'chroma') { syncChr(); openSheet('chrSheet'); }
   if (s === 'date') { openSheet('dateSheet'); if (!state.date) { state.date = true; draw(); } syncDate(); }
-  if (s === 'dust') { openSheet('dustSheet'); syncDust(); }
+  if (s === 'dust' || (s === 'marks' && (state.dust || !state.scratch))) { openSheet('dustSheet'); syncDust(); }
+  else if (s === 'marks') { syncScr(); openSheet('scrSheet'); }
   if (s === 'paper') { openSheet('paperSheet'); syncPaper(); }
 }
 let hslSel = 0;
@@ -827,6 +850,13 @@ $('uRange').addEventListener('input', () => {
 $('uRange').addEventListener('dblclick', () => { state.dust = 0; syncDust(); draw(); });
 $('uSeed').onclick = () => { state.dustSeed = (state.dustSeed + 1 + Math.floor(Math.random() * 97)) % 997; if (!state.dust) state.dust = 0.5; syncDust(); draw(); };
 $('uOk').onclick = () => closeSheet(true);
+// Poeira e riscos: troca de folha sem fechar (o Cancelar desfaz as duas)
+function swapSheet(id) {
+  if (!openSheetId || openSheetId === id) return;
+  $(openSheetId).classList.remove('on'); openSheetId = id; $(id).classList.add('on');
+  if (id === 'dustSheet') syncDust(); else syncScr();
+}
+document.querySelectorAll('.markseg button').forEach((b) => { b.onclick = () => swapSheet(b.dataset.to); });
 $('uCancel').onclick = () => closeSheet(false);
 $('dCancel').onclick = () => closeSheet(false);
 
@@ -1448,7 +1478,10 @@ function blank() {
 }
 function selfCheck(n = 0) {
   if (!photo) return;
+  if (glDropped && glLevel > 0) { askRestart(); return; }
   // ainda não desenhou (aparelho lento, placa preparando o desenho): espera até ~8 s antes de concluir
+  // app em segundo plano: o desenho fica pausado; espera voltar sem contar o tempo
+  if (document.visibilityState !== 'visible') { setTimeout(() => selfCheck(n), 1000); return; }
   if ((!last || preview.lost) && n < 7) { setTimeout(() => selfCheck(n + 1), 1000); return; }
   if (!blank()) return;
   if (!safeMode) {
@@ -1461,6 +1494,15 @@ function selfCheck(n = 0) {
     setTimeout(() => { if (photo && blank()) showDiag(); }, 1200);
   } else showDiag();
 }
+// a placa travou: o Android bloqueia o desenho até o app ser reaberto, então o jeito é pedir para reabrir
+let restartAsked = false;
+async function askRestart() {
+  if (restartAsked) return;
+  restartAsked = true;
+  await ask({ title: 'Reabra o Pellicula', note: `A placa de vídeo deste aparelho travou com o desenho ${LV_NAMES[glLevel]}. `
+    + `Feche o app (inclusive da lista de apps recentes) e abra de novo: ele vai usar um desenho mais leve (${LV_NAMES[glLevel - 1]}). `
+    + 'Se ainda assim a foto não aparecer, abra ⋯ › Diagnóstico e me mande o texto.' });
+}
 function diagnose() {
   const L = [], ua = navigator.userAgent;
   L.push(`Pellicula · ${isNative() ? 'app instalado (APK)' : 'navegador'}`);
@@ -1471,6 +1513,7 @@ function diagnose() {
     L.push('GPU: ' + (dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)));
     L.push(`Contexto perdido: ${gl.isContextLost() ? 'SIM' : 'não'} · textura máx: ${preview.maxTex}`);
     L.push(`Modo seguro: ${safeMode ? 'sim' : 'não'} · preparo do desenho: ${preview.initMs ?? '?'} ms`);
+    L.push(`Nível do desenho: ${glLevel} (${LV_NAMES[glLevel]})${glDropped && glLevel > 0 ? ` · ao reabrir: ${glLevel - 1}` : ''}`);
     const rl = [...preview.log.map((x) => 'prévia ' + x), ...aux.log.map((x) => 'miniaturas ' + x)];
     if (rl.length) L.push('Placa de vídeo: ' + rl.slice(-4).join(' | '));
     L.push(`Float linear: ${gl.getExtension('OES_texture_float_linear') ? 'sim' : 'não'} · cor float: ${gl.getExtension('EXT_color_buffer_float') ? 'sim' : 'não'}`);
@@ -1520,3 +1563,36 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isN
 }
 
 if (preview) { await loadLuts(); buildCats(); buildStrip(); syncUI(); updUndo(); }
+
+// ------------------------------------------------------------ mouse no computador: arrastar as faixas que rolam para o lado
+// (filmes, categorias, ferramentas, opções) e a roda do mouse rola para o lado também. No toque nada muda.
+(() => {
+  const scroller = (el) => {
+    for (; el && el !== document.body; el = el.parentElement) {
+      if (el.scrollWidth > el.clientWidth + 2) { const ox = getComputedStyle(el).overflowX; if (ox === 'auto' || ox === 'scroll') return el; }
+    }
+    return null;
+  };
+  let d = null, moved = false;
+  addEventListener('pointerdown', (e) => {
+    moved = false;
+    if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('input, textarea, select, #stage')) return;
+    const el = scroller(e.target);
+    if (el) d = { el, x: e.clientX, sl: el.scrollLeft };
+  });
+  addEventListener('pointermove', (e) => {
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    if (!moved && Math.abs(dx) > 5) { moved = true; d.el.classList.add('dragging'); }
+    if (moved) d.el.scrollLeft = d.sl - dx;
+  });
+  const end = () => { if (d) d.el.classList.remove('dragging'); d = null; };
+  addEventListener('pointerup', end); addEventListener('pointercancel', end);
+  // soltar depois de arrastar não conta como toque no filme
+  addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  addEventListener('wheel', (e) => {
+    if (e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX) || e.target.closest('#stage, input')) return;
+    const el = scroller(e.target);
+    if (el) { el.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+})();

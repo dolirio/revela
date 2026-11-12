@@ -2,7 +2,7 @@ import { identityLut } from './looks.js';
 
 // Valores padrão de todos os parâmetros que o shader entende.
 export const RDEF = {
-  mix: 1, ftone: 0, fcol: 0, exp: 0, con: 0, high: 0, shad: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
+  mix: 1, ftone: 0, fcol: 0, exp: 0, con: 0, high: 0, shad: 0, highT: 0.5, shadT: 0.5, lsRad: 0, lsCol: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
   clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
   grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0,
   gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0,
@@ -14,11 +14,14 @@ const VS = `#version 300 es
 in vec2 aPos; out vec2 vUv;
 void main(){ vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5); gl_Position = vec4(aPos, 0.0, 1.0); }`;
 
-const FS = `#version 300 es
+// O shader é montado em níveis (LV): 3 = completo; placas de vídeo que travam com ele recebem uma versão menor.
+// 2 = sem sujeira, arranhões e gráficos; 1 = também sem ótica, luz, light leak e papel; 0 = só tom e cor.
+const FS_BODY = `
 precision highp float;
 precision highp sampler3D;
 in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler2D uCurve; uniform sampler3D uLut; uniform sampler2D uOver;
+uniform float uHighT, uShadT, uLsRad, uLsCol;
 uniform float uLutN, uMix, uExp, uBright, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
 uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uBloomR, uChroma, uSrcScale, uTexLong, uVLens, uHaloR, uHaloT, uClarR;
 uniform float uFade, uGrain, uGrainSize, uGRough, uGColor, uPaper, uPaperType, uPaperSeed, uPxScale;
@@ -109,6 +112,7 @@ float canvasTex(vec2 p){
   float h = mix(wy * sin(f.x * 3.14159), wx * sin(f.y * 3.14159), top) * th;
   return (h - 0.42) + (vnoise(p * 3.1) - 0.5) * 0.25;
 }
+#if LV >= 2   // retícula
 // retícula CMYK: g = posição na grade de pontos, w = 0 quando o ponto é pequeno demais na tela
 vec3 cmykScreen(vec3 x, vec2 g, float w, float aj, vec3 paperW);
 // um canal da retícula: grade girada, ponto redondo do tamanho da cobertura
@@ -131,6 +135,8 @@ vec3 cmykScreen(vec3 x, vec2 g, float w, float aj, vec3 paperW){
   return pow(r, vec3(0.88));                       // ganho de ponto e tinta um pouco mais clara
 }
 
+#endif
+#if LV >= 3   // poeira
 // ---------- poeira: cada modelo é uma combinação fixa de camadas; a intensidade só muda a opacidade
 // pontos (alfa, tom). sc = células por altura; p = chance de ter partícula na célula
 vec2 specks(vec2 q, float sc, float p, float rmin, float rmax, float elong, float soft, float off){
@@ -165,6 +171,7 @@ vec2 hairs(vec2 q, float sc, float p, float off){
 }
 
 // ruído de gradiente (Perlin): sem as "dobras" do ruído de valor, que viram linhas em áreas grandes e lisas
+#endif
 vec2 grad2(vec2 i){ float a = hash(i) * 6.2832; return vec2(cos(a), sin(a)); }
 float gnoise(vec2 p){
   vec2 i = floor(p), f = fract(p), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
@@ -174,6 +181,7 @@ float gnoise(vec2 p){
 }
 // ---------- etapa B: light leaks, arranhões (bibliotecas com dado) ----------
 float fbm2(vec2 p){ return 0.55 * gnoise(p) + 0.3 * gnoise(p * 2.03 + 7.1) + 0.15 * gnoise(p * 4.1 + 3.7); }
+#if LV >= 2   // light leak
 // rampa de cor de um light leak: fraco = vermelho, médio = laranja, forte = amarelo, queimado = quase branco
 vec3 leakRamp(float x, float warm, float cool){
   vec3 r = mix(vec3(0.72, 0.05, 0.04), vec3(0.92, 0.22, 0.05), warm);
@@ -231,6 +239,8 @@ float leakField(vec2 iu, out float cool){
   float soft = 0.35 + 0.65 * gnoise(vec2(dist * 3.0 + sd, ang * 1.5));
   return 1.1 * rays * soft * exp(-dist / (0.3 + 0.45 * w)) + 1.2 * exp(-dist * dist / (0.02 + 0.03 * w));
 }
+#endif
+#if LV >= 3   // arranhões e poeira
 // linha com espessura real (em pixels da foto final): fina demais para a tela vira linha mais clara, como na foto reduzida
 float lineAA(float d, float w, float px){ float ww = max(w, px); return (1.0 - smoothstep(ww * 0.5, ww * 0.5 + px, d)) * min(1.0, w / max(px, 1e-4)); }
 // arranhões: alfa (0..1); colored = 1 nos riscos coloridos de emulsão
@@ -339,6 +349,8 @@ vec2 dustOf(vec2 q){
 }
 
 // ---------- grão de filme
+#endif
+#if LV >= 1   // grão
 // A imagem do filme é feita de grãos: pontos de tamanhos variados, espalhados ao acaso, e quanto mais escuro o tom,
 // mais grãos revelados (modelo booleano, como no trabalho de Newson, Delon e Galerne sobre grão realista).
 // O desenho nasce do próprio tom: o grão é máximo nos meios-tons e some sozinho no branco.
@@ -373,6 +385,7 @@ float grainLayer(vec2 p, float D, float rough, float e, float sd){
   return ex - cov;
 }
 
+#endif
 void main(){
   vec2 ou = vUv, op = ou * uOut;
   // ---------- moldura
@@ -421,6 +434,7 @@ void main(){
   float rr0 = length((iu - 0.5) * 2.0) / 1.4142;   // 0 no centro, 1 no canto
   // ---------- ótica: suavidade, desfoque de borda, aberração, nitidez
   // "Nitidez" à esquerda do zero amacia só os detalhes finos (raio pequeno); "suavidade" das receitas é mais forte
+#if LV >= 2   // ótica
   float sn = max(-uSharp, 0.0);
   float edge2 = smoothstep(0.25, 1.0, rr0); edge2 *= edge2;
   float br = (uSoft * 0.0012 + uSoft * uSoft * 0.004 + sn * 0.003 + sn * sn * 0.003
@@ -501,6 +515,7 @@ void main(){
     float m = 1.0 - pow(abs(l * 2.0 - 1.0), 2.0);     // atua nos meios-tons
     c = clamp(c + d * uClar * (uClar > 0.0 ? 0.85 : 1.0) * m, 0.0, 1.0);
   }
+#endif
   // ---------- tom e cor
   // Exposição: luz da cena inteira, em f-stops (como abrir o diafragma). Clareando, as luzes entram num
   // "ombro" suave, como filme, em vez de cortar seco no branco.
@@ -515,15 +530,25 @@ void main(){
   if (uBright != 0.0) c = pow(c, vec3(exp2(-uBright * 0.8)));
   // brancos e pretos: mexem só nas pontas (o meio-tom quase não muda)
   c = clamp(c + uWhite * 0.12 * smoothstep(0.4, 1.0, c) + uBlack * 0.1 * (1.0 - smoothstep(0.0, 0.6, c)), 0.0, 1.0);
-  {
-    // luzes e sombras com faixas estreitas: cada uma mexe só na sua parte, os meios-tons quase não mudam
-    float l = luma(c);
-    float hw = smoothstep(0.42, 0.92, l), sw = 1.0 - smoothstep(0.08, 0.58, l);
+  if (uHigh != 0.0 || uShad != 0.0) {
+    // luzes e sombras: cada uma mexe só na sua faixa de tons. Faixa = quanto dos meios-tons entra.
+    // Raio: a máscara olha a vizinhança (média borrada) em vez do pixel; áreas escuras clareiam por inteiro e o
+    // detalhe dentro delas continua com o mesmo contraste, sem achatar (como Sombras/Realces do Photoshop).
+    float l = luma(c), m = l;
+    if (uLsRad > 0.0) {
+      float lod = max(0.0, log2(uTexLong * (0.003 + 0.03 * uLsRad)));
+      float lb = luma(textureLod(uImg, su, lod).rgb), ls = luma(texture(uImg, su).rgb);
+      m = mix(l, lb + (l - ls), min(1.0, uLsRad * 3.0));
+      m = clamp(l + clamp(m - l, -0.18, 0.18), 0.0, 1.0);   // limita o quanto a vizinhança puxa: sem halo nas bordas fortes
+    }
+    float hw = smoothstep(mix(0.72, 0.12, uHighT), 0.92, m), sw = 1.0 - smoothstep(0.08, mix(0.28, 0.88, uShadT), m);
     float dh = uHigh > 0.0 ? uHigh * 0.30 * hw * (1.0 - l) * 2.0      // clarear sem estourar o branco
                            : uHigh * 0.17 * hw * (1.0 - 0.7 * smoothstep(0.85, 1.0, l)); // recuperar detalhe nas luzes
     float ds = uShad * 0.30 * sw * min(l * 2.0, 1.0);                  // o preto puro continua preto
     float nl = clamp(l + dh + ds, 0.0, 1.0);
     c = clamp(c * (nl / max(l, 1e-4)), 0.0, 1.0);
+    // Cor: compensa a saturação só onde o tom mudou (sombras clareadas tendem a ficar cheias ou lavadas)
+    if (uLsCol != 0.0) c = clamp(mix(vec3(luma(c)), c, 1.0 + uLsCol * min(1.0, abs(nl - l) * 6.0)), 0.0, 1.0);
   }
   // Contraste: afasta claros e escuros a partir do cinza médio (que fica parado).
   // Positivo = curva em S (pontas suaves, sem cortar); negativo = aproxima tudo do cinza, como cópia lavada.
@@ -586,6 +611,7 @@ void main(){
       c = hsv2rgb(h);
     }
   }
+#if LV >= 2   // luz e light leak
   // ---------- luz: halação e difusão
   float asp = uTexel.x / uTexel.y;
   if (uHalo > 0.0) {   // halação: brilho avermelhado em volta das luzes fortes
@@ -635,6 +661,7 @@ void main(){
     c = mix(c, c * 0.88 + 0.1, clamp(x, 0.0, 1.0) * 0.25);
     c = 1.0 - (1.0 - c) * (1.0 - lk);
   }
+#endif
   c = c * (1.0 - 0.22*uFade) + 0.09*uFade;
   c *= 1.0 - uVig * smoothstep(0.3, 1.0, rr0) * 0.75;
   if (uVLens > 0.0) {   // lente antiga: queda de luz nas bordas e contraste mais baixo
@@ -643,6 +670,7 @@ void main(){
   }
   // ---------- data impressa (exposta no filme: fica sob o grão)
   if (uOverOn > 0.5) { vec4 ov = texture(uOver, uInner.xy + iu * (uInner.zw - uInner.xy)); c = 1.0 - (1.0 - c) * (1.0 - ov.rgb * ov.a); }
+#if LV >= 3   // sujeira
   // ---------- sujeira
   // esquerda (negativo) = poeira escura, cinza a preto; direita = clara, cinza a branco
   if (uDust != 0.0) {
@@ -654,14 +682,17 @@ void main(){
   }
   // arranhões: direita = claros (risco na base, comum no negativo escaneado); esquerda = escuros
   if (uScratch != 0.0) {
+    // a quantidade de riscos é fixa por tipo (o dado sorteia outra disposição); o controle só muda a opacidade
     float am = min(abs(uScratch), 1.0), colored;
-    float sa = scratchOf(iu, am, colored);
+    float sa = scratchOf(iu, 0.6, colored);
     if (sa > 0.0) {
       vec3 col = uScratch > 0.0 ? vec3(0.95, 0.94, 0.92) : vec3(0.04, 0.035, 0.03);
       if (colored > 0.5) col = uScratch > 0.0 ? vec3(0.5, 0.95, 0.82) : vec3(0.42, 0.04, 0.3);
-      c = mix(c, col, clamp(sa * (0.4 + 0.6 * am), 0.0, 1.0));
+      c = mix(c, col, clamp(sa * am, 0.0, 1.0));
     }
   }
+#endif
+#if LV >= 1   // grão
   // ---------- grão
   // O grão é calculado em pixels da foto final. Na prévia reduzida, cada pixel da tela cobre vários grãos:
   // a amplitude cai na mesma proporção que cairia ao reduzir a foto exportada, então a prévia bate com o arquivo.
@@ -695,6 +726,8 @@ void main(){
     float w = smoothstep(0.02, 0.16, l);                    // no preto chapado o grão não aparece na cópia
     c += n * amp * w;
   }
+#endif
+#if LV >= 3   // gráfico
   // ---------- gráfico: meio-tom, meio-tom em cores, duotônico, tritônico
   if (uGfx > 0.5 && uGfxAmt > 0.0) {
     int gt = int(uGfx + 0.5);
@@ -718,6 +751,8 @@ void main(){
     }
     c = mix(c, r, uGfxAmt);
   }
+#endif
+#if LV >= 2   // papel
   // ---------- papel
   if (uPaper > 0.0) {
     int pt = int(uPaperType + 0.5);
@@ -802,6 +837,7 @@ void main(){
       c = mix(c, r, P);
     }
   }
+#endif
   o = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
@@ -813,7 +849,7 @@ function printParams(s) {
 }
 
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uBright', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
-  'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
+  'uHighT', 'uShadT', 'uLsRad', 'uLsCol', 'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
   'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uGFmt', 'uFTone', 'uFCol', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
@@ -828,8 +864,9 @@ export const IDENT_VIEW = {
 
 export class Renderer {
   // safe: modo seguro para placas de vídeo que falham no caminho normal (envio de pixels cru, LUT 8 bits, sem mipmap)
+  static level = 3;   // nível do shader para os próximos Renderers (o app lê do aparelho)
   constructor(canvas, safe = false) {
-    this.canvas = canvas; this.safe = safe; this.lost = false; this.onRestore = null; this.log = [];
+    this.canvas = canvas; this.safe = safe; this.level = Renderer.level; this.lost = false; this.onRestore = null; this.log = [];
     const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true, premultipliedAlpha: false, antialias: false });
     if (!gl) throw new Error('Este navegador não suporta WebGL2.');
     this.gl = gl;
@@ -849,7 +886,7 @@ export class Renderer {
       return s;
     };
     const p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, '#version 300 es\n#define LV ' + this.level + '\n' + FS_BODY));
     gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
     this.p = p; gl.useProgram(p);
@@ -953,7 +990,7 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.overTex);
     gl.uniform1f(u.uLutN, this.lutN);
     const f = (n, x) => gl.uniform1f(u[n], x);
-    f('uMix', s.mix); f('uFTone', s.ftone || 0); f('uFCol', s.fcol || 0); f('uExp', s.exp); f('uBright', s.bright || 0); f('uCon', s.con); f('uHigh', s.high); f('uShad', s.shad); f('uWhite', s.white);
+    f('uHighT', s.highT ?? 0.5); f('uShadT', s.shadT ?? 0.5); f('uLsRad', s.lsRad || 0); f('uLsCol', s.lsCol || 0); f('uMix', s.mix); f('uFTone', s.ftone || 0); f('uFCol', s.fcol || 0); f('uExp', s.exp); f('uBright', s.bright || 0); f('uCon', s.con); f('uHigh', s.high); f('uShad', s.shad); f('uWhite', s.white);
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
