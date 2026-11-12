@@ -33,7 +33,7 @@ let preview, aux;
 // modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
 let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v33';
+const BUILD = 'v34';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
@@ -1170,14 +1170,16 @@ async function openPhoto(file) {
     preview.setImage(scaled(bitmap, 2048), 'preview');
     thumbSrc = scaled(bitmap, 240);
     aux.imgKey = null; zoom = null;
-    // foto nova: o filme e os ajustes continuam; corte e os acidentes de cada foto (poeira, riscos, light leak) zeram
-    Object.assign(state, { rot: 0, flip: false, straight: 0, persV: 0, persH: 0, lens: 0, crop: [0, 0, 1, 1], dust: 0, scratch: 0, leak: 0 });
-    syncUI(); commit();
+    // foto nova começa do zero (como no Lightroom, VSCO e Snapseed). A edição anterior fica guardada em
+    // ⋯ › Colar ajustes, para quem quiser repetir o mesmo estilo.
+    const edited = JSON.stringify(withoutGeo(state)) !== JSON.stringify(withoutGeo(defaults()));
+    if (edited) store.set('revela.clip', withoutGeo(state));
+    state = defaults(); hist = [JSON.stringify(state)]; hi = 0; updUndo(); syncUI();
     $('empty').style.display = 'none';
     view.style.display = 'block';
     $('btnExport').disabled = false;
     draw(); paintThumbs();
-    toast(note || 'Foto aberta');
+    toast(note || (edited ? 'Foto aberta. A edição anterior está em ⋯ › Colar ajustes' : 'Foto aberta'));
     last = null; setTimeout(selfCheck, 1200);
   } catch (e) {
     toast(e.message || 'Não consegui abrir essa imagem.');
