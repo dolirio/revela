@@ -4,7 +4,7 @@ import { identityLut } from './looks.js';
 export const RDEF = {
   mix: 1, ftone: 0, fcol: 0, exp: 0, con: 0, high: 0, shad: 0, highT: 0.5, shadT: 0.5, lsRad: 0, lsCol: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
   clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
-  grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0,
+  grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0, paperTone: 1, paperCol: 1, paperWarm: 0,
   gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0,
   fade: 0, halo: 0, haloR: 0.5, haloT: 0.5, vig: 0, leak: 0, dust: 0, scratch: 0,
 };
@@ -25,6 +25,7 @@ uniform float uHighT, uShadT, uLsRad, uLsCol;
 uniform float uLutN, uMix, uExp, uBright, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
 uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uBloomR, uChroma, uSrcScale, uTexLong, uVLens, uHaloR, uHaloT, uClarR;
 uniform float uFade, uGrain, uGrainSize, uGRough, uGColor, uPaper, uPaperType, uPaperSeed, uPxScale;
+uniform vec3 uPaperX;   // papel: tom, cor (multiplicadores, 1 = medido) e temperatura (-1 frio, +1 quente)
 uniform float uGfx, uGfxAmt, uGfxSize, uGfxCon; uniform vec3 uGfxA, uGfxB, uGfxC;
 uniform float uVig, uHalo, uHaloLod, uClarLod, uBypass, uDust, uDustType, uDustSeed, uScratch, uLeak, uSeed;
 uniform vec2 uRes, uTexel, uOut;
@@ -785,11 +786,13 @@ void main(){
       // jato de tinta + scanner: em 0,5 (força média) fica igual à cópia medida; acima disso exagera até 1,5x
       float k = min(P * 2.0, 1.5);
       vec3 L = toLab(c);
-      float g = mix(1.0, ijAt(L.x, 1), k);
+      float kc = k * uPaperX.y;
+      float g = mix(1.0, ijAt(L.x, 1), kc);
       // azuis e cianos: a tinta não alcança, ficam acinzentados (íris azul vira cinza-azulado)
       float cool = clamp(-L.z / max(length(L.yz), 1e-3), 0.0, 1.0);
-      g *= mix(1.0, 0.3, cool * min(k, 1.0));
-      vec3 M = vec3(mix(L.x, ijAt(L.x, 0), k), L.y * g + ijAt(L.x, 2) * k, L.z * g + ijAt(L.x, 3) * k);
+      g *= mix(1.0, 0.3, cool * min(kc, 1.0));
+      vec3 M = vec3(mix(L.x, ijAt(L.x, 0), k * uPaperX.x), L.y * g + ijAt(L.x, 2) * kc, L.z * g + ijAt(L.x, 3) * kc);
+      M.yz += vec2(1.5, 7.0) * uPaperX.z * min(k, 1.0);
       c = fromLab(M);
       // textura: pontos da tinta e ruído do scanner, sem cor, quase nada nos pretos e forte nos meios e claros
       float N = min(2600.0, lg * 0.9);
@@ -813,11 +816,13 @@ void main(){
         vec2 hr = ixHue(degrees(atan(L.z, L.y)));
         float g = hr.x * ixAt(L.x, 1), a = radians(hr.y);
         vec2 ab = mat2(cos(a), sin(a), -sin(a), cos(a)) * L.yz * g + vec2(ixAt(L.x, 2), ixAt(L.x, 3));
-        c = fromLab(vec3(mix(L.x, ixAt(L.x, 0), k), mix(L.yz, ab, k)));
+        c = fromLab(vec3(mix(L.x, ixAt(L.x, 0), k * uPaperX.x), mix(L.yz, ab, k * uPaperX.y) + vec2(1.5, 7.0) * uPaperX.z * min(k, 1.0)));
       } else {
         vec3 sh = c * 1.1 / (1.0 + 0.1 * c);              // luzes chegam ao branco em curva, sem cortar seco
+        blk = mix(vec3(luma(blk)), blk, uPaperX.y); wht = mix(vec3(luma(wht)), wht, uPaperX.y);
         vec3 m = blk + (wht - blk) * clamp(sh, 0.0, 1.0);
-        c = mix(c, m, P);
+        c = mix(c, m, min(P * uPaperX.x, 1.5));
+        if (uPaperX.z != 0.0) { vec3 L = toLab(c); L.yz += vec2(1.5, 7.0) * uPaperX.z * min(P * 2.0, 1.0); c = fromLab(L); }
       }
       // superfície: no scanner o relevo aparece mais nos escuros (o brilho da superfície soma onde há pouca imagem)
       float fine = min(1.0, (lg / 1400.0) / uPxScale), mid = min(1.0, (lg / 320.0) / uPxScale);
@@ -877,7 +882,7 @@ function printParams(s) {
 const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'uBright', 'uCon', 'uHigh', 'uShad', 'uWhite', 'uBlack', 'uTemp', 'uTint',
   'uHighT', 'uShadT', 'uLsRad', 'uLsCol', 'uSat', 'uVib', 'uDepth', 'uClar', 'uSharp', 'uSRad', 'uSoft', 'uEBlur', 'uBloom', 'uBloomR', 'uChroma', 'uSrcScale', 'uTexLong',
   'uVLens', 'uHaloR', 'uHaloT', 'uClarR',
-  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperType', 'uPrint', 'uGFmt', 'uFTone', 'uFCol', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
+  'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperX', 'uPaperType', 'uPrint', 'uGFmt', 'uFTone', 'uFCol', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
   'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType'];
@@ -905,6 +910,7 @@ export class Renderer {
     this._init();
   }
   _init() {
+    this.level = Renderer.level; this.imgKey = null;   // ao recuperar a placa, usa o degrau atual da escada
     const gl = this.gl, t0 = performance.now();
     const sh = (type, src) => {
       const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -1020,7 +1026,7 @@ export class Renderer {
     f('uBlack', s.black); f('uTemp', s.temp); f('uTint', s.tint); f('uSat', s.sat); f('uVib', s.vib); f('uDepth', s.depth);
     f('uClar', s.clar); f('uSharp', s.sharp); f('uSRad', s.srad); f('uSoft', s.soft); f('uEBlur', s.eblur); f('uBloom', s.bloom);
     f('uChroma', s.chroma); f('uFade', s.fade); f('uGrain', s.grain); f('uGrainSize', s.gsize); f('uGRough', s.grough);
-    f('uGColor', s.gcolor); f('uPaper', s.paper); gl.uniform4fv(u.uPrint, printParams(s)); f('uGFmt', [1, 0.45, 1.4][s.gfmt | 0] || 1); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
+    f('uGColor', s.gcolor); f('uPaper', s.paper); gl.uniform3f(u.uPaperX, s.paperTone ?? 1, s.paperCol ?? 1, s.paperWarm || 0); gl.uniform4fv(u.uPrint, printParams(s)); f('uGFmt', [1, 0.45, 1.4][s.gfmt | 0] || 1); f('uPaperType', s.paperType); f('uPaperSeed', s.paperSeed);
     f('uGfx', s.gfx); f('uGfxAmt', s.gfxAmt); f('uGfxSize', s.gfxSize); f('uGfxCon', s.gfxCon);
     const gc = s.gfxCols || [[0, 0, 0], [1, 1, 1], [1, 1, 1]];
     gl.uniform3fv(u.uGfxA, gc[0]); gl.uniform3fv(u.uGfxB, gc[1]); gl.uniform3fv(u.uGfxC, gc[2] || gc[1]); f('uVig', s.vig); f('uHalo', s.halo);

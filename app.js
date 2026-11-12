@@ -30,39 +30,60 @@ addEventListener('error', (e) => diagErrs.push(String(e.message || e.error)));
 addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + String(e.reason?.message || e.reason)));
 
 let preview, aux;
-// modo seguro: lembrado no aparelho depois que o caminho normal falhou uma vez
-let safeMode = false;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v36';
+const BUILD = 'v37';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
-try { safeMode = localStorage.getItem('pellicula.safe') === BUILD; } catch {}
-// nível do desenho (ver renderer.js): começa completo; se a placa de vídeo travar, o aparelho guarda um nível
-// mais leve para o próximo início. GL_REV sobe quando o shader mudar a ponto de valer tentar o completo de novo.
-const GL_REV = 1, LV_NAMES = ['só tom e cor', 'leve', 'sem sujeira e gráficos', 'completo'];
-let glLevel = 3;
-try { const v = (localStorage.getItem('revela.gl.lv') || '').split(':'); if (+v[0] === GL_REV) glLevel = Math.max(0, Math.min(3, +v[1])); } catch {}
+// ------------------------------------------------------------ placa de vídeo: escada de segurança
+// Alguns aparelhos (ex.: Galaxy S23 no Android 17) derrubam a placa de vídeo no primeiro desenho. O app desce
+// degraus até achar um que funcione e guarda o degrau no aparelho: primeiro o modo seguro (texturas de 8 bits,
+// mesmos efeitos), depois desenhos com menos efeitos (níveis do shader, ver renderer.js). Quando o Android devolve
+// a placa, o app já redesenha no degrau seguinte, sem reabrir; se não devolver, pede para reabrir.
+// GL_REV sobe quando o shader mudar a ponto de valer tentar do começo de novo.
+const GL_REV = 2, LV_NAMES = ['só tom e cor', 'leve', 'sem sujeira e gráficos', 'completo'];
+const GL_STEPS = [[3, false], [3, true], [2, true], [1, true], [0, true]];   // [nível, modo seguro]
+let glStep = 0;
+try { const v = (localStorage.getItem('revela.gl.step') || '').split(':'); if (+v[0] === GL_REV) glStep = Math.max(0, Math.min(GL_STEPS.length - 1, +v[1] | 0)); } catch {}
+let [glLevel, safeMode] = GL_STEPS[glStep];
 Renderer.level = glLevel;
-let glDropped = false;
-function dropLevel(why) {
-  if (glDropped) return;
-  glDropped = true;
-  diagErrs.push(`placa de vídeo travou (${why}) no nível ${glLevel}`);
-  if (glLevel > 0) try { localStorage.setItem('revela.gl.lv', `${GL_REV}:${glLevel - 1}`); } catch {}
+let glFailed = false, glReady = false, glWait = 0;
+function glFail(why) {
+  if (glFailed) return;
+  glFailed = true; glReady = false;
+  diagErrs.push(`placa de vídeo travou (${why}) no degrau ${glStep + 1}: nível ${glLevel}${safeMode ? ', modo seguro' : ''}`);
+  if (glStep >= GL_STEPS.length - 1) return;
+  glStep++; [glLevel, safeMode] = GL_STEPS[glStep];
+  try { localStorage.setItem('revela.gl.step', `${GL_REV}:${glStep}`); } catch {}
+  Renderer.level = glLevel;
+  if (preview) preview.safe = safeMode;
+  if (aux) aux.safe = safeMode;
+  // se o Android não devolver a placa em alguns segundos, só reabrindo o app
+  clearTimeout(glWait); glWait = setTimeout(() => { if (preview?.lost) askRestart(); }, 5000);
+}
+// a placa voltou: o Renderer já recompilou no degrau novo; envia a foto e redesenha
+function glBack() {
+  clearTimeout(glWait); glFailed = false;
+  lutOnPreview = curveOnPreview = null;
+  if (photo) { preview.setImage(scaled(photo.bitmap, 2048), 'preview'); draw(); setTimeout(selfCheck, 1200); }
+}
+// miniaturas e exportação usam um segundo desenho; ele só nasce depois que a foto principal apareceu
+function ensureAux() {
+  if (aux) return aux;
+  aux = new Renderer(document.createElement('canvas'), safeMode);
+  aux.canvas.addEventListener('webglcontextlost', () => glFail('miniaturas'));
+  aux.onRestore = () => { aux.imgKey = null; paintThumbs(); };
+  return aux;
 }
 try {
   preview = new Renderer(view, safeMode);
-  view.addEventListener('webglcontextlost', () => dropLevel('desenho'));
+  view.addEventListener('webglcontextlost', () => glFail('desenho'));
   if (glLevel < 3) setTimeout(() => toast(`Desenho ${LV_NAMES[glLevel]} neste aparelho: alguns efeitos não aparecem`), 1500);
-  aux = new Renderer(document.createElement('canvas'), safeMode);
-  // a placa de vídeo derrubou e devolveu o contexto: envia a foto de novo e redesenha
-  preview.onRestore = () => { lutOnPreview = curveOnPreview = null; if (photo) { preview.setImage(scaled(photo.bitmap, 2048), 'preview'); draw(); } };
-  aux.onRestore = () => { aux.imgKey = null; paintThumbs(); };
+  preview.onRestore = glBack;
 } catch (e) {
   diagErrs.push('iniciar: ' + e.message);
   $('empty').textContent = 'Não foi possível iniciar: ' + e.message;
 }
-const CAP = () => Math.min(aux.maxTex, 8192);
+const CAP = () => Math.min(preview.maxTex, 8192);
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -627,6 +648,8 @@ $('fCancel').onclick = () => closeSheet(false);
 let paintGen = 0;
 async function paintThumbs() {
   const gen = ++paintGen;
+  if (photo && !glReady) return;   // espera a foto principal aparecer (selfCheck chama de novo)
+  if (photo) ensureAux();
   const cs = [...document.querySelectorAll('#strip .film canvas')];
   if (!thumbSrc || !photo) {
     for (const c of cs) { const x = c.getContext('2d'); x.fillStyle = '#26221e'; x.fillRect(0, 0, c.width, c.height); }
@@ -917,6 +940,19 @@ function syncPaper() {
   const r = $('ppRange'), v = Math.round(state.paper * 100); r.value = v; fillRange(r, 0);
   $('ppVal').textContent = String(v);
   $('ppSeed').disabled = !state.paper;
+  // tom, cor e temperatura: só nos papéis de cópia fotográfica (brilhante, lustre, fosco, jato de tinta, instantânea)
+  const more = state.paper > 0 && [0, 5, 6, 7, 8].includes(state.paperType);
+  $('ppMore').style.display = more ? '' : 'none';
+  for (const [id, v] of [['ppTone', state.paperTone - 1], ['ppCol', state.paperCol - 1], ['ppWarm', state.paperWarm]]) {
+    const r = $(id), x = Math.round(v * 100); r.value = x; fillRange(r, 0);
+    r.nextElementSibling.textContent = (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x);
+  }
+}
+// cada controle vai de −100 a +100; 0 é o papel como foi medido. Tom e Cor multiplicam (0 a 2x), Temperatura soma.
+for (const [id, k, n, base] of [['ppTone', 'paperTone', 'Tom do papel', 1], ['ppCol', 'paperCol', 'Cor do papel', 1], ['ppWarm', 'paperWarm', 'Temperatura', 0]]) {
+  const r = $(id);
+  r.addEventListener('input', () => { state[k] = base + +r.value / 100; syncPaper(); draw(); flashVal(n, r.nextElementSibling.textContent); });
+  r.addEventListener('dblclick', () => { state[k] = base; syncPaper(); draw(); });
 }
 $('ppSeed').innerHTML = icon('dice');
 $('ppRange').addEventListener('input', () => {
@@ -1194,7 +1230,7 @@ async function openPhoto(file) {
     photo = { bitmap, w: Math.round(bitmap.width * s), h: Math.round(bitmap.height * s), name: file.name.replace(/\.[^.]+$/, '') };
     preview.setImage(scaled(bitmap, 2048), 'preview');
     thumbSrc = scaled(bitmap, 240);
-    aux.imgKey = null; zoom = null;
+    if (aux) aux.imgKey = null; zoom = null; glReady = false;
     // foto nova começa do zero (como no Lightroom, VSCO e Snapseed). A edição anterior fica guardada em
     // ⋯ › Colar ajustes, para quem quiser repetir o mesmo estilo.
     const edited = JSON.stringify(withoutGeo(state)) !== JSON.stringify(withoutGeo(defaults()));
@@ -1314,6 +1350,7 @@ $('menu').addEventListener('click', (e) => { if (e.target.closest('button')) clo
 
 // ------------------------------------------------------------ exportar
 async function renderToBlob(bitmap, w0, h0, s, name) {
+  ensureAux();
   const v = computeView(s, w0, h0);
   const es = exportScale(v);
   const ow = Math.round(v.outW * es), oh = Math.round(v.outH * es);
@@ -1510,20 +1547,21 @@ function blank() {
 }
 function selfCheck(n = 0) {
   if (!photo) return;
-  if (glDropped && glLevel > 0) { askRestart(); return; }
-  // ainda não desenhou (aparelho lento, placa preparando o desenho): espera até ~8 s antes de concluir
   // app em segundo plano: o desenho fica pausado; espera voltar sem contar o tempo
   if (document.visibilityState !== 'visible') { setTimeout(() => selfCheck(n), 1000); return; }
-  if ((!last || preview.lost) && n < 7) { setTimeout(() => selfCheck(n + 1), 1000); return; }
-  if (!blank()) return;
-  if (!safeMode) {
-    diagErrs.push('foto em branco: ligando o modo seguro');
-    safeMode = preview.safe = aux.safe = true;
-    try { localStorage.setItem('pellicula.safe', BUILD); } catch {}
-    lutOnPreview = curveOnPreview = null; aux.imgKey = null;
-    try { preview.setImage(scaled(photo.bitmap, 2048), 'preview'); } catch (e) { diagErrs.push('modo seguro: ' + e.message); }
-    draw(); paintThumbs();
-    setTimeout(() => { if (photo && blank()) showDiag(); }, 1200);
+  // placa caída: o glFail já desceu o degrau; espera o Android devolver (glBack) ou pedir para reabrir
+  if (preview.lost) { if (n < 8) setTimeout(() => selfCheck(n + 1), 1000); return; }
+  // ainda não desenhou (aparelho lento, placa preparando o desenho): espera até ~8 s antes de concluir
+  if (!last && n < 7) { setTimeout(() => selfCheck(n + 1), 1000); return; }
+  if (!blank()) {   // a foto apareceu: libera as miniaturas
+    if (!glReady) { glReady = true; paintThumbs(); }
+    return;
+  }
+  // em branco sem a placa cair: desce um degrau na hora (modo seguro primeiro)
+  if (glStep < GL_STEPS.length - 1) {
+    glFail('foto em branco'); glFailed = false; clearTimeout(glWait);
+    try { preview._init(); } catch (e) { diagErrs.push('degrau novo: ' + e.message); }
+    glBack();
   } else showDiag();
 }
 // a placa travou: o Android bloqueia o desenho até o app ser reaberto, então o jeito é pedir para reabrir
@@ -1531,9 +1569,9 @@ let restartAsked = false;
 async function askRestart() {
   if (restartAsked) return;
   restartAsked = true;
-  await ask({ title: 'Reabra o Pellicula', note: `A placa de vídeo deste aparelho travou com o desenho ${LV_NAMES[glLevel]}. `
-    + `Feche o app (inclusive da lista de apps recentes) e abra de novo: ele vai usar um desenho mais leve (${LV_NAMES[glLevel - 1]}). `
-    + 'Se ainda assim a foto não aparecer, abra ⋯ › Diagnóstico e me mande o texto.' });
+  await ask({ title: 'Reabra o Pellicula', note: 'A placa de vídeo deste aparelho travou e o Android só a devolve com o app reaberto. '
+    + `Feche o app (inclusive da lista de apps recentes) e abra de novo: ele vai usar um desenho mais seguro (degrau ${glStep + 1} de ${GL_STEPS.length}: `
+    + `${LV_NAMES[glLevel]}${safeMode ? ', modo seguro' : ''}). Se ainda assim a foto não aparecer, abra ⋯ › Diagnóstico e me mande o texto.` });
 }
 function diagnose() {
   const L = [], ua = navigator.userAgent;
@@ -1545,8 +1583,8 @@ function diagnose() {
     L.push('GPU: ' + (dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)));
     L.push(`Contexto perdido: ${gl.isContextLost() ? 'SIM' : 'não'} · textura máx: ${preview.maxTex}`);
     L.push(`Modo seguro: ${safeMode ? 'sim' : 'não'} · preparo do desenho: ${preview.initMs ?? '?'} ms`);
-    L.push(`Nível do desenho: ${glLevel} (${LV_NAMES[glLevel]})${glDropped && glLevel > 0 ? ` · ao reabrir: ${glLevel - 1}` : ''}`);
-    const rl = [...preview.log.map((x) => 'prévia ' + x), ...aux.log.map((x) => 'miniaturas ' + x)];
+    L.push(`Degrau: ${glStep + 1} de ${GL_STEPS.length} · nível ${preview.level} (${LV_NAMES[preview.level]})${glReady ? ' · foto apareceu' : ''}`);
+    const rl = [...preview.log.map((x) => 'prévia ' + x), ...(aux?.log || []).map((x) => 'miniaturas ' + x)];
     if (rl.length) L.push('Placa de vídeo: ' + rl.slice(-4).join(' | '));
     L.push(`Float linear: ${gl.getExtension('OES_texture_float_linear') ? 'sim' : 'não'} · cor float: ${gl.getExtension('EXT_color_buffer_float') ? 'sim' : 'não'}`);
     try {
