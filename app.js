@@ -19,8 +19,8 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel', 'scCancel', 'chCancel']) setIcon(id, 'cancel');
-for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk', 'scOk', 'chOk']) setIcon(id, 'ok');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel', 'scCancel', 'chCancel', 'agCancel', 'igCancel']) setIcon(id, 'cancel');
+for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk', 'scOk', 'chOk', 'agOk']) setIcon(id, 'ok');
 const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
 document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
 
@@ -31,7 +31,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v39';
+const BUILD = 'v40';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 // ------------------------------------------------------------ placa de vídeo: escada de segurança

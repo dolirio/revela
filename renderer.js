@@ -911,7 +911,9 @@ void main(){
       vec2 g = pq * 34.0 + sd * 3.3, gi = floor(g);
       for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
         vec2 cc = gi + vec2(float(i), float(j));
-        if (hash(cc + sd * 5.7) < 0.72) continue;
+        // em grupos: só onde a umidade pegou (a mesma mancha grande do desbotado), quase nada no resto
+        float wet = clamp((fbm2(cc / 34.0 * 2.2 + sd * 0.9) - 0.42) * 3.0, 0.0, 1.0);
+        if (hash(cc + sd * 5.7) < 1.0 - 0.32 * wet) continue;
         vec2 p = cc + vec2(hash(cc + 1.3), hash(cc + 7.9));
         float r = 0.08 + 0.3 * hash(cc + 4.1) * hash(cc + 2.2);
         float d = length(g - p) / r + (gnoise(g * 6.0 + cc) - 0.5) * 0.8;
