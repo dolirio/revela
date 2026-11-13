@@ -39,6 +39,7 @@ const P = {
   leak: '<path d="M3 3l7 7M3 9l4 4M9 3l4 4"/><rect x="3" y="3" width="18" height="18" rx="2"/>',
   dust: '<circle cx="7" cy="8" r="1.5"/><circle cx="16" cy="6" r="1"/><circle cx="14" cy="15" r="2"/><path d="M6 17l3-1"/>',
   scratch: '<path d="M8 3c1 6-1 12 0 18M15 3c-1 5 1 9 0 13"/>',
+  age: '<path d="M7 3h10M7 21h10M8 3c0 5 8 6 8 9s-8 4-8 9M16 3c0 5-8 6-8 9"/>',
   chroma: '<circle cx="10" cy="12" r="6"/><circle cx="14" cy="12" r="6" stroke-dasharray="2 2"/>',
   date: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 10v4M10 10h2v4h-2M15 10h2v2h-2v2h2"/>',
   // abas novas e topo

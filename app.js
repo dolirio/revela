@@ -31,7 +31,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v38';
+const BUILD = 'v39';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 // ------------------------------------------------------------ placa de vídeo: escada de segurança
@@ -309,7 +309,7 @@ const TEX = [
 const FX = [
   { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
   { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'marks', n: 'Poeira e riscos', i: 'scratch' },
-  { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'date', n: 'Data', i: 'date' },
+  { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'age', n: 'Tempo', i: 'age' }, { s: 'date', n: 'Data', i: 'date' },
 ];
 const GEO = [
   { k: 'straight', n: 'Endireitar', min: -450, max: 450, scale: 10, geo: true },
@@ -492,7 +492,7 @@ $('askInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.pr
 // à mão (luz, cor, textura, efeitos, corte, moldura) continua. A intensidade e o "afinar" (Tom e Cor) são
 // do filtro e voltam ao padrão de cada um. Foto nova começa do zero (ver openPhoto).
 const LOOK_KEYS = ['look', 'mix', 'ftone', 'fcol', 'recipe', 'filmCh'];
-const SEED_KEYS = ['seed', 'leakSeed', 'dustSeed', 'scrSeed', 'paperSeed'];
+const SEED_KEYS = ['seed', 'leakSeed', 'dustSeed', 'scrSeed', 'paperSeed', 'ageSeed'];
 const sameVal = (a, b) => (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 1e-6 : JSON.stringify(a) === JSON.stringify(b));
 // o que difere do que o filtro atual colocou (ou do padrão, onde ele não mexe) foi ajustado à mão
 function handEdits() {
@@ -714,6 +714,7 @@ function openSpecial(s) {
   if (s === 'leak') { syncLeak(); openSheet('leakSheet'); }
   if (s === 'scratch') { syncScr(); openSheet('scrSheet'); }
   if (s === 'chroma') { syncChr(); openSheet('chrSheet'); }
+  if (s === 'age') { syncAge(); openSheet('ageSheet'); }
   if (s === 'date') { openSheet('dateSheet'); if (!state.date) { state.date = true; draw(); } syncDate(); }
   if (s === 'dust' || (s === 'marks' && (state.dust || !state.scratch))) { openSheet('dustSheet'); syncDust(); }
   else if (s === 'marks') { syncScr(); openSheet('scrSheet'); }
@@ -865,6 +866,33 @@ function syncChr() {
 }
 $('chrRange').addEventListener('input', () => { state.chroma = +$('chrRange').value / 100; syncChr(); draw(); flashVal('Aberração', $('chrRange').value); });
 $('chOk').onclick = () => closeSheet(true);
+
+// tempo: a cópia envelhecendo (ver renderer.js). Tipo = como foi guardada; o dado sorteia onde o tempo pegou mais.
+const AGE_TYPES = [
+  ['Álbum', 'Décadas no escuro de um álbum: o corante ciano some primeiro e a foto puxa para o vermelho; o branco amarela, mais nas bordas.'],
+  ['Sol', 'Porta-retrato perto da janela: o amarelo e o magenta somem, a foto fica azulada e lavada, mais de um lado.'],
+  ['Caixa', 'Caixa de sapato num lugar úmido: desbota irregular, manchas amareladas e pintinhas marrons de fungo.'],
+  ['P&B antiga', 'Cópia em prata: papel amarelado, preto que abre e o brilho prateado e azulado nas sombras perto das bordas.'],
+  ['Instantânea', 'Foto instantânea guardada por anos: perde contraste, esquenta e o branco fica creme.'],
+];
+AGE_TYPES.forEach(([n], i) => {
+  const b = document.createElement('button'); b.textContent = n; b.dataset.i = i;
+  b.onclick = () => { state.ageType = i; if (!state.age) state.age = 0.5; syncAge(); draw(); };
+  $('ageTypes').append(b);
+});
+function syncAge() {
+  document.querySelectorAll('#ageTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.i === state.ageType && state.age > 0));
+  const r = $('ageRange'), v = Math.round(state.age * 100); r.value = v; fillRange(r, 0);
+  $('ageVal').textContent = String(v);
+  $('ageNote').textContent = (AGE_TYPES[state.ageType] || AGE_TYPES[0])[1];
+  $('ageSeed').disabled = !state.age;
+}
+$('ageSeed').innerHTML = icon('dice');
+$('ageRange').addEventListener('input', () => { state.age = +$('ageRange').value / 100; syncAge(); draw(); flashVal('Tempo', $('ageRange').value); });
+$('ageRange').addEventListener('dblclick', () => { state.age = 0; syncAge(); draw(); });
+$('ageSeed').onclick = () => { state.ageSeed = (state.ageSeed + 1 + Math.floor(Math.random() * 89)) % 991; syncAge(); draw(); };
+$('agOk').onclick = () => closeSheet(true);
+$('agCancel').onclick = () => closeSheet(false);
 $('chCancel').onclick = () => closeSheet(false);
 $('lOk').onclick = () => closeSheet(true);
 $('lCancel').onclick = () => closeSheet(false);

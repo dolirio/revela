@@ -3,7 +3,7 @@ import { identityLut } from './looks.js';
 // Valores padrão de todos os parâmetros que o shader entende.
 export const RDEF = {
   mix: 1, ftone: 0, fcol: 0, exp: 0, con: 0, high: 0, shad: 0, highT: 0.5, shadT: 0.5, lsRad: 0, lsCol: 0, white: 0, black: 0, temp: 0, tint: 0, sat: 0, vib: 0, depth: 0,
-  clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0,
+  clar: 0, sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, chroma: 0, vlens: 0, age: 0, ageType: 0, ageSeed: 0,
   grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0, paperTone: 1, paperCol: 1, paperWarm: 0,
   gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0,
   fade: 0, halo: 0, haloR: 0.5, haloT: 0.5, vig: 0, leak: 0, dust: 0, scratch: 0,
@@ -25,6 +25,7 @@ uniform float uHighT, uShadT, uLsRad, uLsCol;
 uniform float uLutN, uMix, uExp, uBright, uCon, uHigh, uShad, uWhite, uBlack, uTemp, uTint, uSat, uVib, uDepth, uClar;
 uniform float uSharp, uSRad, uSoft, uEBlur, uBloom, uBloomR, uChroma, uSrcScale, uTexLong, uVLens, uHaloR, uHaloT, uClarR;
 uniform float uFade, uGrain, uGrainSize, uGRough, uGColor, uPaper, uPaperType, uPaperSeed, uPxScale;
+uniform float uAge, uAgeType, uAgeSeed;   // tempo (ver o fim do main)
 uniform vec3 uPaperX;   // papel: tom, cor (multiplicadores, 1 = medido) e temperatura (-1 frio, +1 quente)
 uniform float uGfx, uGfxAmt, uGfxSize, uGfxCon; uniform vec3 uGfxA, uGfxB, uGfxC;
 uniform float uVig, uHalo, uHaloLod, uClarLod, uBypass, uDust, uDustType, uDustSeed, uScratch, uLeak, uSeed;
@@ -869,6 +870,62 @@ void main(){
     }
   }
 #endif
+#if LV >= 2   // tempo
+  // ---------- tempo: a cópia envelhecendo. Trabalha na densidade de cada corante, como a química: o canal vermelho é
+  // o corante ciano, o verde o magenta e o azul o amarelo. Desbotar = cada corante perde densidade no seu ritmo
+  // (keep < 1); a base do papel amarela (stain soma densidade, mais no azul), então o branco amarela e o preto abre.
+  // 0 álbum (escuro: o ciano some primeiro, a foto puxa para o vermelho), 1 porta-retrato no sol (amarelo e magenta
+  // somem: azulada e lavada, mais de um lado), 2 caixa de sapato (umidade: manchas e pintas marrons),
+  // 3 P&B antiga (papel amarelado e espelhamento prateado nas sombras perto das bordas), 4 instantânea (perde
+  // contraste e esquenta).
+  if (uAge > 0.0) {
+    int at = int(uAgeType + 0.5);
+    float A = uAge, sd = uAgeSeed;
+    vec2 pq = iu * uRes / max(uRes.x, uRes.y);
+    float mot = fbm2(pq * 3.0 + sd * 1.7) - 0.5;                       // irregularidade grande
+    vec2 ed = min(iu, 1.0 - iu);
+    float edge = 1.0 - smoothstep(0.0, 0.14, min(ed.x, ed.y));          // borda da cópia
+    vec3 keep, stain;
+    if (at == 0) {
+      float k = A * (1.0 + 0.35 * mot + 0.3 * edge);
+      keep = vec3(1.0 - 0.55 * k, 1.0 - 0.12 * k, 1.0 - 0.3 * k); stain = vec3(0.0, 0.03, 0.16) * k;
+    } else if (at == 1) {
+      vec2 dir = vec2(cos(sd * 2.39), sin(sd * 2.39));
+      float k = A * (0.65 + 0.7 * clamp(dot(iu - 0.5, dir) + 0.5, 0.0, 1.0) + 0.2 * mot);
+      keep = vec3(1.0 - 0.35 * k, 1.0 - 0.62 * k, 1.0 - 0.78 * k); stain = vec3(0.0, 0.01, 0.05) * k;
+    } else if (at == 2) {
+      float k = A * (1.0 + 0.7 * mot + 0.2 * edge);
+      keep = vec3(1.0 - 0.4 * k, 1.0 - 0.1 * k, 1.0 - 0.25 * k);
+      stain = vec3(0.01, 0.05, 0.2) * k * (0.6 + 1.2 * max(mot, 0.0));
+    } else if (at == 3) {
+      float k = A * (1.0 + 0.3 * mot + 0.2 * edge);
+      keep = vec3(1.0 - 0.28 * k); stain = vec3(0.0, 0.045, 0.15) * k;
+    } else {
+      float k = A * (1.0 + 0.25 * mot);
+      keep = vec3(1.0 - 0.5 * k, 1.0 - 0.35 * k, 1.0 - 0.2 * k); stain = vec3(0.0, 0.035, 0.13) * k;
+    }
+    vec3 D = -log(max(s2l(c), vec3(0.002))) * 0.4343;                 // densidade de cada corante
+    float Dm = (D.x + D.y + D.z) / 3.0;
+    D = D * max(keep, vec3(0.05)) + stain;
+    if (at == 2) {   // pintas marrons de fungo/umidade (foxing): células com um ponto irregular, a maioria vazia
+      vec2 g = pq * 34.0 + sd * 3.3, gi = floor(g);
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+        vec2 cc = gi + vec2(float(i), float(j));
+        if (hash(cc + sd * 5.7) < 0.72) continue;
+        vec2 p = cc + vec2(hash(cc + 1.3), hash(cc + 7.9));
+        float r = 0.08 + 0.3 * hash(cc + 4.1) * hash(cc + 2.2);
+        float d = length(g - p) / r + (gnoise(g * 6.0 + cc) - 0.5) * 0.8;
+        D += vec3(0.04, 0.12, 0.26) * (1.0 - smoothstep(0.55, 1.0, d)) * A * 1.4;
+      }
+    }
+    c = l2s(exp(-D * 2.302585));
+    if (at == 3) {   // espelhamento de prata: brilho azulado metálico nas áreas densas, mais forte perto das bordas
+      float rim = 1.0 - smoothstep(0.0, 0.3, min(ed.x, ed.y));
+      float sheen = smoothstep(0.5, 1.4, Dm) * rim * A * (0.6 + 0.8 * max(mot + 0.3, 0.0));
+      c += vec3(0.5, 0.56, 0.66) * sheen * 0.35;
+    }
+  }
+#endif
   o = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
@@ -885,7 +942,7 @@ const UNIFORMS = ['uImg', 'uCurve', 'uLut', 'uOver', 'uLutN', 'uMix', 'uExp', 'u
   'uFade', 'uGrain', 'uGrainSize', 'uGRough', 'uGColor', 'uPaper', 'uPaperX', 'uPaperType', 'uPrint', 'uGFmt', 'uFTone', 'uFCol', 'uPaperSeed', 'uPxScale', 'uGfx', 'uGfxAmt', 'uGfxSize', 'uGfxCon', 'uGfxA', 'uGfxB', 'uGfxC', 'uVig', 'uHalo', 'uHaloLod', 'uClarLod', 'uBypass', 'uDust', 'uDustType', 'uDustSeed',
   'uScratch', 'uLeak', 'uSeed', 'uRes', 'uTexel', 'uOut', 'uGeo', 'uPersp', 'uLens', 'uInner', 'uZoom', 'uBorder',
   'uFrameCol', 'uFrameRound', 'uFrameRough', 'uHoles', 'uOverOn', 'uHslH', 'uHslS', 'uHslL',
-  'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType'];
+  'uLeakP', 'uLeakType', 'uLeakSeed', 'uScrType', 'uScrSeed', 'uChromaType', 'uAge', 'uAgeType', 'uAgeSeed'];
 
 const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 export const IDENT_VIEW = {
@@ -1057,7 +1114,7 @@ export class Renderer {
     gl.uniform1fv(u.uHslH, s.hslH || HSL_ZERO); gl.uniform1fv(u.uHslS, s.hslS || HSL_ZERO); gl.uniform1fv(u.uHslL, s.hslL || HSL_ZERO);
     gl.uniform4fv(u.uLeakP, s.leakP || [0, 0.5, 0.5, 0.5]);
     f('uLeakType', s.leakType || 0); f('uLeakSeed', (s.leakSeed || 0) % 997);
-    f('uScrType', s.scrType || 0); f('uScrSeed', (s.scrSeed || 0) % 997); f('uChromaType', s.chromaType || 0);
+    f('uScrType', s.scrType || 0); f('uScrSeed', (s.scrSeed || 0) % 997); f('uChromaType', s.chromaType || 0); f('uAge', s.age || 0); f('uAgeType', s.ageType || 0); f('uAgeSeed', (s.ageSeed || 0) % 991);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }

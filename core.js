@@ -16,7 +16,7 @@ export function defaults() {
     sharp: 0, srad: 1, soft: 0, eblur: 0, bloom: 0, bloomR: 0.5, halo: 0, haloR: 0.5, haloT: 0.5, vlens: 0,
     grain: 0, gsize: 1.6, grough: 0.4, gcolor: 0, gfmt: 0, paper: 0, paperType: 0, paperSeed: 0, paperTone: 1, paperCol: 1, paperWarm: 0,
     gfx: 0, gfxAmt: 1, gfxSize: 0.5, gfxCon: 0, gfxDuo: 0, gfxTri: 0,
-    fade: 0, vig: 0, chroma: 0,
+    fade: 0, vig: 0, chroma: 0, age: 0, ageType: 0, ageSeed: 0,
     leak: 0, leakType: 0, leakSeed: 1, dust: 0, dustType: 1, dustSeed: 0, scratch: 0, scrType: 0, scrSeed: 0, chromaType: 0, seed: 0,
     hsl: Array.from({ length: 8 }, () => ({ h: 0, s: 0, l: 0 })),
     curve: { m: [[0, 0], [1, 1]], r: [[0, 0], [1, 1]], g: [[0, 0], [1, 1]], b: [[0, 0], [1, 1]] },
