@@ -11,6 +11,7 @@
 | [`dados/`](dados/) | Números extraídos das fichas, em JSON |
 | [`figuras/`](figuras/) | Gráficos refeitos a partir dos dados, mais a conferência da extração sobre o original |
 | [`ferramentas/`](ferramentas/) | Scripts para extrair as curvas dos PDFs e gerar as figuras |
+| [`motor/`](motor/README.md) | **Protótipo do motor espectral**: simulação do filme e LUTs `.cube` para testar no app |
 
 ## Método
 
@@ -39,5 +40,5 @@ python3 pesquisa/ferramentas/graficos.py
 
 | Filme | Ficha extraída | Dossiê | Fotos de referência | No app |
 |---|---|---|---|---|
-| Kodak Portra 400 | ✅ | ✅ | ⏳ a fazer | — |
+| Kodak Portra 400 | ✅ | ✅ | ⏳ a fazer | protótipo (LUT `.cube` para teste) |
 | Demais filmes | ver [fichas.md](fichas.md) | — | — | — |

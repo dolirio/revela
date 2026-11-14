@@ -1,0 +1,179 @@
+{
+ "parametros": {
+  "dir": 0.25,
+  "filtro_ampliador": [
+   -29.3436,
+   -29.5995,
+   -29.6521
+  ],
+  "corantes_ajuste_custo": 0.00122
+ },
+ "escala_cinza": {
+  "paradas": [
+   -4.0,
+   -3.0,
+   -2.0,
+   -1.0,
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   4.0,
+   5.0
+  ],
+  "L": [
+   13.8,
+   17.2,
+   24.3,
+   35.6,
+   50.6,
+   67.6,
+   82.2,
+   91.5,
+   96.1,
+   98.1
+  ],
+  "a": [
+   0.18,
+   0.5,
+   0.29,
+   -0.15,
+   -0.24,
+   -0.11,
+   0.35,
+   0.56,
+   0.48,
+   0.3
+  ],
+  "b": [
+   0.32,
+   -0.16,
+   -0.05,
+   0.05,
+   -0.09,
+   0.08,
+   -0.09,
+   -0.07,
+   -0.06,
+   -0.06
+  ]
+ },
+ "cartela": {
+  "Revela atual · KP 400": {
+   "croma_relativo_medio": 0.941,
+   "desvio_matiz_medio_graus": 4.8,
+   "pele_escura_LCh": [
+    38.9,
+    19.5,
+    48.9
+   ],
+   "pele_clara_LCh": [
+    69.0,
+    24.8,
+    56.6
+   ]
+  },
+  "protótipo · -1 parada": {
+   "croma_relativo_medio": 0.792,
+   "desvio_matiz_medio_graus": 12.8,
+   "pele_escura_LCh": [
+    26.0,
+    17.2,
+    43.7
+   ],
+   "pele_clara_LCh": [
+    49.3,
+    23.1,
+    53.1
+   ]
+  },
+  "protótipo · +0 parada": {
+   "croma_relativo_medio": 0.918,
+   "desvio_matiz_medio_graus": 11.5,
+   "pele_escura_LCh": [
+    37.6,
+    24.2,
+    47.7
+   ],
+   "pele_clara_LCh": [
+    65.5,
+    23.3,
+    58.0
+   ]
+  },
+  "protótipo · +1 parada": {
+   "croma_relativo_medio": 0.893,
+   "desvio_matiz_medio_graus": 12.2,
+   "pele_escura_LCh": [
+    52.6,
+    29.1,
+    51.8
+   ],
+   "pele_clara_LCh": [
+    80.1,
+    18.2,
+    65.0
+   ]
+  },
+  "protótipo · +2 paradas": {
+   "croma_relativo_medio": 0.726,
+   "desvio_matiz_medio_graus": 16.9,
+   "pele_escura_LCh": [
+    68.4,
+    27.8,
+    58.4
+   ],
+   "pele_clara_LCh": [
+    90.0,
+    10.8,
+    70.8
+   ]
+  },
+  "protótipo · 0 · sem DIR": {
+   "croma_relativo_medio": 0.754,
+   "desvio_matiz_medio_graus": 11.4,
+   "pele_escura_LCh": [
+    37.2,
+    19.0,
+    49.5
+   ],
+   "pele_clara_LCh": [
+    65.5,
+    18.6,
+    58.5
+   ]
+  },
+  "cópia em papel óptica · 0": {
+   "croma_relativo_medio": 1.241,
+   "desvio_matiz_medio_graus": 17.9,
+   "pele_escura_LCh": [
+    28.3,
+    38.5,
+    47.2
+   ],
+   "pele_clara_LCh": [
+    72.8,
+    33.2,
+    68.4
+   ]
+  },
+  "original": {
+   "pele_escura_LCh": [
+    38.0,
+    18.1,
+    49.2
+   ],
+   "pele_clara_LCh": [
+    65.7,
+    21.7,
+    51.0
+   ]
+  }
+ },
+ "dir_vs_croma": {
+  "0.0": 0.754,
+  "0.15": 0.854,
+  "0.25": 0.918,
+  "0.4": 1.008
+ }
+}

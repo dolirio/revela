@@ -207,6 +207,8 @@ Com isso dá para medir o erro de cor do modelo em cada quadrado (ΔE, a medida 
 
 ## 10. Plano de modelagem para o Revela
 
+> **Protótipo em funcionamento:** ver [`../motor/`](../motor/README.md), com os resultados, os limites e as LUTs para testar no app.
+
 1. **Entrada em luz linear:** converter a foto para luz da cena antes de qualquer corte no branco.
 2. **Exposição de cada camada:** estimar o espectro de cada cor RGB (*spectral upsampling*) e integrar com as sensibilidades da seção 4.2.
 3. **Revelação:** curvas características (4.1), com um termo de interação entre camadas (acopladores DIR).

@@ -66,6 +66,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| — | 2026-11-14 | Pesquisa: protótipo do motor espectral do Portra 400 (`pesquisa/motor/`), com LUTs `.cube` para testar no app. O app não muda. |
 | — | 2026-11-14 | Pesquisa: dossiê do Portra 400, dados das fichas do Portra 400 e do papel Endura Premier, inventário das fichas dos filmes candidatos. O app não muda. |
 | v47 | 2026-11-14 | Nome volta a ser **Revela** (era Pellicula). Backups antigos continuam abrindo. README com histórico. |
 | v46 | 2026-11-13 | Preparar para imprimir (300 ppp, acabamento, margem) |
