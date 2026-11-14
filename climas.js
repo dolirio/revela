@@ -1,4 +1,4 @@
-// Climas: receitas prontas do Pellicula. Cada uma parte de um filme clássico e soma o toque pessoal:
+// Climas: receitas prontas do Revela. Cada uma parte de um filme clássico e soma o toque pessoal:
 // afinar o filme (Tom e Cor), luz, textura e papel. Os nomes descrevem a cena, nunca uma marca.
 // A força é média de propósito: dá para subir ou descer depois, e "+ salvar como meu" guarda a sua versão.
 import { FILMS } from './films.js';

@@ -34,8 +34,8 @@ uniform mat3 uGeo, uPersp; uniform float uLens;
 uniform vec4 uInner, uZoom, uBorder;
 uniform vec3 uFrameCol; uniform float uFrameRound, uFrameRough, uHoles, uOverOn;
 uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
-uniform float uGFmt;
-uniform float uFTone, uFCol;   // afinar o filme: Tom (exposição do negativo) e Cor (filtro na frente da lente)   // formato do filme: 1 = 35 mm; menor = quadro maior (grão menor na foto)
+uniform float uGFmt;   // formato do filme: 1 = 35 mm; menor = quadro maior (grão menor na foto)
+uniform float uFTone, uFCol;   // afinar o filme: Tom (exposição do negativo) e Cor (filtro na frente da lente)
 uniform vec4 uPrint;   // cópia em papel: x = maciez, y = acutância, z = luz espalhada no papel, w = maciez na borda (lente)
 uniform vec4 uLeakP; uniform float uLeakType, uLeakSeed, uScrType, uScrSeed, uChromaType;
 

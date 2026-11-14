@@ -1,4 +1,4 @@
-// Filmes do Pellicula. Cada um tem um código curto e a descrição do filme que inspirou o look.
+// Filmes do Revela. Cada um tem um código curto e a descrição do filme que inspirou o look.
 // As curvas e cores são definidas do zero aqui (nada copiado de presets de terceiros); o nome do filme
 // original aparece só como referência de estilo ("inspirado no ...").
 //
