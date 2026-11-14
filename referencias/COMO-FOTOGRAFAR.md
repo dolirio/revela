@@ -38,7 +38,11 @@ Ou seja, o 0 mais uma série mais escura e uma mais clara. É isso que mostra co
 
 ---
 
-## 3. Fujifilm
+## 3. Fujifilm (X-T50)
+
+> **Específico da X-T50:** ISO base **125**. Lente do kit em torno de **35 mm**, a f/5.6. A X-T50 tem as **20 simulações**, incluindo Reala Ace e Nostalgic Neg., e é compatível com o **FUJIFILM X RAW STUDIO** pelo cabo USB-C.
+> O **seletor de simulação** no topo da câmera só vale na hora de fotografar. Na **Conversão RAW** você escolhe a simulação no menu, qualquer que seja a posição do seletor.
+> Fotografe em **RAW sem compressão** ou **com compressão sem perda** (Menu › Qualidade de imagem › Gravação RAW).
 
 ### 3.1 Ajustes antes de fotografar
 
