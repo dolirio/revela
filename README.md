@@ -68,6 +68,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| — | 2026-11-14 | Leitor da cartela (`referencias/medir.py`): acha a cartela pelas marcas dos cantos, revela o RAW de forma neutra e mede os 72 quadros; compara cada simulação com o RAW. Testado em foto sintética. |
 | v48 (em construção) | 2026-11-14 | **Sete filmes Kodak** no app novo (KE 100, KP 160, KG 200, KP 400, KU 400, KP 800, C 800T), extraídos de 7 fichas técnicas (25 gráficos conferidos), com forma real dos corantes, calibração do laboratório e caráter próprio de cada filme. Correção do layout no celular. |
 | v48 (em construção) | 2026-11-14 | Revela novo em `novo/`: interface enxuta (Filmes, Ajustes, Analógico), filmes com a física do filme (tabela em luz da cena), exposição do negativo, temperatura antes e depois do filme, grão, halação e nitidez por camada vindos da ficha técnica. Primeiro filme: Portra 400. Cartela e instruções de referência em `referencias/`. O app publicado não muda. |
 | — | 2026-11-14 | Pesquisa: protótipo do motor espectral do Portra 400 (`pesquisa/motor/`), com LUTs `.cube` para testar no app. O app não muda. |
