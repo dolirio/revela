@@ -17,7 +17,7 @@
 
 | Item | Como fazer |
 |---|---|
-| Luz | **Luz do dia na sombra aberta**, ou dia nublado. Entre 2 horas depois do nascer do sol e 2 horas antes do pôr. **Sem sol batendo direto** na cartela |
+| Luz | **Luz do dia**, de uma destas formas: (a) ao ar livre, na sombra aberta ou em dia nublado; ou (b) **dentro de casa, perto de uma janela grande**, com as lâmpadas **apagadas** e a cartela virada para a janela (você de costas para ela). Entre 2 horas depois do nascer do sol e 2 horas antes do pôr. **Sem sol batendo direto** na cartela. **Não use as lâmpadas da casa** para a cartela (ver nota abaixo) |
 | Cartela | Presa numa parede ou num papelão, bem plana, **de frente para a câmera** (sem inclinação). Sem sombra sua ou de outros objetos sobre ela |
 | Enquadramento | A cartela ocupando **mais ou menos metade do quadro, no centro**. Os 4 quadradinhos dos cantos precisam aparecer |
 | Foco | Na cartela. Tripé ajuda, mas não é obrigatório |
@@ -25,6 +25,8 @@
 | Abertura | f/5.6 ou f/8 |
 | Balanço de branco | **Fixo em "Luz do dia" (Daylight)**, nunca automático |
 | Formato | **RAW + JPEG** (Fuji: RAW sem compressão ou com compressão sem perda; Ricoh: DNG) |
+
+> **Por que não as lâmpadas da casa?** As lâmpadas comuns, de LED ou fluorescentes, têm "buracos" no espectro: faltam algumas cores na luz. Além disso, costumam ser fracas (obrigam a subir o ISO, o que gera ruído) e, muitas vezes, misturam tipos de lâmpada. As fichas dos filmes e as simulações são feitas para luz do dia. A luz da casa só entra de propósito, na cena 5 ("interior com lâmpada amarela").
 
 ### A série de exposições
 
@@ -80,6 +82,8 @@ Ponha tudo no **neutro**:
 
 Na prática, isso dá uns 12 JPEGs da foto 0 e uns 20 da série. O conversor deixa repetir a mesma foto quantas vezes você quiser.
 
+> **Atalho pelo computador:** o **FUJIFILM X RAW STUDIO** (gratuito, Windows e Mac) faz a mesma conversão usando o processador da própria câmera, ligada ao computador por cabo USB. O resultado é idêntico ao da câmera e dá para converter várias fotos de uma vez. Confira no site da Fujifilm se o seu modelo é compatível. Use os mesmos ajustes neutros do item 3.1, mudando só a simulação.
+
 ---
 
 ## 4. Ricoh GR
@@ -111,6 +115,8 @@ Na prática, isso dá uns 12 JPEGs da foto 0 e uns 20 da série. O conversor dei
 | | Monotone, Hard Monotone, Soft Monotone, Hi-Contrast B&W |
 
 4. Para a série **−2 a +3**, converta só **Negative Film** e **Positive Film**.
+
+> Com o firmware 2.00 ou mais novo, a revelação RAW da GR III/IIIx aceita **várias fotos de uma vez**: escolha o Image Control e aplique na série inteira.
 
 ---
 
