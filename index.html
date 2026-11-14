@@ -152,9 +152,12 @@
   #bigVal.on { opacity: 1; transition: opacity .05s; }
   #bigVal b { font-size: 64px; font-weight: 200; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
   #bigVal small { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .85; margin-bottom: 4px; }
-  #curveSheet { flex-direction: row; gap: 14px; align-items: center; }
-  #curve { height: 140px; width: 140px; flex: 0 0 auto; touch-action: none; background: var(--raise); border-radius: 6px; }
-  #curveSheet .side { flex: 1; display: grid; gap: 8px; }
+  #curveSheet { flex-direction: column; gap: 8px; }
+  /* curva grande: o ponto precisa caber embaixo do dedo (antes eram 140 px e o ponto pegava num raio de ~10 px) */
+  #curveSheet .cwrap { position: relative; align-self: center; width: min(100%, 42vh, 380px); aspect-ratio: 1; flex: 0 0 auto; }
+  #curve { width: 100%; height: 100%; display: block; touch-action: none; background: var(--raise); border-radius: 8px; }
+  #curveRead { position: absolute; left: 10px; top: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; }
+  #curveSheet .hint { text-align: center; margin: 0; }
 
   /* painéis com rolagem (corte, receitas) */
   .panel { overflow-y: auto; justify-content: flex-start !important; padding: 10px 16px; gap: 10px; }
@@ -310,12 +313,10 @@
       <div class="foot"><button class="ib" id="hCancel" aria-label="Cancelar"></button><div class="t">Cor</div><button class="ib" id="hOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="curveSheet">
-      <canvas id="curve" width="420" height="420"></canvas>
-      <div class="side">
-        <div class="pills" id="curveCh"><button data-c="m" class="on">RGB</button><button data-c="r">R</button><button data-c="g">G</button><button data-c="b">B</button></div>
-        <p class="hint">Toque para criar um ponto e arraste. Dois toques removem.</p>
-        <div class="foot"><button class="ib" id="cCancel" aria-label="Cancelar"></button><button class="reset" id="curveReset">zerar canal</button><button class="ib" id="cOk" aria-label="Confirmar"></button></div>
-      </div>
+      <div class="pills" id="curveCh"><button data-c="m" class="on">RGB</button><button data-c="r">R</button><button data-c="g">G</button><button data-c="b">B</button></div>
+      <div class="cwrap"><canvas id="curve" width="720" height="720" aria-label="Curva de tons"></canvas><output id="curveRead"></output></div>
+      <p class="hint">Toque na linha para criar um ponto e arraste. Para remover, arraste o ponto para fora ou dê dois toques.</p>
+      <div class="foot"><button class="ib" id="cCancel" aria-label="Cancelar"></button><button class="reset" id="curveReset">zerar canal</button><button class="ib" id="cOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="leakSheet">
       <div class="pills" id="leakTypes"></div>

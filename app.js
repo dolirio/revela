@@ -31,7 +31,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v41';
+const BUILD = 'v42';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 // curadoria (2026-11-13): itens tirados da vista para o app ficar menor e cada escolha ter caráter próprio.
 // Nada foi apagado: receitas salvas continuam funcionando e ⋯ › "Mostrar itens guardados" traz tudo de volta.
@@ -751,55 +751,99 @@ $('hCancel').onclick = () => closeSheet(false);
 const cv = $('curve'), cx = cv.getContext('2d');
 let curCh = 'm';
 const CH_COL = { m: '#efe9de', r: '#e0574b', g: '#58b85a', b: '#4f86e0' };
+// histograma da foto (luz) atrás da curva, para saber onde estão os tons; calculado uma vez por foto
+let histFor = null, histData = null;
+function photoHist() {
+  if (!thumbSrc) return null;
+  if (histFor === thumbSrc) return histData;
+  const c = document.createElement('canvas'); c.width = thumbSrc.width; c.height = thumbSrc.height;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(thumbSrc, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height).data, h = new Float32Array(64);
+  for (let i = 0; i < d.length; i += 4) h[Math.min(63, ((0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 4) | 0)]++;
+  let m = 0; for (let i = 1; i < 63; i++) m = Math.max(m, h[i]);   // pontas (preto e branco puros) não achatam o resto
+  for (let i = 0; i < 64; i++) h[i] = Math.min(1, h[i] / (m || 1));
+  histFor = thumbSrc; histData = h; return h;
+}
+const CPT = 0.024;   // raio do ponto desenhado (fração do lado)
 function drawCurve() {
   const W = cv.width;
   cx.clearRect(0, 0, W, W);
-  cx.strokeStyle = '#38332d'; cx.lineWidth = 1.5;
+  const h = photoHist();
+  if (h) {
+    cx.fillStyle = '#ffffff10'; cx.beginPath(); cx.moveTo(0, W);
+    for (let i = 0; i < 64; i++) cx.lineTo(((i + 0.5) / 64) * W, W - h[i] * W * 0.42);
+    cx.lineTo(W, W); cx.closePath(); cx.fill();
+  }
+  cx.strokeStyle = '#38332d'; cx.lineWidth = 2;
   for (let i = 1; i < 4; i++) { const p = (i * W) / 4; cx.beginPath(); cx.moveTo(p, 0); cx.lineTo(p, W); cx.moveTo(0, p); cx.lineTo(W, p); cx.stroke(); }
+  cx.setLineDash([6, 8]); cx.beginPath(); cx.moveTo(0, W); cx.lineTo(W, 0); cx.stroke(); cx.setLineDash([]);   // diagonal: sem mudança
   for (const ch of ['m', 'r', 'g', 'b']) {
     const pts = state.curve[ch], active = ch === curCh;
     if (!active && pts.length === 2 && pts[0][1] === 0 && pts[1][1] === 1) continue;
     const f = curveFn(pts);
-    cx.strokeStyle = CH_COL[ch]; cx.globalAlpha = active ? 1 : 0.35; cx.lineWidth = active ? 4 : 2;
+    cx.strokeStyle = CH_COL[ch]; cx.globalAlpha = active ? 1 : 0.35; cx.lineWidth = active ? 5 : 3;
     cx.beginPath();
-    for (let i = 0; i <= 100; i++) { const x = i / 100, y = clamp(f(x), 0, 1); i ? cx.lineTo(x * W, (1 - y) * W) : cx.moveTo(x * W, (1 - y) * W); }
+    for (let i = 0; i <= 160; i++) { const x = i / 160, y = clamp(f(x), 0, 1); i ? cx.lineTo(x * W, (1 - y) * W) : cx.moveTo(x * W, (1 - y) * W); }
     cx.stroke();
   }
   cx.globalAlpha = 1;
-  for (const [x, y] of state.curve[curCh]) {
-    cx.beginPath(); cx.arc(x * W, (1 - y) * W, 10, 0, Math.PI * 2);
-    cx.fillStyle = '#201d1a'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = CH_COL[curCh]; cx.stroke();
-  }
+  state.curve[curCh].forEach(([x, y], i) => {
+    const sel = i === drag, gone = sel && dragOut;
+    cx.globalAlpha = gone ? 0.3 : 1;
+    cx.beginPath(); cx.arc(x * W, (1 - y) * W, W * (sel ? CPT * 1.35 : CPT), 0, Math.PI * 2);
+    cx.fillStyle = sel ? CH_COL[curCh] : '#201d1a'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = CH_COL[curCh]; cx.stroke();
+  });
+  cx.globalAlpha = 1;
 }
 function curvePos(e) {
   const r = cv.getBoundingClientRect();
-  return [clamp((e.clientX - r.left) / r.width, 0, 1), clamp(1 - (e.clientY - r.top) / r.height, 0, 1)];
+  return { x: (e.clientX - r.left) / r.width, y: 1 - (e.clientY - r.top) / r.height, r };
 }
-let drag = -1, lastTap = { t: 0, i: -1 };
+// Manuseio pensado para o dedo: o ponto pega num raio de ~26 px (tamanho de uma ponta de dedo), e o mais perto
+// ganha; tocar fora de um ponto cria um ponto NA LINHA (não onde o dedo está), e o arrasto é relativo, então o
+// ponto não pula para baixo do dedo e dá para ver o que está mexendo. Arrastar um ponto do meio para fora do
+// quadro remove (como no Lightroom); dois toques também.
+let drag = -1, dragOut = false, grab = null, lastTap = { t: 0, i: -1 };
+const HIT = 26;
+const showRead = (p) => { $('curveRead').textContent = p ? `entrada ${Math.round(p[0] * 255)} → saída ${Math.round(p[1] * 255)}` : ''; };
 cv.addEventListener('pointerdown', (e) => {
-  const [x, y] = curvePos(e), pts = state.curve[curCh];
-  let idx = pts.findIndex(([px, py]) => Math.hypot(px - x, py - y) < 0.07);
+  const { x, y, r } = curvePos(e), pts = state.curve[curCh];
+  let idx = -1, best = HIT;
+  pts.forEach(([px, py], i) => { const d = Math.hypot((px - x) * r.width, (py - y) * r.height); if (d < best) { best = d; idx = i; } });
   const now = performance.now();
-  if (idx >= 0 && lastTap.i === idx && now - lastTap.t < 350 && idx !== 0 && idx !== pts.length - 1) {
-    pts.splice(idx, 1); lastTap = { t: 0, i: -1 }; drawCurve(); draw(); return;
+  if (idx > 0 && idx < pts.length - 1 && lastTap.i === idx && now - lastTap.t < 350) {
+    pts.splice(idx, 1); lastTap = { t: 0, i: -1 }; drag = -1; showRead(null); drawCurve(); draw(); return;
   }
   if (idx < 0) {
-    const f = curveFn(pts);
-    pts.push([x, clamp(f(x), 0, 1)]); pts.sort((a, b) => a[0] - b[0]);
-    idx = pts.findIndex((p) => p[0] === x);
+    const nx = clamp(x, 0.01, 0.99);
+    if (pts.some((p) => Math.abs(p[0] - nx) < 0.02)) return;   // colado num ponto existente: não cria outro
+    pts.push([nx, clamp(curveFn(pts)(nx), 0, 1)]); pts.sort((a, b) => a[0] - b[0]);
+    idx = pts.findIndex((p) => p[0] === nx);
   }
   lastTap = { t: now, i: idx };
-  drag = idx; cv.setPointerCapture(e.pointerId); drawCurve(); draw();
+  drag = idx; dragOut = false; grab = { fx: x, fy: y, px: pts[idx][0], py: pts[idx][1] };
+  cv.setPointerCapture(e.pointerId); showRead(pts[idx]); drawCurve(); draw();
 });
 cv.addEventListener('pointermove', (e) => {
   if (drag < 0) return;
-  const [x, y] = curvePos(e), pts = state.curve[curCh];
-  if (drag === 0) pts[0] = [0, y];
-  else if (drag === pts.length - 1) pts[drag] = [1, y];
-  else pts[drag] = [clamp(x, pts[drag - 1][0] + 0.01, pts[drag + 1][0] - 0.01), y];
+  const { x, y, r } = curvePos(e), pts = state.curve[curCh];
+  const nx = grab.px + (x - grab.fx), ny = clamp(grab.py + (y - grab.fy), 0, 1);
+  const inner = drag > 0 && drag < pts.length - 1;
+  // fora do quadro (mais de ~30 px acima ou abaixo): marca para remover ao soltar
+  dragOut = inner && (y > 1 + 30 / r.height || y < -30 / r.height);
+  if (drag === 0) pts[0] = [0, ny];
+  else if (drag === pts.length - 1) pts[drag] = [1, ny];
+  else pts[drag] = [clamp(nx, pts[drag - 1][0] + 0.01, pts[drag + 1][0] - 0.01), ny];
+  showRead(dragOut ? null : pts[drag]);
+  if (dragOut) $('curveRead').textContent = 'solte para remover o ponto';
   drawCurve(); draw();
 });
-cv.addEventListener('pointerup', () => { drag = -1; });
+const endDrag = () => {
+  if (drag >= 0 && dragOut) { state.curve[curCh].splice(drag, 1); lastTap = { t: 0, i: -1 }; draw(); }
+  drag = -1; dragOut = false; showRead(null); drawCurve();
+};
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
 document.querySelectorAll('#curveCh [data-c]').forEach((b) => b.addEventListener('click', () => {
   curCh = b.dataset.c;
   document.querySelectorAll('#curveCh [data-c]').forEach((x) => x.classList.toggle('on', x === b));
