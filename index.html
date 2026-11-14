@@ -116,6 +116,7 @@
   .dragging, .dragging * { cursor: grabbing !important; user-select: none; }
   /* painel com vários controles (grão, brilho, halo, nitidez) */
   #dock.med .ctx { min-height: 236px; }
+  #dock:has(#m-tex.on) .ctx { min-height: 262px; }   /* Cópia: ferramentas, tamanho e moldura à vista */
   #pBody { display: grid; gap: 4px; }
   #pBody .plinks { justify-content: center; margin: 4px 0 0; }
   #pBody .note { margin: 2px 0 0; }
@@ -165,9 +166,9 @@
   .panel { overflow-y: auto; justify-content: flex-start !important; padding: 10px 16px; gap: 10px; }
   .panel h4 { margin: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
   .panel .pills { justify-content: flex-start; }
-  #m-tex #frames { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
-  #m-tex #frames::-webkit-scrollbar { display: none; }
-  #m-tex #frames button { flex: 0 0 auto; }
+  #m-tex .pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; flex: 0 0 auto; }
+  #m-tex .pills::-webkit-scrollbar { display: none; }
+  #m-tex .pills button { flex: 0 0 auto; }
   .rowb { display: flex; gap: 8px; flex-wrap: wrap; }
   .rowb button, .btn { border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 13px; }
   .rowb button.on { border-color: var(--accent); color: var(--accent); }
@@ -257,6 +258,7 @@
   </div>
   <div class="r"><button class="ib" id="btnMenu" title="Mais opções" aria-label="Mais opções"></button><button class="export" id="btnExport" disabled>Exportar</button></div>
   <input id="fileImg" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" hidden>
+  <input id="fileContact" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
   <input id="fileBatch" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
   <input id="fileLut" type="file" accept=".cube" multiple hidden>
   <input id="fileBackup" type="file" accept=".json,application/json,text/plain" hidden>
@@ -289,6 +291,7 @@
     <div class="mode" id="m-adjust"><div class="scrollx tools" id="t-adjust"></div></div>
     <div class="mode panel" id="m-tex">
       <div class="scrollx tools" id="t-tex" style="padding:0;margin:0 -6px;flex:0 0 auto"></div>
+      <h4>Tamanho da cópia</h4><div class="pills" id="prints"></div>
       <h4>Moldura</h4><div class="pills" id="frames"></div>
     </div>
     <div class="mode" id="m-fx"><div class="scrollx tools" id="t-fx"></div></div>
@@ -426,6 +429,7 @@
   <button id="btnPaste">Colar ajustes</button>
   <button id="btnIg">Exportar para Instagram</button>
   <button id="btnBatch">Editar várias fotos…</button>
+  <button id="btnContact">Folha de contato…</button>
   <button id="btnGfx">Gráfico…</button>
   <button id="btnShelf">Mostrar itens guardados</button>
   <button id="btnResetAll">Redefinir tudo</button>

@@ -3,7 +3,7 @@ import { Renderer } from './renderer.js';
 import { icon } from './icons.js';
 import {
   defaults, withDefaults, GFX_DUO, GFX_TRI, GEO_KEYS, KEEP_KEYS, computeView, curveData, curveFn, renderParams, decodeFile, isImageFile,
-  HSL_NAMES, HSL_COLORS, ASPECTS, FRAMES, LEAKS, makeOverlay, autoDate,
+  HSL_NAMES, HSL_COLORS, ASPECTS, FRAMES, PRINTS, LEAKS, makeOverlay, autoDate,
 } from './core.js';
 import { specToState } from './recipes.js';
 import { CLIMAS } from './climas.js';
@@ -40,7 +40,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v44';
+const BUILD = 'v45';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 // curadoria (2026-11-13): itens tirados da vista para o app ficar menor e cada escolha ter caráter próprio.
 // Nada foi apagado: receitas salvas continuam funcionando e ⋯ › "Mostrar itens guardados" traz tudo de volta.
@@ -635,7 +635,7 @@ function buildStrip() {
       strip.append(b);
     }
   } else {
-    for (const f of FILMS.filter((x) => (x.cat === cat || (cat === 'pb' && x.cat === 'pbg')) && (showAll || !SHELF_FILMS.has(x.id) || state.look === x.id))) {
+    for (const f of FILMS.filter((x) => (x.cat === cat || (cat === 'pb' && x.cat === 'pbg')) && (showAll || !SHELF_FILMS.has(x.id) || state.look === x.id)).sort((a, b) => (a.cat === 'pbg') - (b.cat === 'pbg'))) {   // P&B normais antes dos granulados
       const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · ${insp(f.ref)}`;
       b.onclick = () => (state.look === f.id && !state.recipe ? openFilmSheet(f.code) : applyFilm(f.id));
       strip.append(b);
@@ -1247,7 +1247,7 @@ function hintScroll(el) {
   el.addEventListener('scroll', upd, { passive: true }); new ResizeObserver(upd).observe(el);
   new MutationObserver(upd).observe(el, { childList: true }); upd();
 }
-document.querySelectorAll('.scrollx, .sheet .pills, #paperTypes, #dustTypes, .cats, #frames').forEach(hintScroll);
+document.querySelectorAll('.scrollx, .sheet .pills, #paperTypes, #dustTypes, .cats, #frames, #prints').forEach(hintScroll);
 
 // ------------------------------------------------------------ corte: proporção, moldura, corte livre, grade
 const ASPECT_NAMES = { livre: 'Livre', orig: 'Original', '1:1': '1:1', '4:5': '4:5', '5:4': '5:4', '3:2': '3:2', '2:3': '2:3', '16:9': '16:9', '9:16': '9:16' };
@@ -1259,8 +1259,17 @@ for (const a of Object.keys(ASPECTS)) {
 // sem moldura de instantânea (pedido do usuário): fica só o efeito do papel Instantânea; edições antigas ainda abrem
 for (const k of Object.keys(FRAMES).filter((k) => k !== 'instant')) {
   const b = document.createElement('button'); b.textContent = FRAMES[k]?.name || 'Nenhuma'; b.dataset.fr = k;
-  b.onclick = () => { state.frame = k; syncUI(); draw(); commit(); if (k !== 'none' && mode === 'crop') toast('A moldura aparece ao sair do Corte'); };
+  b.onclick = () => { state.frame = k; if (k !== 'none') state.print = 'none'; syncUI(); draw(); commit(); };
   $('frames').append(b);
+}
+// tamanho da cópia: a foto inteira no papel escolhido, com margem branca (troca a moldura)
+for (const k of ['none', ...Object.keys(PRINTS)]) {
+  const b = document.createElement('button'); b.textContent = k === 'none' ? 'Sem papel' : PRINTS[k].name; b.dataset.pr = k;
+  b.onclick = () => {
+    state.print = k; if (k !== 'none') state.frame = 'none'; syncUI(); draw(); commit();
+    if (k !== 'none') toast(`Cópia ${PRINTS[k].name}: a foto inteira no papel, com a margem do laboratório`);
+  };
+  $('prints').append(b);
 }
 
 function viewBox() {
@@ -1353,6 +1362,7 @@ function syncUI() {
   syncFilms(); markTools(); syncGfxMenu();
   document.querySelectorAll('#aspects button').forEach((b) => b.classList.toggle('on', b.dataset.a === state.aspect));
   document.querySelectorAll('#frames button').forEach((b) => b.classList.toggle('on', b.dataset.fr === state.frame));
+  document.querySelectorAll('#prints button').forEach((b) => b.classList.toggle('on', b.dataset.pr === (state.print || 'none')));
   positionOverlays();
 }
 
@@ -1540,7 +1550,8 @@ $('btnExport').addEventListener('click', async () => {
   try {
     await new Promise((r) => setTimeout(r, 30));
     const { blob, w, h } = await renderToBlob(photo.bitmap, photo.w, photo.h, state, photo.name);
-    const n = await deliver([new File([blob], `${photo.name}_pellicula.jpg`, { type: 'image/jpeg' })]);
+    const sz = PRINTS[state.print] ? '_' + state.print : '';
+    const n = await deliver([new File([blob], `${photo.name}_pellicula${sz}.jpg`, { type: 'image/jpeg' })]);
     if (!isNative()) toast(`Foto exportada (${w}×${h})`);
     else if (n) toast(`Salva em Imagens › Pellicula (${w}×${h})`);
   } catch (e) {
@@ -1636,6 +1647,76 @@ $('fileBatch').addEventListener('change', async (e) => {
   }
   if (out.length) { await deliver(out); toast(`${out.length} foto(s) exportada(s)`); }
   if (thumbSrc) paintThumbs();
+});
+
+// ------------------------------------------------------------ folha de contato
+// A prova que o laboratório devolvia com o rolo: as tiras de negativo copiadas direto no papel, seis quadros por tira.
+// Cada foto recebe a edição atual (sem corte, moldura e data). Na cópia por contato o filme sai escuro, os furos
+// pretos e as marcações da borda claras; foto em pé aparece deitada, como no negativo.
+const CS_W = 3600, CS_H = 4500, CS_PER = 6, CS_MAX = 36;
+$('btnContact').onclick = () => { closeSheet(true); $('fileContact').click(); };
+$('fileContact').addEventListener('change', async (e) => {
+  let files = [...e.target.files].filter(isImageFile); e.target.value = '';
+  if (!files.length) return;
+  if (files.length > CS_MAX) { toast(`Uma folha cabe ${CS_MAX} fotos: usei as primeiras ${CS_MAX}`); files = files.slice(0, CS_MAX); }
+  const s0 = { ...withDefaults(JSON.parse(JSON.stringify(state))), rot: 0, flip: false, straight: 0, persV: 0, persH: 0, lens: 0,
+    crop: [0, 0, 1, 1], aspect: 'orig', frame: 'none', print: 'none', date: false };
+  const margin = 170, gapX = 0, fw = (CS_W - 2 * margin) / CS_PER, iw = Math.round(fw * 0.94), ih = Math.round(iw / 1.5);
+  const reb = Math.round(ih * 0.2), stripH = ih + 2 * reb, rows = Math.ceil(files.length / CS_PER);
+  const gapY = Math.min(150, (CS_H - 2 * margin - rows * stripH) / Math.max(1, rows - 1));
+  const top = Math.max(margin, (CS_H - rows * stripH - (rows - 1) * gapY) / 2);   // poucas fotos: tiras no meio da folha
+  const cv = document.createElement('canvas'); cv.width = CS_W; cv.height = CS_H;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#f3efe6'; x.fillRect(0, 0, CS_W, CS_H);   // papel
+  const f = filmById(state.look), code = (f ? f.code : 'PELLICULA').toUpperCase();
+  const btn = $('btnExport'); btn.disabled = true; btn.textContent = 'Gerando…';
+  try {
+    for (let r = 0; r < rows; r++) {
+      const y0 = top + r * (stripH + gapY), n = Math.min(CS_PER, files.length - r * CS_PER);
+      const sw = n * fw + gapX;
+      x.fillStyle = '#1c1a18'; x.fillRect(margin, y0, sw, stripH);   // base do filme
+      // furos (pretos) nas duas bordas
+      x.fillStyle = '#050505';
+      const hw = reb * 0.42, hh = reb * 0.5, step = fw / 8;
+      for (let hx = margin + step * 0.35; hx < margin + sw - hw; hx += step) {
+        for (const hy of [y0 + reb * 0.25, y0 + stripH - reb * 0.25 - hh]) { x.beginPath(); x.roundRect(hx, hy, hw, hh, hh * 0.18); x.fill(); }
+      }
+      for (let i = 0; i < n; i++) {
+        const k = r * CS_PER + i;
+        toast(`Folha de contato: ${k + 1} de ${files.length}…`);
+        const fx = margin + i * fw + (fw - iw) / 2, fy = y0 + reb;
+        try {
+          const { bitmap } = await decodeFile(files[k]);
+          const sc = Math.min(1, 900 / Math.max(bitmap.width, bitmap.height));
+          const { blob } = await renderToBlob(bitmap, Math.round(bitmap.width * sc), Math.round(bitmap.height * sc), s0, 'c' + k);
+          bitmap.close?.();
+          const img = await createImageBitmap(blob);
+          x.save(); x.beginPath(); x.rect(fx, fy, iw, ih); x.clip();
+          x.translate(fx + iw / 2, fy + ih / 2);
+          const port = img.height > img.width;
+          if (port) x.rotate(-Math.PI / 2);   // em pé: deitada no negativo
+          const bw = port ? ih : iw, bh = port ? iw : ih;
+          const s = Math.max(bw / img.width, bh / img.height);   // preenche o quadro 3:2 (como o negativo)
+          const dw = img.width * s, dh = img.height * s;
+          x.imageSmoothingQuality = 'high'; x.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+          x.restore(); img.close?.();
+        } catch (err) { console.error(err); x.fillStyle = '#2a2724'; x.fillRect(fx, fy, iw, ih); }
+        // marcações da borda: número do quadro embaixo, código do filme em cima
+        x.fillStyle = '#d9d2c3'; x.font = `600 ${Math.round(reb * 0.3)}px system-ui, sans-serif`; x.textBaseline = 'middle';
+        x.textAlign = 'left'; x.fillText(String(k + 1), fx + iw * 0.06, y0 + stripH - reb * 0.5);
+        x.textAlign = 'center'; x.fillText('▸ ' + (k + 1) + 'A', fx + iw * 0.62, y0 + stripH - reb * 0.5);
+        if (i % 2 === 0) { x.textAlign = 'left'; x.fillText(code, fx + iw * 0.25, y0 + reb * 0.52); }
+      }
+    }
+    const jb = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.92));
+    const n = await deliver([new File([jb], `folha_de_contato_${Date.now().toString(36)}.jpg`, { type: 'image/jpeg' })]);
+    if (!isNative()) toast(`Folha de contato pronta (${files.length} fotos)`);
+    else if (n) toast('Folha de contato salva em Imagens › Pellicula');
+  } catch (err) {
+    console.error(err); toast('Falha na folha de contato: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Exportar'; if (thumbSrc) paintThumbs();
+  }
 });
 
 // ------------------------------------------------------------ copiar e colar, redefinir

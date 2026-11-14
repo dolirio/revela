@@ -6,7 +6,7 @@ export const HSL_COLORS = ['#d8453a', '#e58a32', '#e6c93a', '#4caa4a', '#3cb8c2'
 // Geometria: tudo o que muda o enquadramento. Receitas e copiar/colar não mexem nisso.
 export const GEO_KEYS = ['rot', 'flip', 'straight', 'aspect', 'persV', 'persH', 'lens', 'crop'];
 // Itens que a receita também preserva (decoração escolhida para esta foto)
-export const KEEP_KEYS = [...GEO_KEYS, 'frame', 'date', 'dateText'];
+export const KEEP_KEYS = [...GEO_KEYS, 'frame', 'print', 'date', 'dateText'];
 
 export function defaults() {
   return {
@@ -21,7 +21,7 @@ export function defaults() {
     hsl: Array.from({ length: 8 }, () => ({ h: 0, s: 0, l: 0 })),
     curve: { m: [[0, 0], [1, 1]], r: [[0, 0], [1, 1]], g: [[0, 0], [1, 1]], b: [[0, 0], [1, 1]] },
     rot: 0, flip: false, straight: 0, aspect: 'orig', persV: 0, persH: 0, lens: 0, crop: [0, 0, 1, 1],
-    frame: 'none', date: false, dateText: '',
+    frame: 'none', print: 'none', date: false, dateText: '',
   };
 }
 
@@ -37,6 +37,15 @@ export function withDefaults(s) {
 
 // ------------------------------------------------------------ geometria e moldura
 export const ASPECTS = { livre: null, orig: null, '1:1': 1, '4:5': 0.8, '5:4': 1.25, '3:2': 1.5, '2:3': 2 / 3, '16:9': 16 / 9, '9:16': 9 / 16 };
+// tamanho da cópia (mm, lado curto × lado longo): a foto inteira cabe no papel com uma margem branca de laboratório;
+// a sobra vai para os lados, como numa cópia de verdade em que a proporção da foto não é a do papel
+export const PRINTS = {
+  '10x15': { name: '10×15', mm: [100, 150] }, '13x18': { name: '13×18', mm: [127, 178] },
+  '15x21': { name: '15×21', mm: [150, 210] }, '20x25': { name: '20×25', mm: [203, 254] },
+  q: { name: 'Quadrada', mm: [100, 100] },
+};
+const PRINT_MARGIN = 0.035;   // margem mínima: 3,5% do lado curto do papel (3,5 mm numa 10×15)
+const PAPER_WHITE = [0.975, 0.97, 0.955];
 // sides: topo, direita, baixo, esquerda (fração de base: 'w' largura da foto, 'h' altura, 'long' lado maior)
 export const FRAMES = {
   none: null,
@@ -135,9 +144,16 @@ export function computeView(s, W0, H0, opt = {}) {
   for (let i = 0; i < k; i++) G = mul([0, 1, 0, -1, 0, 0, 0, 0, 1], G);
   G = mul([1 / W0, 0, 0.5, 0, 1 / H0, 0.5, 0, 0, 1], G);
 
-  const fr = opt.full || opt.zoom ? null : FRAMES[s.frame];
+  const pr = opt.full || opt.zoom ? null : PRINTS[s.print];
+  const fr = opt.full || opt.zoom || pr ? null : FRAMES[s.frame];
   let bt = 0, br = 0, bb = 0, bl = 0;
-  if (fr) {
+  if (pr) {
+    // papel deitado ou em pé conforme a foto; a foto encosta na margem mínima do lado mais justo
+    const [a, b] = pr.mm, land = w >= h, pw = land ? b : a, ph = land ? a : b, m = PRINT_MARGIN * a;
+    const sc = Math.min((pw - 2 * m) / w, (ph - 2 * m) / h);   // mm por pixel
+    const ow = pw / sc, oh = ph / sc;
+    bl = br = (ow - w) / 2; bt = bb = (oh - h) / 2;
+  } else if (fr) {
     const base = fr.base === 'w' ? w : fr.base === 'h' ? h : Math.max(w, h);
     [bt, br, bb, bl] = fr.sides.map((x) => x * base);
   }
@@ -145,7 +161,7 @@ export function computeView(s, W0, H0, opt = {}) {
   return {
     innerW: w, innerH: h, outW, outH, geo: colMajor(G), persp: colMajor(P), lens,
     inner: [bl / outW, bt / outH, (bl + w) / outW, (bt + h) / outH],
-    frameCol: fr ? fr.col : [0, 0, 0], round: fr?.round || 0, rough: fr?.rough || 0, holes: !!fr?.holes,
+    frameCol: pr ? PAPER_WHITE : fr ? fr.col : [0, 0, 0], round: fr?.round || 0, rough: fr?.rough || 0, holes: !!fr?.holes,
     frameText: fr?.text || null, zoom: opt.zoom || [0, 0, 1, 1],
   };
 }
