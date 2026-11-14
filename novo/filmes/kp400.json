@@ -1,0 +1,30 @@
+{
+ "id": "kp400",
+ "nome": "KP 400",
+ "inspirado": "Kodak Portra 400",
+ "cat": "negativo",
+ "nota": "negativo de retrato · ISO 400 · pele dourada, contraste baixo, latitude enorme",
+ "analogico": {
+  "grao": 0.3,
+  "grao_tamanho": 1.0,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.665,
+   1.0,
+   1.0
+  ]
+ },
+ "ficha": "Kodak Professional Portra 400",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4729,
+  0.4729,
+  0.4729
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "id": "kp800",
+ "nome": "KP 800",
+ "inspirado": "Kodak Portra 800",
+ "cat": "negativo",
+ "nota": "negativo de retrato · ISO 800 · para pouca luz, mais grão",
+ "analogico": {
+  "grao": 0.45,
+  "grao_tamanho": 1.15,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.67,
+   1.0,
+   1.0
+  ]
+ },
+ "ficha": "Kodak Portra 800",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4729,
+  0.4729,
+  0.4729
+ ]
+}

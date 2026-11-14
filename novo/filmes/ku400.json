@@ -1,0 +1,30 @@
+{
+ "id": "ku400",
+ "nome": "KU 400",
+ "inspirado": "Kodak UltraMax 400",
+ "cat": "negativo",
+ "nota": "negativo de consumo · ISO 400 · cor forte, grão aparente",
+ "analogico": {
+  "grao": 0.423,
+  "grao_tamanho": 1.05,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.67,
+   1.0,
+   1.0
+  ]
+ },
+ "ficha": "Kodak UltraMax 400",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4729,
+  0.4729,
+  0.4729
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "id": "kp160",
+ "nome": "KP 160",
+ "inspirado": "Kodak Portra 160",
+ "cat": "negativo",
+ "nota": "negativo de retrato · ISO 160 · suave, pele natural, contraste baixo",
+ "analogico": {
+  "grao": 0.177,
+  "grao_tamanho": 0.9,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.561,
+   1.0,
+   0.818
+  ]
+ },
+ "ficha": "Kodak Portra 160",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4729,
+  0.4729,
+  0.4729
+ ]
+}

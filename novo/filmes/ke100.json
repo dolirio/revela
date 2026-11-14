@@ -1,0 +1,30 @@
+{
+ "id": "ke100",
+ "nome": "KE 100",
+ "inspirado": "Kodak Ektar 100",
+ "cat": "negativo",
+ "nota": "negativo · ISO 100 · cor viva, grão finíssimo, céus profundos",
+ "analogico": {
+  "grao": 0.095,
+  "grao_tamanho": 0.85,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.637,
+   1.0,
+   0.937
+  ]
+ },
+ "ficha": "Kodak Ektar 100",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4729,
+  0.4729,
+  0.4729
+ ]
+}
