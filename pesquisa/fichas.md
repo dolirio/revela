@@ -11,12 +11,12 @@ Situação em 14/11/2026 para os filmes candidatos do Revela novo.
 | Filme | Ficha | Data | Gráficos | Conteúdo | Situação |
 |---|---|---|---|---|---|
 | Kodak Portra 400 | E-4050 | 2025 | Vetor | Curvas, sensibilidade, densidade espectral, MTF, grão | ✅ **Extraída**, dossiê pronto |
-| Kodak Portra 160 | E-4051 | 2025 | Vetor | Mesmo formato do 400 | Baixada |
-| Kodak Portra 800 | E-4040 | — | Vetor | Inclui curvas **puxadas** (revelação forçada) para EI 1600 e 3200 | Baixada |
-| Kodak Ektar 100 | E-4046 | 2025 | Vetor | Mesmo formato | Baixada |
-| Kodak Gold 200 | E-7022 | 2023 | Vetor | A conferir | Baixada |
-| Kodak UltraMax 400 | E-7023 | 2016 | Vetor | A conferir | Baixada |
-| Kodak Vision3 500T (base do CineStill 800T) | 5219/7219 | — | Vetor | Curvas (tungstênio, ECN-2), sensibilidade, corantes, MTF, grão | Baixada |
+| Kodak Portra 160 | E-4051 | 2025 | Vetor | Mesmo formato do 400 | ✅ Extraída |
+| Kodak Portra 800 | E-4040 | — | Vetor | Inclui curvas **puxadas** (revelação forçada) para EI 1600 e 3200 | ✅ Extraída |
+| Kodak Ektar 100 | E-4046 | 2025 | Vetor | Mesmo formato | ✅ Extraída |
+| Kodak Gold 200 | E-7022 | 2023 | Vetor | A conferir | ✅ Extraída |
+| Kodak UltraMax 400 | E-7023 | 2016 | Vetor | A conferir | ✅ Extraída |
+| Kodak Vision3 500T (base do CineStill 800T) | 5219/7219 | — | Vetor | Curvas (tungstênio, ECN-2), sensibilidade e **corantes C, M, Y separados** | ✅ Extraída. Os corantes separados servem de forma de referência para todos os negativos Kodak |
 | CineStill 800T | — | — | — | Não tem ficha própria. É o Vision3 500T sem a camada antihalo (*remjet*), daí a halação vermelha forte | Usar a ficha do 500T mais o modelo de halação |
 | Fujifilm Superia X-TRA 400 | Fujifilm | — | Imagem | No guia profissional da Fuji e nas páginas de suporte | A baixar |
 | Fujifilm Pro 400H | Fujifilm | — | Imagem | Idem (filme descontinuado) | A baixar |
@@ -25,7 +25,7 @@ Situação em 14/11/2026 para os filmes candidatos do Revela novo.
 
 | Filme | Ficha | Data | Gráficos | Conteúdo | Situação |
 |---|---|---|---|---|---|
-| Kodak Ektachrome E100 | E-4000 | 2018 | Vetor | Curvas, sensibilidade, corantes | Baixada |
+| Kodak Ektachrome E100 | E-4000 | 2018 | Vetor | Curvas, sensibilidade, corantes separados, MTF | ✅ Extraída |
 | Fujichrome Velvia 50 (RVP) | AF3-960E | — | Imagem a 300 ppp | Curvas, sensibilidade, MTF e **corantes C, M e Y separados** | Baixada (escaneamento nítido) |
 | Fujichrome Provia 100F | AF3-036E / ficha japonesa de 2025 | 2025 | Imagem | Curvas, sensibilidade, corantes | Ficha japonesa baixada |
 

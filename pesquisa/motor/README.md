@@ -1,4 +1,12 @@
-# Protótipo do motor espectral (Portra 400)
+# Motor espectral dos filmes
+
+> **Atualização (14/11, versão 2):** o motor agora gera os **7 negativos Kodak** do app novo. Três mudanças, explicadas na seção "Versão 2" no fim deste arquivo:
+> (1) forma real dos corantes Kodak, tirada da ficha do Vision3;
+> (2) calibração do scanner para o filme, como os laboratórios fazem;
+> (3) interação entre camadas (DIR) própria de cada filme.
+> O texto logo abaixo descreve a primeira versão e continua válido como registro.
+
+# Primeira versão: protótipo (Portra 400)
 
 Primeira versão do motor que simula o filme pela física, a partir das fichas técnicas da Kodak. O cálculo roda **no computador**. O app recebe só o resultado: uma LUT 3D (tabela de cor) `.cube`.
 
@@ -89,3 +97,64 @@ python3 pesquisa/motor/prototipo.py <foto-de-teste.jpg>  # figuras, relatório e
 3. Grão, nitidez por canal e halação, a partir dos números da ficha (MTF e Print Grain Index).
 4. Aplicar o mesmo método ao segundo filme (sugestão: Gold 200, um negativo de consumo com caráter bem diferente do Portra).
 5. Levar o motor ao app: LUT 65×65×65 por filme e variações de exposição (−1, +1, +2) como "receitas" do filme.
+
+
+---
+
+## Versão 2: os sete filmes
+
+![Comparação dos filmes](../figuras/filmes_comparacao.jpg)
+
+### 1. Forma real dos corantes
+
+A ficha do **Vision3 500T** publica os corantes C, M e Y **separados**, coisa que as fichas dos negativos de foto não fazem. Como o Portra e os outros negativos Kodak usam a mesma família de tecnologia, essas formas viram o molde. Cada filme ajusta só a posição (até ±15 nm), a largura (até ±15%) e a máscara (`desmistura_corantes_kodak`). O encaixe na ficha de cada filme fica ótimo.
+
+### 2. Calibração do laboratório (o achado mais importante)
+
+Com a forma real dos corantes, o encaixe ficou ótimo, mas as cores se deslocaram muito (pele −37°). O motor estava sensível demais à forma dos corantes porque faltava uma etapa real: **os scanners de laboratório são calibrados para negativo**. Eles aplicam uma correção que desfaz a mistura entre os corantes, a versão digital do que a máscara laranja faz quimicamente.
+
+Implementada como uma correção 3×3 em escala logarítmica, aprendida numa cartela (ColorChecker, peles, matizes fortes e pastéis), com o cinza fixo:
+
+| Modelo de corante | Sem calibração | Com calibração |
+|---|---|---|
+| Gaussianas (versão 1) | erro de matiz 11,5° · magenta +27° | 5,3° · magenta +4° |
+| Formas Kodak | 23,7° · pele −37° | 3,8° · magenta +1° |
+
+**Os dois modelos passam a concordar.** A incerteza sobre os corantes, que era o ponto mais frágil, deixa de dominar o resultado.
+
+A correção é usada a **70%**, não 100%. A 100% os filmes ficavam quase iguais (diferença média entre eles de ΔE 3,1) e as cores claras eram corrigidas demais (o fundo laranja da foto ia para o amarelo).
+
+### 3. O caráter de cada filme: interação entre camadas
+
+O que mais diferencia um negativo do outro, e que a ficha **não publica**, é a interação entre camadas (DIR). É dela que vem a saturação. Valor provisório pela descrição da própria Kodak, até a calibração com as fotos de referência:
+
+| Filme | DIR | Saturação (cartela) | Pele clara (matiz) |
+|---|---|---|---|
+| KE 100 (Ektar) | 0,40 | 1,25 | 44° (avermelhada) |
+| KU 400 (UltraMax) | 0,32 | 1,22 | 51° |
+| KG 200 (Gold) | 0,28 | 1,15 | 56° (dourada) |
+| KP 400 (Portra 400) | 0,18 | 1,10 | 43° |
+| KP 800 (Portra 800) | 0,16 | 1,07 | 54° |
+| C 800T (CineStill) | 0,10 | 1,05 | 56° |
+| KP 160 (Portra 160) | 0,06 | 0,97 | 43° |
+
+Original: 51°. Diferença média entre os filmes: **ΔE 7,5** (máximo 12,2), visível sem esforço.
+
+**Bate com o mundo real:** o Ektar deixa a pele avermelhada, e é por isso que fotógrafos o evitam em retrato. O Gold é o mais dourado. O Portra 160 é o mais contido.
+
+**Ainda a confirmar com as fotos de referência:** o Portra 400 aparece mais rosado na pele do que o "dourado" descrito pelos laboratórios.
+
+### Parâmetros analógicos vindos das fichas
+
+- **Grão:** pelo *Print Grain Index* (35 mm, cópia 10×15): Ektar <25, Portra 160 28, Portra 400 37, Gold 44, UltraMax 46, Portra 800 48.
+- **Nitidez por camada:** pela MTF a 40 ciclos/mm, quando a ficha publica.
+- **CineStill:** halação forte (não tem a camada anti-halo) e fotometria a ISO 800, ou seja, 2/3 de parada a menos de luz, com o laboratório compensando no scan.
+
+### Como gerar
+
+```sh
+python3 pesquisa/ferramentas/extrair_fichas.py <pdfs> <conferencias>   # 25 gráficos de 7 fichas
+python3 pesquisa/ferramentas/normalizar.py                            # formato do motor
+python3 pesquisa/motor/exportar.py                                    # pacotes do app (novo/filmes/)
+python3 pesquisa/motor/comparar_filmes.py <foto.jpg>                  # folha de comparação
+```

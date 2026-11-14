@@ -138,6 +138,36 @@ def status_m():
     return np.stack([_g(NM, mu, s, s) for mu, s in ((650, 12), (540, 15), (445, 14))])   # R, G, B
 
 
+def desmistura_corantes_kodak(f, ref='vision3_500t'):
+    """Separa os corantes usando a FORMA real dos corantes Kodak publicada na ficha do Vision3 500T
+    (corantes C, M, Y separados, normalizados no pico). O Portra e os outros negativos Kodak atuais usam a mesma
+    família de tecnologia (a ficha do Portra cita a "KODAK VISION Film Technology"). Cada corante pode deslocar
+    até 15 nm e alargar ou estreitar até 15%; a máscara laranja consumida entra como dois termos negativos
+    (o acoplador do magenta é amarelo; o do ciano é laranja-avermelhado)."""
+    r = _carrega(ref)['densidade_espectral']
+    forma = {}
+    for n in ('ciano', 'magenta', 'amarelo'):
+        nm, v = np.asarray(r['nm'], float), _arr(r['corante_' + n]); ok = ~np.isnan(v)
+        forma[n] = (nm[ok], np.clip(v[ok], 0, None))
+    centro = {n: forma[n][0][np.argmax(forma[n][1])] for n in forma}
+    alvo = f.neutro_esp - f.dmin_esp
+    w = ((NM >= 400) & (NM <= 700)).astype(float)
+
+    def corante(n, a, d, s):
+        nm, v = forma[n]
+        return a * np.interp(centro[n] + (NM - centro[n] - d) / s, nm, v)   # fora da faixa medida: repete a borda
+
+    def corantes(p):
+        return np.stack([corante('ciano', p[0], p[3], p[6]) - p[10] * _g(NM, 515, 35, 35),
+                         corante('magenta', p[1], p[4], p[7]) - p[9] * _g(NM, 445, 25, 25),
+                         corante('amarelo', p[2], p[5], p[8])])
+    p0 = [1, 1, 1, 0, 0, 0, 1, 1, 1, 0.05, 0.05]
+    lo = [0.2, 0.2, 0.2, -15, -15, -15, 0.85, 0.85, 0.85, 0, 0]
+    hi = [2.5, 2.5, 2.5, 15, 15, 15, 1.15, 1.15, 1.15, 0.6, 0.6]
+    res = least_squares(lambda p: (corantes(p).sum(0) - alvo) * w, p0, bounds=(lo, hi))
+    return corantes(res.x), res
+
+
 def desmistura_corantes(f):
     """Separa a soma 'cinza médio − Dmin' da ficha em três corantes efetivos (C, M, Y).
     A ficha só publica a soma. Cada corante é uma gaussiana assimétrica; o corante 'efetivo' já inclui a máscara
@@ -183,6 +213,19 @@ def planck(T, x=NM):
     return 1 / (x ** 5 * (np.exp(1.4388e-2 / (x * T)) - 1))
 
 
+# Cores usadas para calibrar o scanner (como a cartela que o laboratório usa): ColorChecker, pele e matizes
+TREINO = [(115, 82, 68), (194, 150, 130), (98, 122, 157), (87, 108, 67), (133, 128, 177), (103, 189, 170),
+          (214, 126, 44), (80, 91, 166), (193, 90, 99), (94, 60, 108), (157, 188, 64), (224, 163, 46),
+          (56, 61, 150), (70, 148, 73), (175, 54, 60), (231, 199, 31), (187, 86, 149), (8, 133, 161),
+          (234, 218, 186), (215, 189, 150), (160, 126, 86), (130, 92, 67), (96, 65, 52),
+          (217, 46, 46), (217, 131, 46), (217, 217, 46), (131, 217, 46), (46, 217, 131), (46, 217, 217),
+          (46, 131, 217), (46, 46, 217), (131, 46, 217), (217, 46, 217), (217, 46, 131),
+          # tons claros e pastéis (fundo claro, céu claro, pele iluminada): sem eles a correção erra nas cores claras
+          (242, 158, 158), (242, 200, 158), (242, 242, 158), (200, 242, 158), (158, 242, 158), (158, 242, 200),
+          (158, 242, 242), (158, 200, 242), (158, 158, 242), (200, 158, 242), (242, 158, 242), (242, 158, 200),
+          (247, 205, 140), (250, 225, 190), (205, 225, 245), (225, 235, 205)]
+
+
 # ------------------------------------------------------------------ o motor completo
 class Motor:
     """Simula foto -> negativo -> cópia. Parâmetros:
@@ -190,13 +233,16 @@ class Motor:
        dir:     força da interação entre camadas (acopladores DIR); 0 = camadas independentes
     """
 
-    def __init__(self, filme='portra400', papel='endura_premier'):
+    def __init__(self, filme='portra400', papel='endura_premier', corantes='kodak', correcao_lab=1.0, dir_calibracao=0.1,
+                 paradas_base=0.0):
         self.f, self.p = Filme(filme), Papel(papel)
+        self.correcao_lab, self.dir_cal = correcao_lab, dir_calibracao
+        self.paradas_base = paradas_base      # fotometrar o filme fora da ISO nominal (ex.: CineStill 500T a 800)
         self.base_rgb = base_espectral()
         self.branco = self.base_rgb.sum(0)                     # luz da cena e da sala de visão (D65)
         # exposição de cada camada para a luz branca: normaliza para o cinza 18% cair no log H de referência
         self.k_cam = 1.0 / (self.f.sens @ (self.branco * 0.18))
-        self.cor_neg, self.ajuste_corantes = desmistura_corantes(self.f)
+        self.cor_neg, self.ajuste_corantes = (desmistura_corantes_kodak if corantes == 'kodak' else desmistura_corantes)(self.f)
         # quanto de cada corante corresponde a cada nível de densidade Status M, medido em cinzas
         self.M = status_m(); self.M = self.M / self.M.sum(1, keepdims=True)
         A = self.M @ self.cor_neg.T                             # Status M de cada corante (3x3)
@@ -212,7 +258,7 @@ class Motor:
     def exposicao(self, rgb_lin, paradas=0.0):
         esp = rgb_lin @ self.base_rgb                           # (..., n) espectro da luz de cada ponto
         H = (esp @ self.f.sens.T) * self.k_cam * 0.18          # exposição relativa de cada camada
-        return self.f.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + paradas * np.log10(2)
+        return self.f.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + (paradas + self.paradas_base) * np.log10(2)
 
     def negativo(self, L, dir_=0.0):
         """Espectro de densidade do negativo. L: log H de cada camada (..., 3) na ordem R, G, B."""
@@ -268,6 +314,30 @@ class Motor:
         L = self.f.ref + np.linspace(-2, 2, 17) * np.log10(2)
         Ds = self._densidade_scan(self.negativo(np.repeat(L[:, None], 3, 1)))
         self.inv = [np.polyfit(L, Ds[:, i], 1) for i in range(3)]   # (gama, base) por canal
+        self.D_lab = np.zeros((3, 3)); self.equilibrio = np.zeros(3)
+        # equilíbrio do laboratório: o cinza médio bem fotometrado sai exatamente cinza e no meio-tom
+        cinza = self._lhat(self._densidade_scan(self.negativo(self.exposicao(np.array([0.18, 0.18, 0.18])), self.dir_cal)))
+        self.equilibrio = self.f.ref - cinza
+        self.D_lab = self._calibra_lab() * self.correcao_lab
+
+    def _calibra_lab(self, lam=0.02):
+        """Calibração do scanner para o filme, como os laboratórios fazem (Frontier e Noritsu têm ajustes por tipo
+        de filme): uma correção 3×3 em escala logarítmica que desfaz a mistura linear entre os corantes, aprendida
+        numa cartela de cores. Linhas somam zero, então o cinza não muda. O caráter do filme (o que cada camada
+        enxerga, as curvas, o DIR, o pé e o ombro) continua; sai só o "embaralhamento" de primeira ordem."""
+        rgb = srgb_decode(np.array(TREINO, float) / 255)
+        Lhat = self._lhat(self._densidade_scan(self.negativo(self.exposicao(rgb), self.dir_cal))) - self.f.ref
+        T = np.clip(np.log10(np.maximum(rgb, 1e-4) / 0.18), -2.2, 1.0)
+        # D com linhas de soma zero: D = B @ P, P projeta fora do neutro
+        P = np.eye(3) - 1 / 3
+        X = Lhat @ P.T                      # parte cromática
+        R = T - Lhat
+        A = X.T @ X + lam * len(X) * np.eye(3)
+        B = np.linalg.solve(A, X.T @ R).T
+        return B @ P
+
+    def _lhat(self, Ds):
+        return np.stack([(Ds[..., i] - self.inv[i][1]) / self.inv[i][0] for i in range(3)], -1) + self.equilibrio
 
     def _densidade_scan(self, Dneg):
         return -np.log10(np.maximum((10 ** (-Dneg)) @ self.sensor.T, 1e-12))
@@ -287,7 +357,8 @@ class Motor:
         if not hasattr(self, 'inv'):
             self._prepara_scanner()
         Ds = self._densidade_scan(self.negativo(self.exposicao(rgb_lin, paradas), dir_))
-        Lhat = np.stack([(Ds[..., i] - self.inv[i][1]) / self.inv[i][0] for i in range(3)], -1)
+        Lhat = self._lhat(Ds)
+        Lhat = Lhat + (Lhat - self.f.ref) @ self.D_lab.T   # calibração do laboratório para o filme
         x = 0.18 * 10 ** (Lhat - self.f.ref)          # exposição recuperada de cada canal (cinza médio = 0,18)
         return self.curva_lab(x, contraste)
 

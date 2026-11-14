@@ -10,7 +10,7 @@
 | [`fichas.md`](fichas.md) | Inventário das fichas técnicas de todos os filmes candidatos: onde estão, o que contêm, se os gráficos são extraíveis |
 | [`dados/`](dados/) | Números extraídos das fichas, em JSON |
 | [`figuras/`](figuras/) | Gráficos refeitos a partir dos dados, mais a conferência da extração sobre o original |
-| [`ferramentas/`](ferramentas/) | Scripts para extrair as curvas dos PDFs e gerar as figuras |
+| [`ferramentas/`](ferramentas/) | Scripts para extrair as curvas dos PDFs (um a um ou em lote, com calibração automática dos eixos) e gerar as figuras |
 | [`motor/`](motor/README.md) | **Protótipo do motor espectral**: simulação do filme e LUTs `.cube` para testar no app |
 
 ## Método
@@ -40,5 +40,12 @@ python3 pesquisa/ferramentas/graficos.py
 
 | Filme | Ficha extraída | Dossiê | Fotos de referência | No app |
 |---|---|---|---|---|
-| Kodak Portra 400 | ✅ | ✅ | ⏳ a fazer | protótipo (LUT `.cube` para teste) |
-| Demais filmes | ver [fichas.md](fichas.md) | — | — | — |
+| Kodak Portra 400 | ✅ | ✅ | ⏳ a fazer | ✅ no app novo (KP 400) |
+| Kodak Portra 160 e 800 (com curvas puxadas do 800) | ✅ | — | ⏳ | ✅ (KP 160, KP 800) |
+| Kodak Ektar 100 | ✅ | — | ⏳ | ✅ (KE 100) |
+| Kodak Gold 200 e UltraMax 400 | ✅ | — | ⏳ | ✅ (KG 200, KU 400) |
+| Kodak Vision3 500T (base do CineStill 800T; **corantes C, M, Y publicados separados**) | ✅ | — | ⏳ | ✅ (C 800T) |
+| Kodak Ektachrome E100 (cromo; corantes separados) | ✅ | — | ⏳ | falta o caminho de cromo no motor |
+| Fuji, preto e branco, instantâneo | ver [fichas.md](fichas.md) | — | — | — |
+
+As 25 extrações das fichas Kodak têm conferência visual em [`figuras/fichas/`](figuras/fichas/) (dados em cor sobre o gráfico original).

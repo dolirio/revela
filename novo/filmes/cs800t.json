@@ -1,0 +1,30 @@
+{
+ "id": "cs800t",
+ "nome": "C 800T",
+ "inspirado": "CineStill 800T (Kodak Vision3 500T)",
+ "cat": "negativo",
+ "nota": "filme de cinema para luz de tungstênio · ISO 800 · halação vermelha nas luzes",
+ "analogico": {
+  "grao": 0.505,
+  "grao_tamanho": 1.15,
+  "halacao": 0.55,
+  "nitidez_canal": [
+   0.67,
+   1.0,
+   1.0
+  ]
+ },
+ "ficha": "Kodak Vision3 500T",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4729,
+  0.4729,
+  0.4729
+ ]
+}
