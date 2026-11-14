@@ -18,6 +18,14 @@ As abas seguem a ordem de um laboratório fotográfico:
 
 Saídas: JPEG em tamanho real, Instagram, cópia pronta para imprimir (300 ppp), folha de contato e backup das receitas.
 
+## Direção do produto (novembro de 2026)
+
+O Revela passa a se concentrar nos **filmes**: reproduzir cada um com a fidelidade de um app como o RNI Films, com interface limpa e poucos toques.
+
+- **Fica e ganha profundidade:** os filmes, os ajustes básicos e o analógico essencial (grão, halação, difusão, poeira e riscos).
+- **Guardado para depois** (continua no histórico, a partir da v47): papéis e cópia, Tempo, Climas, Gráfico, molduras, preparar para imprimir, folha de contato e exportar para Instagram.
+- A pesquisa que sustenta os filmes novos está em [`pesquisa/`](pesquisa/README.md).
+
 ## Arquivos
 
 | Arquivo | Papel |
@@ -34,6 +42,7 @@ Saídas: JPEG em tamanho real, Instagram, cópia pronta para imprimir (300 ppp),
 | `lab.html`, `lab.js` | Laboratório: ferramenta interna para criar e calibrar filmes |
 | `sw.js` | Service worker (guarda o app para uso offline) |
 | `vendor/` | Decodificador HEIC (libheif, LGPL-3.0) |
+| `pesquisa/` | Pesquisa dos filmes: dossiês, dados das fichas técnicas, figuras e ferramentas (não é carregada pelo app) |
 
 ## Como rodar
 
@@ -57,6 +66,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| — | 2026-11-14 | Pesquisa: dossiê do Portra 400, dados das fichas do Portra 400 e do papel Endura Premier, inventário das fichas dos filmes candidatos. O app não muda. |
 | v47 | 2026-11-14 | Nome volta a ser **Revela** (era Pellicula). Backups antigos continuam abrindo. README com histórico. |
 | v46 | 2026-11-13 | Preparar para imprimir (300 ppp, acabamento, margem) |
 | v45 | 2026-11-13 | Tamanho da cópia e folha de contato |
