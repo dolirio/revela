@@ -499,7 +499,7 @@ function markTools() {
   document.querySelector('.tool[data-k="act_zoom"]')?.classList.toggle('on', !!zoom);
 }
 
-// ------------------------------------------------------------ Pellicula: filmes e "Minhas"
+// ------------------------------------------------------------ Revela: filmes e "Minhas"
 let cat = store.get('revela.cat', 'neg');
 if (cat === 'pbg') cat = 'pb';   // P&B granulado entrou em P&B (v44)
 if (!FILM_CATS.some((c) => c.id === cat) || (cat === 'clima' && !showAll)) cat = 'neg';   // categoria que sumiu (ex.: Filtros) ou Climas guardados
@@ -1520,15 +1520,15 @@ async function deliverNative(files, dir = 'Pictures', label = 'Imagens') {
   let saved = 0;
   for (const f of files) {
     const data = await toBase64(f);
-    try {   // Android 11+: grava direto em Imagens/Pellicula, e a Galeria encontra
-      await Filesystem.writeFile({ path: `${dir}/Pellicula/${f.name}`, data, directory: 'EXTERNAL_STORAGE', recursive: true });
+    try {   // Android 11+: grava direto em Imagens/Revela, e a Galeria encontra
+      await Filesystem.writeFile({ path: `${dir}/Revela/${f.name}`, data, directory: 'EXTERNAL_STORAGE', recursive: true });
       saved++;
     } catch {   // sem acesso: abre o compartilhar do Android
       const w = await Filesystem.writeFile({ path: f.name, data, directory: 'CACHE' });
       try { await Share.share({ title: f.name, files: [w.uri] }); } catch { /* cancelado */ }
     }
   }
-  if (saved) toast(saved === 1 ? `Salvo em ${label} › Pellicula` : `${saved} fotos salvas em ${label} › Pellicula`);
+  if (saved) toast(saved === 1 ? `Salvo em ${label} › Revela` : `${saved} fotos salvas em ${label} › Revela`);
   return saved;
 }
 async function deliver(files, nativeDir) {
@@ -1551,9 +1551,9 @@ $('btnExport').addEventListener('click', async () => {
     await new Promise((r) => setTimeout(r, 30));
     const { blob, w, h } = await renderToBlob(photo.bitmap, photo.w, photo.h, state, photo.name);
     const sz = PRINTS[state.print] ? '_' + state.print : '';
-    const n = await deliver([new File([blob], `${photo.name}_pellicula${sz}.jpg`, { type: 'image/jpeg' })]);
+    const n = await deliver([new File([blob], `${photo.name}_revela${sz}.jpg`, { type: 'image/jpeg' })]);
     if (!isNative()) toast(`Foto exportada (${w}×${h})`);
-    else if (n) toast(`Salva em Imagens › Pellicula (${w}×${h})`);
+    else if (n) toast(`Salva em Imagens › Revela (${w}×${h})`);
   } catch (e) {
     console.error(e); toast('Falha ao exportar: ' + e.message);
   } finally {
@@ -1619,7 +1619,7 @@ $('btnIg').onclick = async () => {
     const jb = await new Promise((res) => out.toBlob(res, 'image/jpeg', 0.92));
     const n = await deliver([new File([jb], `${photo.name}_instagram.jpg`, { type: 'image/jpeg' })]);
     if (!isNative()) toast(`Pronta para o Instagram (${out.width}×${out.height})`);
-    else if (n) toast(`Salva em Imagens › Pellicula (${out.width}×${out.height})`);
+    else if (n) toast(`Salva em Imagens › Revela (${out.width}×${out.height})`);
   } catch (e) {
     console.error(e); toast('Falha ao exportar: ' + e.message);
   } finally {
@@ -1642,7 +1642,7 @@ $('fileBatch').addEventListener('change', async (e) => {
       const nm = files[i].name.replace(/\.[^.]+$/, '');
       const { blob } = await renderToBlob(bitmap, Math.round(bitmap.width * s), Math.round(bitmap.height * s), s0, nm);
       bitmap.close?.();
-      out.push(new File([blob], nm + '_pellicula.jpg', { type: 'image/jpeg' }));
+      out.push(new File([blob], nm + '_revela.jpg', { type: 'image/jpeg' }));
     } catch (err) { console.error(err); toast(`${files[i].name}: ${err.message}`); await new Promise((r) => setTimeout(r, 1500)); }
   }
   if (out.length) { await deliver(out); toast(`${out.length} foto(s) exportada(s)`); }
@@ -1718,7 +1718,7 @@ $('prOne').onclick = () => {
   runPrint(async () => {
     const f = await printFile(photo.bitmap, photo.w, photo.h, state, photo.name);
     const n = await deliver([f]), nm = `${PRINTS[prOpt.size].name} ${prOpt.fin}`;
-    if (!isNative()) toast(`Pronta para imprimir: ${nm}`); else if (n) toast(`Pronta para imprimir (${nm}), em Imagens › Pellicula`);
+    if (!isNative()) toast(`Pronta para imprimir: ${nm}`); else if (n) toast(`Pronta para imprimir (${nm}), em Imagens › Revela`);
   });
 };
 $('prMany').onclick = () => { closeSheet(true); $('filePrint').click(); };
@@ -1762,7 +1762,7 @@ $('fileContact').addEventListener('change', async (e) => {
   const cv = document.createElement('canvas'); cv.width = CS_W; cv.height = CS_H;
   const x = cv.getContext('2d');
   x.fillStyle = '#f3efe6'; x.fillRect(0, 0, CS_W, CS_H);   // papel
-  const f = filmById(state.look), code = (f ? f.code : 'PELLICULA').toUpperCase();
+  const f = filmById(state.look), code = (f ? f.code : 'REVELA').toUpperCase();
   const btn = $('btnExport'); btn.disabled = true; btn.textContent = 'Gerando…';
   try {
     for (let r = 0; r < rows; r++) {
@@ -1807,7 +1807,7 @@ $('fileContact').addEventListener('change', async (e) => {
     const jb = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.92));
     const n = await deliver([new File([jb], `folha_de_contato_${Date.now().toString(36)}.jpg`, { type: 'image/jpeg' })]);
     if (!isNative()) toast(`Folha de contato pronta (${files.length} fotos)`);
-    else if (n) toast('Folha de contato salva em Imagens › Pellicula');
+    else if (n) toast('Folha de contato salva em Imagens › Revela');
   } catch (err) {
     console.error(err); toast('Falha na folha de contato: ' + err.message);
   } finally {
@@ -1876,11 +1876,11 @@ $('btnBackup').onclick = async () => {
     const nRec = (ls['revela.recipes'] || []).length, nFilm = Object.keys(ls['revela.filmLooks'] || {}).length;
     if (!nRec && !nFilm && !luts.length && !ls['revela.looks']) return toast('Nada para salvar: sem receitas, LUTs ou filmes ajustados');
     const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const json = JSON.stringify({ app: 'pellicula', backup: 1, date: d.toISOString(), ls, luts });
-    const file = new File([json], `pellicula-backup-${day}.json`, { type: 'application/json' });
+    const json = JSON.stringify({ app: 'revela', backup: 1, date: d.toISOString(), ls, luts });
+    const file = new File([json], `revela-backup-${day}.json`, { type: 'application/json' });
     const n = await deliver([file], ['Documents', 'Documentos']);
     if (!isNative()) toast(`Backup: ${nRec} receitas, ${luts.length} LUTs, ${nFilm} filmes do Lab`);
-    else if (n) toast(`Backup salvo em Documentos › Pellicula`);
+    else if (n) toast(`Backup salvo em Documentos › Revela`);
   } catch (e) { console.error(e); toast('Falha no backup: ' + e.message); }
 };
 $('btnRestore').onclick = () => $('fileBackup').click();
@@ -1888,8 +1888,8 @@ $('fileBackup').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   let b;
-  try { b = JSON.parse(await f.text()); } catch { return toast('Esse arquivo não é um backup do Pellicula'); }
-  if (!b || b.app !== 'pellicula' || typeof b.ls !== 'object') return toast('Esse arquivo não é um backup do Pellicula');
+  try { b = JSON.parse(await f.text()); } catch { return toast('Esse arquivo não é um backup do Revela'); }
+  if (!b || !['revela', 'pellicula'].includes(b.app) || typeof b.ls !== 'object') return toast('Esse arquivo não é um backup do Revela');
   const recs = Array.isArray(b.ls['revela.recipes']) ? b.ls['revela.recipes'] : [];
   const films = b.ls['revela.filmLooks'] && typeof b.ls['revela.filmLooks'] === 'object' ? b.ls['revela.filmLooks'] : {};
   const luts = Array.isArray(b.luts) ? b.luts.filter((l) => l && l.id && typeof l.text === 'string') : [];
@@ -1947,13 +1947,13 @@ let restartAsked = false;
 async function askRestart() {
   if (restartAsked) return;
   restartAsked = true;
-  await ask({ title: 'Reabra o Pellicula', note: 'A placa de vídeo deste aparelho travou e o Android só a devolve com o app reaberto. '
+  await ask({ title: 'Reabra o Revela', note: 'A placa de vídeo deste aparelho travou e o Android só a devolve com o app reaberto. '
     + `Feche o app (inclusive da lista de apps recentes) e abra de novo: ele vai usar um desenho mais seguro (degrau ${glStep + 1} de ${GL_STEPS.length}: `
     + `${LV_NAMES[glLevel]}${safeMode ? ', modo seguro' : ''}). Se ainda assim a foto não aparecer, abra ⋯ › Diagnóstico e me mande o texto.` });
 }
 function diagnose() {
   const L = [], ua = navigator.userAgent;
-  L.push(`Pellicula · ${isNative() ? 'app instalado (APK)' : 'navegador'}`);
+  L.push(`Revela · ${isNative() ? 'app instalado (APK)' : 'navegador'}`);
   L.push((ua.match(/Android [\d.]+|iPhone OS [\d_]+|Chrome\/[\d.]+|Version\/[\d.]+/g) || [ua.slice(0, 80)]).join(' · '));
   if (!preview) L.push('WebGL2: não iniciou');
   else {

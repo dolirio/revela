@@ -1,6 +1,6 @@
 {
-  "name": "Pellicula",
-  "short_name": "Pellicula",
+  "name": "Revela",
+  "short_name": "Revela",
   "description": "Editor de fotos com looks de filme.",
   "start_url": "./",
   "scope": "./",
