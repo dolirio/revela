@@ -45,7 +45,9 @@
   /* dock */
   #dock { background: var(--dock); padding-bottom: var(--safe-b); min-width: 0; }
   .ctx { min-height: 158px; max-height: 66vh; position: relative; overflow: hidden auto; scrollbar-width: none; }
+  [hidden] { display: none !important; }
   .ctx::-webkit-scrollbar { display: none; }
+  .more { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
   /* a folha aberta entra no fluxo: o painel cresce até caber tudo (antes cortava em cima e embaixo em telas baixas) */
   #dock:not(.tall) .sheet.on { position: relative; inset: auto; min-height: inherit; padding-top: 8px; padding-bottom: 2px; }
   .mode, .sheet { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; }
@@ -417,6 +419,7 @@
   <button id="btnIg">Exportar para Instagram</button>
   <button id="btnBatch">Editar várias fotos…</button>
   <button id="btnGfx">Gráfico…</button>
+  <button id="btnShelf">Mostrar itens guardados</button>
   <button id="btnResetAll">Redefinir tudo</button>
   <button id="btnBackup">Fazer backup</button>
   <button id="btnDiag">Diagnóstico</button>

@@ -31,8 +31,15 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v40';
+const BUILD = 'v41';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
+// curadoria (2026-11-13): itens tirados da vista para o app ficar menor e cada escolha ter caráter próprio.
+// Nada foi apagado: receitas salvas continuam funcionando e ⋯ › "Mostrar itens guardados" traz tudo de volta.
+// Filmes quase iguais a outros, e as cópias de álbum (o Tempo faz isso por cima de qualquer filme).
+const SHELF_FILMS = new Set(['f_kp160', 'f_ao100', 'f_km400', 'f_ih1600', 'f_fnp400', 'f_ax100', 'f_ar100', 'f_c70', 'f_c80']);
+const SHELF_PAPERS = new Set([3, 4]);   // Revista e Fotocópia: efeito gráfico, não foto impressa
+let showAll = false;
+try { showAll = localStorage.getItem('revela.showAll') === '1'; } catch {}
 const insp = (ref) => `inspirado ${/^(câmera|cópia)/i.test(ref) ? 'na' : 'no'} ${ref}`;
 // ------------------------------------------------------------ placa de vídeo: escada de segurança
 // Alguns aparelhos (ex.: Galaxy S23 no Android 17) derrubam a placa de vídeo no primeiro desenho. O app desce
@@ -307,9 +314,9 @@ const TEX = [
   { s: 'paper', n: 'Papel', i: 'paper' },
 ];
 const FX = [
-  { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
+  { s: 'age', n: 'Tempo', i: 'age' }, { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
   { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'marks', n: 'Poeira e riscos', i: 'scratch' },
-  { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'age', n: 'Tempo', i: 'age' }, { s: 'date', n: 'Data', i: 'date' },
+  { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'date', n: 'Data', i: 'date' },
 ];
 const GEO = [
   { k: 'straight', n: 'Endireitar', min: -450, max: 450, scale: 10, geo: true },
@@ -595,7 +602,7 @@ function buildStrip() {
       strip.append(b);
     }
   } else {
-    for (const f of FILMS.filter((x) => x.cat === cat)) {
+    for (const f of FILMS.filter((x) => x.cat === cat && (showAll || !SHELF_FILMS.has(x.id) || state.look === x.id))) {
       const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · ${insp(f.ref)}`;
       b.onclick = () => (state.look === f.id && !state.recipe ? openFilmSheet(f.code) : applyFilm(f.id));
       strip.append(b);
@@ -963,7 +970,10 @@ PAPER_TYPES.forEach((p, i) => {
 });
 function syncPaper() {
   const on = state.paper > 0 ? state.paperType : -1;
-  document.querySelectorAll('#paperTypes button').forEach((b) => b.classList.toggle('on', +b.dataset.t === on));
+  document.querySelectorAll('#paperTypes button').forEach((b) => {
+    b.classList.toggle('on', +b.dataset.t === on);
+    b.hidden = SHELF_PAPERS.has(+b.dataset.t) && !showAll && +b.dataset.t !== on;
+  });
   $('ppNote').textContent = (PAPER_TYPES.find((p) => p.t === on) || PAPER_TYPES[0]).note;
   const r = $('ppRange'), v = Math.round(state.paper * 100); r.value = v; fillRange(r, 0);
   $('ppVal').textContent = String(v);
@@ -1140,7 +1150,26 @@ function buildGfx() {
 $('btnGfx').onclick = () => openGfx();
 $('gfxOk').onclick = () => closeSheet(true);
 $('gfxCancel').onclick = () => closeSheet(false);
-function syncGfxMenu() { $('btnGfx').textContent = state.gfx ? `Gráfico: ${GFX_TYPES[state.gfx]}` : 'Gráfico…'; }
+function syncGfxMenu() {
+  $('btnGfx').textContent = state.gfx ? `Gráfico: ${GFX_TYPES[state.gfx]}` : 'Gráfico…';
+  $('btnGfx').hidden = !showAll && !state.gfx;   // guardado (curadoria), mas aparece se a foto já usa
+}
+// ⋯ › mostrar ou esconder os itens guardados pela curadoria
+function syncShelf() { $('btnShelf').textContent = showAll ? 'Esconder itens guardados' : 'Mostrar itens guardados'; }
+$('btnShelf').onclick = () => {
+  showAll = !showAll;
+  try { localStorage.setItem('revela.showAll', showAll ? '1' : '0'); } catch {}
+  syncShelf(); syncGfxMenu(); buildStrip(); syncPaper();
+  toast(showAll ? 'Itens guardados à mostra: filmes parecidos, Revista, Fotocópia e Gráfico' : 'Itens guardados escondidos');
+};
+syncShelf(); syncPaper();
+// fileiras que rolam para o lado: a borda direita esmaece enquanto houver mais coisa escondida
+function hintScroll(el) {
+  const upd = () => el.classList.toggle('more', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  el.addEventListener('scroll', upd, { passive: true }); new ResizeObserver(upd).observe(el);
+  new MutationObserver(upd).observe(el, { childList: true }); upd();
+}
+document.querySelectorAll('.scrollx, .sheet .pills, #paperTypes, #dustTypes, .cats').forEach(hintScroll);
 
 // ------------------------------------------------------------ corte: proporção, moldura, corte livre, grade
 const ASPECT_NAMES = { livre: 'Livre', orig: 'Original', '1:1': '1:1', '4:5': '4:5', '5:4': '5:4', '3:2': '3:2', '2:3': '2:3', '16:9': '16:9', '9:16': '9:16' };
