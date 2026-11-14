@@ -134,13 +134,49 @@ Converta cada uma só com as simulações ⭐ principais.
 
 ## 6. O celular
 
-Fotografe a cartela **uma vez** com a câmera normal do celular que você usa com o Revela, sem filtros e na mesma luz. Assim sei como chega ao app a foto que o celular entrega.
+Veja a seção 7 (celulares).
 
 ---
 
-## 7. Como me enviar
+## 7. Com o seu equipamento (HP Smart Tank 794, celulares e Instax Mini 9)
 
-1. Crie no **Google Drive** uma pasta chamada **`Revela - referências`**, com as subpastas `fuji`, `ricoh` e `celular`.
+### Imprimir na HP Smart Tank 794
+
+- Papel fotográfico: imprima **no lado brilhante**, que é o lado que recebe a tinta. O lado fosco é o verso do papel: a tinta não seca nele e borra.
+- No diálogo de impressão: tipo de papel **"Papel fotográfico brilhante"**, qualidade **"Alta"** ou **"Máxima"**, tamanho A4, **100% (sem ajustar à página)**. **Desligue qualquer correção automática** ("Real Life", "Corrigir foto", "Aprimorar").
+- Deixe secar **30 minutos** antes de fotografar.
+- **Contra o reflexo do brilho:** câmera **de frente** para a cartela e a luz **de lado** (a janela a uns 45°, nunca atrás de você). Se ainda aparecer reflexo, imprima também uma cópia em **papel comum (sulfite)**. As cores saem mais fracas, mas para a comparação isso não atrapalha.
+
+### Escanear na HP (o scanner de mesa dela)
+
+1. **A cartela impressa:** escaneie a 600 ppp, em cores, **sem nenhuma correção automática**. Assim fico sabendo as cores reais que a impressora produziu.
+2. **As fotos da Instax:** escaneie **todas**, a 600 ppp, também sem correção, várias de uma vez no vidro. Mesmo sem o original, elas mostram como o filme instantâneo trata pele, céu, sombras e luzes.
+
+### A Instax Mini 9 (vale ouro: não existe ficha técnica pública do Instax)
+
+1. Fotografe a **cartela impressa** com a Instax, na mesma luz do dia, enquadrando a cartela inteira (as 4 marcas dos cantos precisam aparecer).
+2. Faça **3 fotos**: uma com o ajuste de luz que a câmera indica, uma **um passo mais claro** e uma **um passo mais escuro** no seletor. Cada passo equivale a mais ou menos uma parada.
+3. Depois de revelar (espere uns 10 minutos), **escaneie** as fotos instantâneas na HP.
+
+Com isso, eu meço o filme instantâneo de verdade: cor, contraste e o que acontece quando ele recebe luz de mais ou de menos.
+
+### Os celulares (iPhone 18 Pro Max, Galaxy S23 Ultra, Motorola Edge 50 Neo)
+
+São eles que entregam a foto ao Revela, e cada marca "cozinha" a cor de um jeito. Fotografe a cartela, na mesma luz, com cada um:
+- **Câmera normal**, sem filtro, sem modo retrato e sem HDR forçado, na lente principal (1×).
+- **iPhone:** também em **ProRAW**.
+- **Galaxy:** também pelo app **Expert RAW**.
+- **Motorola:** só a câmera normal basta. Se tiver modo "Pro" com RAW, faça também.
+
+Assim o Revela pode ter um **perfil de entrada por celular**, que deixa a foto neutra antes do filme. É o que o RNI faz com os perfis de câmera.
+
+### A Cyber-shot P93
+
+Não é necessária agora. Pode ficar para uma ideia futura: o "visual de câmera digital antiga", que é outro nicho.
+
+## 8. Como me enviar
+
+1. Crie no **Google Drive** uma pasta chamada **`Revela - referências`**, com as subpastas `fuji`, `ricoh`, `iphone`, `galaxy`, `motorola`, `instax` (os escaneamentos) e `cartela` (o escaneamento da cartela impressa).
 2. Envie **os arquivos originais**: os RAW (`.RAF` da Fuji, `.DNG` da Ricoh) e os JPEGs gerados pelas câmeras. **Não edite e não mande por WhatsApp**, que comprime e apaga os dados.
 3. Me diga **os modelos exatos das câmeras** (ex.: X100V, GR IIIx). As simulações mudam de geração para geração.
 4. Se puder, escreva num bloco de notas qual foto é qual. Os JPEGs da Fuji e da Ricoh costumam guardar o nome da simulação nos dados do arquivo, mas a anotação evita confusão.
