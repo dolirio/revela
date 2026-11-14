@@ -31,7 +31,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v42';
+const BUILD = 'v43';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 // curadoria (2026-11-13): itens tirados da vista para o app ficar menor e cada escolha ter caráter próprio.
 // Nada foi apagado: receitas salvas continuam funcionando e ⋯ › "Mostrar itens guardados" traz tudo de volta.
@@ -263,20 +263,28 @@ const TOOL_FMT = {
 // controles com zero no meio: texto das pontas
 const ENDS = { sharp: ['◂ desfoque', 'nitidez ▸'] };
 // luzes e sombras: quantidade, faixa de tons, raio (máscara pela vizinhança) e cor; raio e cor valem para as duas
-const P_HIGH = { p: 'high', n: 'Luzes', i: 'high', rows: [
-  { k: 'high', n: 'Quantidade' }, { k: 'highT', n: 'Faixa', min: 0 }, { k: 'lsRad', n: 'Raio', min: 0 }, { k: 'lsCol', n: 'Cor' },
-] };
-const P_SHAD = { p: 'shad', n: 'Sombras', i: 'shad', rows: [
-  { k: 'shad', n: 'Quantidade' }, { k: 'shadT', n: 'Faixa', min: 0 }, { k: 'lsRad', n: 'Raio', min: 0 }, { k: 'lsCol', n: 'Cor' },
-] };
+// Ferramentas juntadas (v43): o que mexia na mesma coisa em lugares diferentes virou um painel só.
+// As chaves do estado não mudaram, então receitas e fotos antigas abrem igual.
+// Tons: as quatro faixas de luz e o "preto lavado" (antigo Desbotado), com a Curva como modo avançado.
+const P_LSFINE = { p: 'lsfine', n: 'Luzes e sombras', i: 'shad', rows: [
+  { k: 'highT', n: 'Faixa luz', min: 0 }, { k: 'shadT', n: 'Faixa sombra', min: 0 },
+  { k: 'lsRad', n: 'Raio', min: 0 }, { k: 'lsCol', n: 'Cor' },
+], note: 'Faixa: quanto dos tons cada controle alcança. Raio: olha a vizinhança para não criar halo. Cor: quanto a cor acompanha a luz.' };
+const P_TONES = { p: 'tones', n: 'Tons', i: 'curve', any: true, rows: [
+  { k: 'high', n: 'Luzes' }, { k: 'shad', n: 'Sombras' }, { k: 'white', n: 'Brancos' }, { k: 'black', n: 'Pretos' },
+  { k: 'fade', n: 'Preto lavado', min: 0 },
+], links: [['Curva', () => openSpecial('curve')], ['Faixa e raio', () => openPanel(P_LSFINE)]] };
+// a cor da luz quando a foto foi feita; a cor do filme e a do papel ficam nos lugares deles
+const P_WB = { p: 'wb', n: 'Luz da cena', i: 'temp', any: true, rows: [
+  { k: 'temp', n: 'Temperatura' }, { k: 'tint', n: 'Matiz' },
+], note: 'Corrige a cor da luz na hora da foto. A cor do negativo fica no filme (Pellicula, toque de novo no filme) e a da cópia em Textura › Papel.' };
 const ADJ = [
   { k: 'exp', n: 'Exposição', min: -200, max: 200 },
   { k: 'bright', n: 'Brilho' },
-  { k: 'con', n: 'Contraste' }, P_HIGH, P_SHAD,
-  { k: 'temp', n: 'Temperatura' }, { k: 'tint', n: 'Matiz' }, { k: 'vib', n: 'Vibração' }, { k: 'sat', n: 'Saturação' },
+  { k: 'con', n: 'Contraste' }, P_TONES, P_WB,
+  { k: 'vib', n: 'Vibração' }, { k: 'sat', n: 'Saturação' },
   { k: 'clar', n: 'Claridade' }, { k: 'depth', n: 'Cor profunda', min: 0 },
-  { s: 'hsl', n: 'Cor', i: 'hsl' }, { s: 'curve', n: 'Curvas', i: 'curve' },
-  { k: 'white', n: 'Brancos' }, { k: 'black', n: 'Pretos' },
+  { s: 'hsl', n: 'Cor', i: 'hsl' },
 ];
 // painéis com vários controles. chips: grupos de botões (opções prontas); rows: controles deslizantes
 const near = (a, b, t = 0.02) => Math.abs(a - b) <= t;
@@ -298,23 +306,26 @@ const P_GRAIN = { p: 'grain', n: 'Grão', i: 'grain', on: { grain: 0.35 },
     { k: 'grain', n: 'Intensidade', min: 0 },
     { k: 'gsize', n: 'Escala', min: 8, max: 40, scale: 10, fmt: (v) => (v / 10).toFixed(1) },
   ] };
-const P_GLOW = { p: 'bloom', n: 'Difusão', i: 'bloom', rows: [
-  { k: 'bloom', n: 'Quantidade' },
-  { k: 'bloomR', n: 'Área', min: 0 },
-] };
-const P_HALO = { p: 'halo', n: 'Halação', i: 'halo', rows: [
-  { k: 'halo', n: 'Intensidade', min: 0 },
-  { k: 'haloR', n: 'Raio', min: 0 },
-  { k: 'haloT', n: 'Limiar', min: 0 },
-] };
-const TEX = [
-  P_SHARP, P_GRAIN, P_GLOW, P_HALO,
-  { k: 'vlens', n: 'Lente antiga', min: 0 },
+// luz que se espalha: a difusão (branca, de filtro na lente) e a halação (vermelha, da luz que volta no filme)
+const P_GLOW = { p: 'bloom', n: 'Difusão', i: 'bloom', any: true, rows: [
+  { k: 'bloom', n: 'Difusão' },
+  { k: 'bloomR', n: 'Área', min: 0, off: (s) => !s.bloom },
+  { k: 'halo', n: 'Halação', min: 0 },
+  { k: 'haloR', n: 'Raio', min: 0, off: (s) => !s.halo },
+  { k: 'haloT', n: 'Limiar', min: 0, off: (s) => !s.halo },
+], note: 'Difusão: brilho branco e macio, como um filtro na lente. Halação: o contorno avermelhado em volta das luzes fortes.' };
+// tudo o que a objetiva faz na borda da foto
+const P_OPTIC = { p: 'optic', n: 'Objetiva', i: 'vlens', any: true, rows: [
+  { k: 'vig', n: 'Vinheta' },
   { k: 'eblur', n: 'Borda suave', min: 0 },
+  { k: 'vlens', n: 'Lente antiga', min: 0 },
+], note: 'Vinheta escurece (ou clareia) os cantos; Borda suave tira o foco das bordas; Lente antiga junta os dois com o desenho de uma lente velha.' };
+const TEX = [
+  P_SHARP, P_GRAIN, P_GLOW, P_OPTIC,
   { s: 'paper', n: 'Papel', i: 'paper' },
 ];
 const FX = [
-  { s: 'age', n: 'Tempo', i: 'age' }, { k: 'fade', n: 'Desbotado', min: 0 }, { k: 'vig', n: 'Vinheta' },
+  { s: 'age', n: 'Tempo', i: 'age' },
   { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'marks', n: 'Poeira e riscos', i: 'scratch' },
   { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'date', n: 'Data', i: 'date' },
 ];
@@ -336,6 +347,7 @@ function buildTools(box, list) {
   for (const t of list) {
     const b = document.createElement('button'); b.className = 'tool'; b.dataset.k = t.p ? 'p_' + t.p : t.k || t.s || 'act_' + t.a;
     if (t.p) b.dataset.keys = [...t.rows.map((r) => r.k), ...(t.chips ? ['gcolor', 'grough', 'gfmt'] : [])].join(',');
+    if (t.any) b.dataset.any = '1';
     b.innerHTML = `<div class="ring">${icon(t.i || t.k)}</div><span>${t.n}</span>`;
     b.onclick = () => (t.a ? ACTIONS[t.a]() : t.s ? openSpecial(t.s) : t.p ? openPanel(t) : t.geo ? openGeo(t.k) : openSlider(t));
     box.append(b);
@@ -390,7 +402,13 @@ function openPanel(t) {
     row.dataset.k = r.k;
     body.append(row);
   }
-  const tall = (t.chips?.length || 0) * 40 + t.rows.length * 34 + 56 > 158;
+  if (t.links) {
+    const lk = document.createElement('div'); lk.className = 'pills plinks';
+    for (const [n, go] of t.links) { const b = document.createElement('button'); b.textContent = n + ' ›'; b.onclick = go; lk.append(b); }
+    body.append(lk);
+  }
+  if (t.note) { const p = document.createElement('p'); p.className = 'note'; p.textContent = t.note; body.append(p); }
+  const tall = (t.chips?.length || 0) * 40 + t.rows.length * 34 + (t.links ? 40 : 0) + 56 > 158;
   $('dock').classList.toggle('med', tall);
   syncPanel(); positionOverlays();
 }
@@ -461,6 +479,7 @@ function markTools() {
     else if (k === 'leak') set = state.leak > 0;
     else if (k === 'date') set = !!state.date;
     else if (k === 'marks') set = !!state.dust || !!state.scratch;
+    else if (b.dataset.any) set = b.dataset.keys.split(',').some((x) => state[x] !== d[x]) || (k === 'p_tones' && !!curveData(state.curve));
     else if (b.dataset.keys) { const main = b.dataset.keys.split(',')[0]; set = state[main] !== d[main]; } // marcado quando o efeito está ligado
     else if (!k.startsWith('act_')) set = JSON.stringify(state[k]) !== JSON.stringify(d[k]);
     b.classList.toggle('set', set);
@@ -470,7 +489,7 @@ function markTools() {
 
 // ------------------------------------------------------------ Pellicula: filmes e "Minhas"
 let cat = store.get('revela.cat', 'neg');
-if (!FILM_CATS.some((c) => c.id === cat)) cat = 'clima';   // categoria que deixou de existir (ex.: Filtros)
+if (!FILM_CATS.some((c) => c.id === cat) || (cat === 'clima' && !showAll)) cat = 'neg';   // categoria que sumiu (ex.: Filtros) ou Climas guardados
 let thumbSrc = null;
 let userRecipes = store.get('revela.recipes', []).map((r, i) => (r.id ? r : { id: `u_old${i}_${Date.now().toString(36)}`, ...r }));
 const saveUserRecipes = () => { if (!store.set('revela.recipes', userRecipes)) toast('Não foi possível salvar neste navegador'); };
@@ -557,6 +576,7 @@ async function saveAsMine() {
 function buildCats() {
   const box = $('cats'); box.innerHTML = '';
   for (const c of FILM_CATS) {
+    if (c.id === 'clima' && !showAll && cat !== 'clima') continue;   // Climas guardados (curadoria de 2026-11-13)
     const b = document.createElement('button'); b.dataset.f = c.id; b.textContent = c.n;
     b.onclick = () => { cat = c.id; store.set('revela.cat', cat); buildStrip(); };
     box.append(b);
@@ -1203,8 +1223,9 @@ function syncShelf() { $('btnShelf').textContent = showAll ? 'Esconder itens gua
 $('btnShelf').onclick = () => {
   showAll = !showAll;
   try { localStorage.setItem('revela.showAll', showAll ? '1' : '0'); } catch {}
-  syncShelf(); syncGfxMenu(); buildStrip(); syncPaper();
-  toast(showAll ? 'Itens guardados à mostra: filmes parecidos, Revista, Fotocópia e Gráfico' : 'Itens guardados escondidos');
+  if (!showAll && cat === 'clima') { cat = 'neg'; store.set('revela.cat', cat); }
+  syncShelf(); syncGfxMenu(); buildCats(); buildStrip(); syncPaper();
+  toast(showAll ? 'Itens guardados à mostra: Climas, filmes parecidos, Revista, Fotocópia e Gráfico' : 'Itens guardados escondidos');
 };
 syncShelf(); syncPaper();
 // fileiras que rolam para o lado: a borda direita esmaece enquanto houver mais coisa escondida

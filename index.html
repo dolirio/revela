@@ -117,6 +117,8 @@
   /* painel com vários controles (grão, brilho, halo, nitidez) */
   #dock.med .ctx { min-height: 236px; }
   #pBody { display: grid; gap: 4px; }
+  #pBody .plinks { justify-content: center; margin: 4px 0 0; }
+  #pBody .note { margin: 2px 0 0; }
   .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; flex: 0 0 auto; }
   .seg button { flex: 1; padding: 7px 4px; font-size: 12.5px; color: var(--muted); position: relative; }
   .seg button + button { border-left: 1px solid var(--line); }
@@ -302,7 +304,7 @@
       <input type="range" id="fRange" min="0" max="100">
       <div class="mini"><span>Tom</span><div class="rw bi"><input type="range" id="fTone" min="-100" max="100" aria-label="Tom do filme"></div><output id="fToneV">0</output></div>
       <div class="mini"><span>Cor</span><div class="rw bi"><input type="range" id="fCol" min="-100" max="100" aria-label="Cor do filme"></div><output id="fColV">0</output></div>
-      <p class="note" id="fNote">Tom: expor o negativo a mais (+, claro e pastel) ou a menos (−, denso e com mais grão). Cor: filtro quente (+) ou frio (−) na frente da lente.</p>
+      <p class="note" id="fNote">Tom: expor o negativo a mais (+, claro e pastel) ou a menos (−, denso e com mais grão). Cor: filtro quente (+) ou frio (−) na frente da lente. Para corrigir a luz da cena, use Ajustes › Luz da cena.</p>
       <div class="foot"><button class="ib" id="fCancel" aria-label="Cancelar"></button><div class="t" id="fTitle"></div><button class="ib" id="fOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="hslSheet">
