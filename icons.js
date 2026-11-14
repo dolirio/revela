@@ -12,6 +12,8 @@ const P = {
   films: '<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/>',
   adjust: '<path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/>',
   fx: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/>',
+  print: '<rect x="4" y="3" width="16" height="18" rx="1"/><rect x="7" y="6" width="10" height="9"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>',
   crop: '<path d="M6 2v16h16"/><path d="M2 6h16v16"/>',
   more: '<path d="M7 3h10v18l-5-4-5 4z"/>',
   // ajustes

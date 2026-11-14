@@ -21,8 +21,17 @@ setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
 for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel', 'scCancel', 'chCancel', 'agCancel', 'igCancel']) setIcon(id, 'cancel');
 for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk', 'scOk', 'chOk', 'agOk']) setIcon(id, 'ok');
-const NAV = { films: 'Pellicula', adjust: 'Ajustes', tex: 'Textura', fx: 'Efeitos', crop: 'Corte' };
-document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(b.dataset.m) + `<span>${NAV[b.dataset.m]}</span>`; });
+// abas na ordem do laboratório (v44): o filme, a revelação, a cópia em papel, o tempo, e o corte
+const NAV = { films: 'Filme', adjust: 'Revelar', tex: 'Cópia', fx: 'Tempo', crop: 'Corte' };
+const NAV_ICON = { films: 'films', adjust: 'adjust', tex: 'print', fx: 'clock', crop: 'crop' };
+document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(NAV_ICON[b.dataset.m]) + `<span>${NAV[b.dataset.m]}</span>`; });
+// uma frase na primeira vez que a aba abre, para explicar a etapa
+const NAV_HINT = {
+  films: 'Filme: escolha o filme. Toque nele de novo para a intensidade, o tom e a cor.',
+  adjust: 'Revelar: a luz, os tons e a cor da foto, como na revelação.',
+  tex: 'Cópia: a foto impressa. Papel, nitidez, grão, brilho, lente e moldura.',
+  fx: 'Tempo: o que os anos e o uso fazem com a foto.',
+};
 
 // erros guardados para o Diagnóstico (⋯ › Diagnóstico)
 const diagErrs = [];
@@ -31,7 +40,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v43';
+const BUILD = 'v44';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 // curadoria (2026-11-13): itens tirados da vista para o app ficar menor e cada escolha ter caráter próprio.
 // Nada foi apagado: receitas salvas continuam funcionando e ⋯ › "Mostrar itens guardados" traz tudo de volta.
@@ -230,6 +239,7 @@ function setMode(m) {
   if (m === 'crop' && zoom) setZoom(false);
   mode = m;
   document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.m === m));
+  if (NAV_HINT[m] && photo && !store.get('revela.hint.' + m, false)) { store.set('revela.hint.' + m, true); toast(NAV_HINT[m]); }
   document.querySelectorAll('.mode').forEach((x) => x.classList.toggle('on', x.id === 'm-' + m));
   draw(); positionOverlays();
 }
@@ -271,27 +281,29 @@ const P_LSFINE = { p: 'lsfine', n: 'Luzes e sombras', i: 'shad', rows: [
   { k: 'lsRad', n: 'Raio', min: 0 }, { k: 'lsCol', n: 'Cor' },
 ], note: 'Faixa: quanto dos tons cada controle alcança. Raio: olha a vizinhança para não criar halo. Cor: quanto a cor acompanha a luz.' };
 const P_TONES = { p: 'tones', n: 'Tons', i: 'curve', any: true, rows: [
-  { k: 'high', n: 'Luzes' }, { k: 'shad', n: 'Sombras' }, { k: 'white', n: 'Brancos' }, { k: 'black', n: 'Pretos' },
-  { k: 'fade', n: 'Preto lavado', min: 0 },
+  { k: 'high', n: 'Luzes' }, { k: 'bright', n: 'Meios-tons' }, { k: 'shad', n: 'Sombras' },
+  { k: 'white', n: 'Brancos' }, { k: 'black', n: 'Pretos' }, { k: 'fade', n: 'Preto lavado', min: 0 },
 ], links: [['Curva', () => openSpecial('curve')], ['Faixa e raio', () => openPanel(P_LSFINE)]] };
 // a cor da luz quando a foto foi feita; a cor do filme e a do papel ficam nos lugares deles
 const P_WB = { p: 'wb', n: 'Luz da cena', i: 'temp', any: true, rows: [
   { k: 'temp', n: 'Temperatura' }, { k: 'tint', n: 'Matiz' },
-], note: 'Corrige a cor da luz na hora da foto. A cor do negativo fica no filme (Pellicula, toque de novo no filme) e a da cópia em Textura › Papel.' };
+], note: 'Corrige a cor da luz na hora da foto. A cor do negativo fica em Filme (toque de novo no filme) e a da cópia em Cópia › Papel.' };
+// quanto a cor é intensa: as três num lugar só
+const P_SAT = { p: 'sat', n: 'Saturação', i: 'sat', any: true, rows: [
+  { k: 'sat', n: 'Saturação' }, { k: 'vib', n: 'Vibração' }, { k: 'depth', n: 'Cor profunda', min: 0 },
+], note: 'Saturação mexe em todas as cores igual. Vibração puxa mais as cores apagadas e poupa a pele. Cor profunda deixa as cores mais densas.' };
 const ADJ = [
   { k: 'exp', n: 'Exposição', min: -200, max: 200 },
-  { k: 'bright', n: 'Brilho' },
-  { k: 'con', n: 'Contraste' }, P_TONES, P_WB,
-  { k: 'vib', n: 'Vibração' }, { k: 'sat', n: 'Saturação' },
-  { k: 'clar', n: 'Claridade' }, { k: 'depth', n: 'Cor profunda', min: 0 },
+  { k: 'con', n: 'Contraste' }, P_TONES, P_WB, P_SAT,
   { s: 'hsl', n: 'Cor', i: 'hsl' },
 ];
 // painéis com vários controles. chips: grupos de botões (opções prontas); rows: controles deslizantes
 const near = (a, b, t = 0.02) => Math.abs(a - b) <= t;
-const P_SHARP = { p: 'sharp', n: 'Nitidez', i: 'sharp', rows: [
-  { k: 'sharp', n: 'Quantidade' },
+const P_SHARP = { p: 'sharp', n: 'Nitidez', i: 'sharp', any: true, rows: [
+  { k: 'sharp', n: 'Nitidez' },
   { k: 'srad', n: 'Raio', min: 5, max: 30, scale: 10, fmt: (v) => (v / 10).toFixed(1), off: (s) => s.sharp <= 0 },   // raio só vale para a nitidez
-] };
+  { k: 'clar', n: 'Claridade' },
+], note: 'Nitidez acentua os detalhes finos. Claridade dá corpo aos tons médios, como uma cópia mais definida.' };
 const P_GRAIN = { p: 'grain', n: 'Grão', i: 'grain', on: { grain: 0.35 },
   chips: [
     { n: 'Tamanho', opts: [['Fino', { gsize: 1.1 }], ['Médio', { gsize: 1.7 }], ['Grosso', { gsize: 2.8 }]],
@@ -319,15 +331,15 @@ const P_OPTIC = { p: 'optic', n: 'Objetiva', i: 'vlens', any: true, rows: [
   { k: 'vig', n: 'Vinheta' },
   { k: 'eblur', n: 'Borda suave', min: 0 },
   { k: 'vlens', n: 'Lente antiga', min: 0 },
-], note: 'Vinheta escurece (ou clareia) os cantos; Borda suave tira o foco das bordas; Lente antiga junta os dois com o desenho de uma lente velha.' };
+], links: [['Aberração', () => openSpecial('chroma')]],
+  note: 'Vinheta escurece (ou clareia) os cantos; Borda suave tira o foco das bordas; Lente antiga junta os dois com o desenho de uma lente velha.' };
 const TEX = [
-  P_SHARP, P_GRAIN, P_GLOW, P_OPTIC,
-  { s: 'paper', n: 'Papel', i: 'paper' },
+  { s: 'paper', n: 'Papel', i: 'paper' }, P_SHARP, P_GRAIN, P_GLOW, P_OPTIC,
 ];
 const FX = [
-  { s: 'age', n: 'Tempo', i: 'age' },
-  { s: 'leak', n: 'Light leak', i: 'leak' }, { s: 'marks', n: 'Poeira e riscos', i: 'scratch' },
-  { s: 'chroma', n: 'Aberração', i: 'chroma' }, { s: 'date', n: 'Data', i: 'date' },
+  { s: 'age', n: 'Envelhecer', i: 'age' },
+  { s: 'marks', n: 'Poeira e riscos', i: 'scratch' }, { s: 'leak', n: 'Light leak', i: 'leak' },
+  { s: 'date', n: 'Data', i: 'date' },
 ];
 const GEO = [
   { k: 'straight', n: 'Endireitar', min: -450, max: 450, scale: 10, geo: true },
@@ -479,7 +491,7 @@ function markTools() {
     else if (k === 'leak') set = state.leak > 0;
     else if (k === 'date') set = !!state.date;
     else if (k === 'marks') set = !!state.dust || !!state.scratch;
-    else if (b.dataset.any) set = b.dataset.keys.split(',').some((x) => state[x] !== d[x]) || (k === 'p_tones' && !!curveData(state.curve));
+    else if (b.dataset.any) set = b.dataset.keys.split(',').some((x) => state[x] !== d[x]) || (k === 'p_tones' && !!curveData(state.curve)) || (k === 'p_optic' && !!state.chroma);
     else if (b.dataset.keys) { const main = b.dataset.keys.split(',')[0]; set = state[main] !== d[main]; } // marcado quando o efeito está ligado
     else if (!k.startsWith('act_')) set = JSON.stringify(state[k]) !== JSON.stringify(d[k]);
     b.classList.toggle('set', set);
@@ -489,6 +501,7 @@ function markTools() {
 
 // ------------------------------------------------------------ Pellicula: filmes e "Minhas"
 let cat = store.get('revela.cat', 'neg');
+if (cat === 'pbg') cat = 'pb';   // P&B granulado entrou em P&B (v44)
 if (!FILM_CATS.some((c) => c.id === cat) || (cat === 'clima' && !showAll)) cat = 'neg';   // categoria que sumiu (ex.: Filtros) ou Climas guardados
 let thumbSrc = null;
 let userRecipes = store.get('revela.recipes', []).map((r, i) => (r.id ? r : { id: `u_old${i}_${Date.now().toString(36)}`, ...r }));
@@ -622,7 +635,7 @@ function buildStrip() {
       strip.append(b);
     }
   } else {
-    for (const f of FILMS.filter((x) => x.cat === cat && (showAll || !SHELF_FILMS.has(x.id) || state.look === x.id))) {
+    for (const f of FILMS.filter((x) => (x.cat === cat || (cat === 'pb' && x.cat === 'pbg')) && (showAll || !SHELF_FILMS.has(x.id) || state.look === x.id))) {
       const b = tile('', f.code); b.dataset.id = f.id; b.title = `${f.code} · ${insp(f.ref)}`;
       b.onclick = () => (state.look === f.id && !state.recipe ? openFilmSheet(f.code) : applyFilm(f.id));
       strip.append(b);
@@ -1234,7 +1247,7 @@ function hintScroll(el) {
   el.addEventListener('scroll', upd, { passive: true }); new ResizeObserver(upd).observe(el);
   new MutationObserver(upd).observe(el, { childList: true }); upd();
 }
-document.querySelectorAll('.scrollx, .sheet .pills, #paperTypes, #dustTypes, .cats').forEach(hintScroll);
+document.querySelectorAll('.scrollx, .sheet .pills, #paperTypes, #dustTypes, .cats, #frames').forEach(hintScroll);
 
 // ------------------------------------------------------------ corte: proporção, moldura, corte livre, grade
 const ASPECT_NAMES = { livre: 'Livre', orig: 'Original', '1:1': '1:1', '4:5': '4:5', '5:4': '5:4', '3:2': '3:2', '2:3': '2:3', '16:9': '16:9', '9:16': '9:16' };

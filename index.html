@@ -165,6 +165,9 @@
   .panel { overflow-y: auto; justify-content: flex-start !important; padding: 10px 16px; gap: 10px; }
   .panel h4 { margin: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
   .panel .pills { justify-content: flex-start; }
+  #m-tex #frames { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  #m-tex #frames::-webkit-scrollbar { display: none; }
+  #m-tex #frames button { flex: 0 0 auto; }
   .rowb { display: flex; gap: 8px; flex-wrap: wrap; }
   .rowb button, .btn { border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 13px; }
   .rowb button.on { border-color: var(--accent); color: var(--accent); }
@@ -284,12 +287,14 @@
       <p class="finfo" id="filmInfo"></p>
     </div>
     <div class="mode" id="m-adjust"><div class="scrollx tools" id="t-adjust"></div></div>
-    <div class="mode" id="m-tex"><div class="scrollx tools" id="t-tex"></div></div>
+    <div class="mode panel" id="m-tex">
+      <div class="scrollx tools" id="t-tex" style="padding:0;margin:0 -6px;flex:0 0 auto"></div>
+      <h4>Moldura</h4><div class="pills" id="frames"></div>
+    </div>
     <div class="mode" id="m-fx"><div class="scrollx tools" id="t-fx"></div></div>
     <div class="mode panel" id="m-crop">
       <div class="scrollx tools" id="t-crop" style="padding:0;margin:0 -6px;flex:0 0 auto"></div>
       <h4>Proporção</h4><div class="pills" id="aspects"></div>
-      <h4>Moldura</h4><div class="pills" id="frames"></div>
     </div>
 
     <!-- folhas de edição -->
@@ -304,7 +309,7 @@
       <input type="range" id="fRange" min="0" max="100">
       <div class="mini"><span>Tom</span><div class="rw bi"><input type="range" id="fTone" min="-100" max="100" aria-label="Tom do filme"></div><output id="fToneV">0</output></div>
       <div class="mini"><span>Cor</span><div class="rw bi"><input type="range" id="fCol" min="-100" max="100" aria-label="Cor do filme"></div><output id="fColV">0</output></div>
-      <p class="note" id="fNote">Tom: expor o negativo a mais (+, claro e pastel) ou a menos (−, denso e com mais grão). Cor: filtro quente (+) ou frio (−) na frente da lente. Para corrigir a luz da cena, use Ajustes › Luz da cena.</p>
+      <p class="note" id="fNote">Tom: expor o negativo a mais (+, claro e pastel) ou a menos (−, denso e com mais grão). Cor: filtro quente (+) ou frio (−) na frente da lente. Para corrigir a luz da cena, use Revelar › Luz da cena.</p>
       <div class="foot"><button class="ib" id="fCancel" aria-label="Cancelar"></button><div class="t" id="fTitle"></div><button class="ib" id="fOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="hslSheet">
@@ -348,7 +353,7 @@
       <div class="dicerow"><button class="dice" id="ageSeed" aria-label="Sortear outro envelhecimento" title="Sortear outra variação"></button>
         <div class="rw"><input type="range" id="ageRange" min="0" max="100" aria-label="Quanto tempo passou"></div><output id="ageVal">0</output></div>
       <div class="ends on" style="padding-left:52px"><span>◂ recente</span><span>antiga ▸</span></div>
-      <div class="foot"><button class="ib" id="agCancel" aria-label="Cancelar"></button><div class="t">Tempo</div><button class="ib" id="agOk" aria-label="Confirmar"></button></div>
+      <div class="foot"><button class="ib" id="agCancel" aria-label="Cancelar"></button><div class="t">Envelhecer</div><button class="ib" id="agOk" aria-label="Confirmar"></button></div>
     </div>
     <div class="sheet" id="panelSheet">
       <div id="pBody"></div>
