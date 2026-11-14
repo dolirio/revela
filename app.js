@@ -19,7 +19,7 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const setIcon = (id, name) => { $(id).innerHTML = icon(name); };
 setIcon('btnOpen', 'open'); setIcon('btnOpen2', 'open'); setIcon('btnLut', 'lut'); setIcon('btnMenu', 'menu');
 setIcon('btnUndo', 'undo'); setIcon('btnRedo', 'redo'); setIcon('btnCompare', 'compare');
-for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel', 'scCancel', 'chCancel', 'agCancel', 'igCancel']) setIcon(id, 'cancel');
+for (const id of ['sCancel', 'fCancel', 'hCancel', 'cCancel', 'lCancel', 'dCancel', 'uCancel', 'pCancel', 'ppCancel', 'gCancel', 'gfxCancel', 'askCancel', 'scCancel', 'chCancel', 'agCancel', 'igCancel', 'prCancel']) setIcon(id, 'cancel');
 for (const id of ['sOk', 'fOk', 'hOk', 'cOk', 'lOk', 'dOk', 'rOk', 'uOk', 'pOk', 'ppOk', 'gOk', 'gfxOk', 'askOk', 'scOk', 'chOk', 'agOk']) setIcon(id, 'ok');
 // abas na ordem do laboratório (v44): o filme, a revelação, a cópia em papel, o tempo, e o corte
 const NAV = { films: 'Filme', adjust: 'Revelar', tex: 'Cópia', fx: 'Tempo', crop: 'Corte' };
@@ -40,7 +40,7 @@ addEventListener('unhandledrejection', (e) => diagErrs.push('promessa: ' + Strin
 
 let preview, aux;
 // guardado com a versão: a cada versão nova o app tenta de novo o caminho normal
-const BUILD = 'v45';
+const BUILD = 'v46';
 // "inspirado no Kodak…", mas "inspirado na câmera descartável" / "na cópia de álbum"
 // curadoria (2026-11-13): itens tirados da vista para o app ficar menor e cada escolha ter caráter próprio.
 // Nada foi apagado: receitas salvas continuam funcionando e ⋯ › "Mostrar itens guardados" traz tudo de volta.
@@ -1649,6 +1649,100 @@ $('fileBatch').addEventListener('change', async (e) => {
   if (thumbSrc) paintThumbs();
 });
 
+// ------------------------------------------------------------ preparar para imprimir
+// Fecha o caminho até a cópia na mão: cada foto sai no tamanho exato do papel em pixels (300 ppp, o que as
+// máquinas dos laboratórios usam), com a margem branca ou preenchendo o papel, e o acabamento no nome do arquivo
+// para lembrar o que pedir no balcão. O JPEG leva 300 ppp gravados, então o laboratório já lê o tamanho certo.
+const PPI = 300;
+let prOpt = { size: '10x15', fin: 'fosco', mar: 1, ...store.get('revela.printOpt', {}) };
+if (!PRINTS[prOpt.size]) prOpt.size = '10x15';
+const prPx = (k, land) => {
+  const px = (mm) => Math.round((mm / 25.4) * PPI), [a, b] = PRINTS[k].mm;
+  return land ? [px(b), px(a)] : [px(a), px(b)];
+};
+for (const k of Object.keys(PRINTS)) {
+  const b = document.createElement('button'); b.textContent = PRINTS[k].name; b.dataset.k = k;
+  b.onclick = () => { prOpt.size = k; syncPr(); };
+  $('prSizes').append(b);
+}
+document.querySelectorAll('#prFin button').forEach((b) => (b.onclick = () => { prOpt.fin = b.dataset.v; syncPr(); }));
+document.querySelectorAll('#prMar button').forEach((b) => (b.onclick = () => { prOpt.mar = +b.dataset.v; syncPr(); }));
+function syncPr() {
+  document.querySelectorAll('#prSizes button').forEach((b) => b.classList.toggle('on', b.dataset.k === prOpt.size));
+  document.querySelectorAll('#prFin button').forEach((b) => b.classList.toggle('on', b.dataset.v === prOpt.fin));
+  document.querySelectorAll('#prMar button').forEach((b) => b.classList.toggle('on', +b.dataset.v === prOpt.mar));
+  const [w, h] = prPx(prOpt.size, true);
+  $('prNote').textContent = `Cada foto sai com ${w}×${h} px (${PPI} ppp), o tamanho exato do papel ${PRINTS[prOpt.size].name}` +
+    (prOpt.mar ? ', com a margem branca do laboratório.' : ', preenchendo o papel (as bordas da foto são cortadas).') +
+    ` No balcão, peça papel ${prOpt.fin}.`;
+  store.set('revela.printOpt', prOpt);
+}
+$('btnPrint').onclick = () => {
+  closeSheet(true);
+  if (PRINTS[state.print]) prOpt.size = state.print;   // o tamanho escolhido na aba Cópia
+  syncPr(); openSheet('prSheet'); $('dock').classList.add('med');
+};
+$('prCancel').onclick = () => closeSheet(false);
+// grava a resolução (ppp) no cabeçalho JFIF que o navegador já escreve
+async function withDpi(blob, dpi) {
+  const b = new Uint8Array(await blob.arrayBuffer());
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff && b[3] === 0xe0 && b[6] === 0x4a && b[7] === 0x46 && b[8] === 0x49 && b[9] === 0x46) {
+    b[13] = 1; b[14] = dpi >> 8; b[15] = dpi & 255; b[16] = dpi >> 8; b[17] = dpi & 255;
+  }
+  return new Blob([b], { type: 'image/jpeg' });
+}
+async function printFile(bitmap, w0, h0, s, name) {
+  const st = { ...s, frame: 'none', print: prOpt.mar ? prOpt.size : 'none' };
+  const { blob } = await renderToBlob(bitmap, w0, h0, st, name);
+  const bmp = await createImageBitmap(blob), W = bmp.width, H = bmp.height;
+  const [ow, oh] = prPx(prOpt.size, W >= H);
+  let out;
+  if (prOpt.mar) out = shrinkTo(bmp, 0, 0, W, H, ow, oh);   // com margem a proporção já é a do papel
+  else {   // sem margem: recorta o centro na proporção do papel
+    const R = ow / oh, cw = W / H > R ? Math.round(H * R) : W, ch = W / H > R ? H : Math.round(W / R);
+    out = shrinkTo(bmp, (W - cw) / 2, (H - ch) / 2, cw, ch, ow, oh);
+  }
+  bmp.close?.();
+  const jb = await withDpi(await new Promise((r) => out.toBlob(r, 'image/jpeg', 0.95)), PPI);
+  return new File([jb], `${name}_${prOpt.size}_${prOpt.fin}.jpg`, { type: 'image/jpeg' });
+}
+async function runPrint(job) {
+  const btn = $('btnExport'); btn.disabled = true; btn.textContent = 'Gerando…';
+  try { await new Promise((r) => setTimeout(r, 30)); await job(); }
+  catch (e) { console.error(e); toast('Falha ao preparar: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Exportar'; if (thumbSrc) paintThumbs(); }
+}
+$('prOne').onclick = () => {
+  if (!photo) { toast('Abra uma foto primeiro, ou use Escolher fotos'); return; }
+  closeSheet(true);
+  runPrint(async () => {
+    const f = await printFile(photo.bitmap, photo.w, photo.h, state, photo.name);
+    const n = await deliver([f]), nm = `${PRINTS[prOpt.size].name} ${prOpt.fin}`;
+    if (!isNative()) toast(`Pronta para imprimir: ${nm}`); else if (n) toast(`Pronta para imprimir (${nm}), em Imagens › Pellicula`);
+  });
+};
+$('prMany').onclick = () => { closeSheet(true); $('filePrint').click(); };
+$('filePrint').addEventListener('change', (e) => {
+  const files = [...e.target.files].filter(isImageFile); e.target.value = '';
+  if (!files.length) return;
+  // a edição atual em todas, sem o corte (cada foto tem o seu enquadramento)
+  const s0 = { ...JSON.parse(JSON.stringify(state)), rot: 0, flip: false, straight: 0, persV: 0, persH: 0, lens: 0, crop: [0, 0, 1, 1], aspect: 'orig' };
+  runPrint(async () => {
+    const out = [];
+    for (let i = 0; i < files.length; i++) {
+      toast(`Preparando ${i + 1} de ${files.length}…`);
+      try {
+        const { bitmap } = await decodeFile(files[i]);
+        const sc = Math.min(1, CAP() / Math.max(bitmap.width, bitmap.height));
+        const nm = files[i].name.replace(/\.[^.]+$/, '');
+        out.push(await printFile(bitmap, Math.round(bitmap.width * sc), Math.round(bitmap.height * sc), s0, nm));
+        bitmap.close?.();
+      } catch (err) { console.error(err); toast(`${files[i].name}: ${err.message}`); await new Promise((r) => setTimeout(r, 1500)); }
+    }
+    if (out.length) { await deliver(out); toast(`${out.length} foto(s) prontas para imprimir em ${PRINTS[prOpt.size].name}, papel ${prOpt.fin}`); }
+  });
+});
+
 // ------------------------------------------------------------ folha de contato
 // A prova que o laboratório devolvia com o rolo: as tiras de negativo copiadas direto no papel, seis quadros por tira.
 // Cada foto recebe a edição atual (sem corte, moldura e data). Na cópia por contato o filme sai escuro, os furos
@@ -1677,9 +1771,9 @@ $('fileContact').addEventListener('change', async (e) => {
       x.fillStyle = '#1c1a18'; x.fillRect(margin, y0, sw, stripH);   // base do filme
       // furos (pretos) nas duas bordas
       x.fillStyle = '#050505';
-      const hw = reb * 0.42, hh = reb * 0.5, step = fw / 8;
+      const hw = reb * 0.42, hh = reb * 0.42, step = fw / 8;
       for (let hx = margin + step * 0.35; hx < margin + sw - hw; hx += step) {
-        for (const hy of [y0 + reb * 0.25, y0 + stripH - reb * 0.25 - hh]) { x.beginPath(); x.roundRect(hx, hy, hw, hh, hh * 0.18); x.fill(); }
+        for (const hy of [y0 + reb * 0.1, y0 + stripH - reb * 0.1 - hh]) { x.beginPath(); x.roundRect(hx, hy, hw, hh, hh * 0.18); x.fill(); }
       }
       for (let i = 0; i < n; i++) {
         const k = r * CS_PER + i;
@@ -1702,10 +1796,12 @@ $('fileContact').addEventListener('change', async (e) => {
           x.restore(); img.close?.();
         } catch (err) { console.error(err); x.fillStyle = '#2a2724'; x.fillRect(fx, fy, iw, ih); }
         // marcações da borda: número do quadro embaixo, código do filme em cima
-        x.fillStyle = '#d9d2c3'; x.font = `600 ${Math.round(reb * 0.3)}px system-ui, sans-serif`; x.textBaseline = 'middle';
-        x.textAlign = 'left'; x.fillText(String(k + 1), fx + iw * 0.06, y0 + stripH - reb * 0.5);
-        x.textAlign = 'center'; x.fillText('▸ ' + (k + 1) + 'A', fx + iw * 0.62, y0 + stripH - reb * 0.5);
-        if (i % 2 === 0) { x.textAlign = 'left'; x.fillText(code, fx + iw * 0.25, y0 + reb * 0.52); }
+        // furos na beira, marcações na faixa entre os furos e a imagem (não se encostam)
+        x.fillStyle = '#d9d2c3'; x.font = `600 ${Math.round(reb * 0.26)}px system-ui, sans-serif`; x.textBaseline = 'middle';
+        const yb = y0 + stripH - reb * 0.77, yt = y0 + reb * 0.77;
+        x.textAlign = 'left'; x.fillText(String(k + 1), fx + iw * 0.06, yb);
+        x.textAlign = 'center'; x.fillText('▸ ' + (k + 1) + 'A', fx + iw * 0.62, yb);
+        if (i % 2 === 0) { x.textAlign = 'left'; x.fillText(code, fx + iw * 0.25, yt); }
       }
     }
     const jb = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.92));

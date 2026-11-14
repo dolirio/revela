@@ -258,6 +258,7 @@
   </div>
   <div class="r"><button class="ib" id="btnMenu" title="Mais opções" aria-label="Mais opções"></button><button class="export" id="btnExport" disabled>Exportar</button></div>
   <input id="fileImg" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" hidden>
+  <input id="filePrint" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
   <input id="fileContact" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
   <input id="fileBatch" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
   <input id="fileLut" type="file" accept=".cube" multiple hidden>
@@ -400,6 +401,14 @@
       <div class="rowb center" id="askRow"><input type="text" id="askInput" maxlength="32" autocomplete="off" enterkeyhint="done" aria-label="Nome"></div>
       <div class="foot"><button class="ib" id="askCancel" aria-label="Cancelar"></button><div class="t" id="askTitle"></div><button class="ib" id="askOk" aria-label="Confirmar"></button></div>
     </div>
+    <div class="sheet" id="prSheet">
+      <div class="pills" id="prSizes"></div>
+      <div class="seg" id="prFin" role="group" aria-label="Acabamento"><button data-v="brilho">Brilho</button><button data-v="lustre">Lustre</button><button data-v="fosco">Fosco</button></div>
+      <div class="seg" id="prMar" role="group" aria-label="Margem"><button data-v="1">Com margem</button><button data-v="0">Sem margem</button></div>
+      <p class="note" id="prNote"></p>
+      <div class="rowb center"><button id="prOne">Esta foto</button><button id="prMany">Escolher fotos…</button></div>
+      <div class="foot"><button class="ib" id="prCancel" aria-label="Cancelar"></button><div class="t">Imprimir</div><span></span></div>
+    </div>
     <div class="sheet" id="igSheet">
       <p class="note" id="igNote"></p>
       <div class="rowb center"><button id="igPad">Com bordas brancas</button><button id="igCrop">Recortar o centro</button></div>
@@ -427,6 +436,7 @@
 <div id="menu" role="menu">
   <button id="btnCopy">Copiar ajustes</button>
   <button id="btnPaste">Colar ajustes</button>
+  <button id="btnPrint">Preparar para imprimir…</button>
   <button id="btnIg">Exportar para Instagram</button>
   <button id="btnBatch">Editar várias fotos…</button>
   <button id="btnContact">Folha de contato…</button>
