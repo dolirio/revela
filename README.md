@@ -25,6 +25,8 @@ O Revela passa a se concentrar nos **filmes**: reproduzir cada um com a fidelida
 - **Fica e ganha profundidade:** os filmes, os ajustes básicos e o analógico essencial (grão, halação, difusão, poeira e riscos).
 - **Guardado para depois** (continua no histórico, a partir da v47): papéis e cópia, Tempo, Climas, Gráfico, molduras, preparar para imprimir, folha de contato e exportar para Instagram.
 - A pesquisa que sustenta os filmes novos está em [`pesquisa/`](pesquisa/README.md).
+- **O Revela novo está sendo construído em [`novo/`](novo/)**, sem mexer no app publicado. Cada filme vem do motor espectral (`pesquisa/motor/exportar.py`) com a física do filme dentro: a exposição e a temperatura agem **antes** do filme, o equilíbrio do laboratório **depois**. Ele substitui o app atual quando o primeiro conjunto de filmes estiver pronto.
+- A v47 fica guardada no histórico no commit `d057ed9`.
 
 ## Arquivos
 
@@ -66,6 +68,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (em construção) | 2026-11-14 | Revela novo em `novo/`: interface enxuta (Filmes, Ajustes, Analógico), filmes com a física do filme (tabela em luz da cena), exposição do negativo, temperatura antes e depois do filme, grão, halação e nitidez por camada vindos da ficha técnica. Primeiro filme: Portra 400. Cartela e instruções de referência em `referencias/`. O app publicado não muda. |
 | — | 2026-11-14 | Pesquisa: protótipo do motor espectral do Portra 400 (`pesquisa/motor/`), com LUTs `.cube` para testar no app. O app não muda. |
 | — | 2026-11-14 | Pesquisa: dossiê do Portra 400, dados das fichas do Portra 400 e do papel Endura Premier, inventário das fichas dos filmes candidatos. O app não muda. |
 | v47 | 2026-11-14 | Nome volta a ser **Revela** (era Pellicula). Backups antigos continuam abrindo. README com histórico. |

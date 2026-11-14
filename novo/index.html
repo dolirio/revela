@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Revela</title>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<style>
+  :root {
+    --bg: #0b0b0a; --panel: #121211; --raise: #1c1b19; --line: #262522; --text: #f1ece3; --muted: #8d877d; --faint: #5d5850;
+    --accent: #e8dcc6; --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; }
+  body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100dvh; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:disabled { opacity: .3; cursor: default; }
+  svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: calc(10px + var(--safe-t)) 14px 6px; gap: 8px; }
+  header .grp { display: flex; gap: 4px; align-items: center; }
+  .ib { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; }
+  .ib:active { background: var(--raise); }
+  .marca { font-weight: 600; letter-spacing: .32em; font-size: 12px; color: var(--muted); padding-left: 4px; }
+  .exportar { background: var(--accent); color: #17140f; font-weight: 600; padding: 9px 18px; border-radius: 999px; font-size: 14px; }
+
+  #palco { position: relative; display: grid; place-items: center; overflow: hidden; padding: 4px 14px 14px; touch-action: none; min-height: 0; }
+  #tela { max-width: 100%; max-height: 100%; display: none; box-shadow: 0 8px 40px #0008; }
+  #vazio { text-align: center; color: var(--muted); max-width: 300px; display: grid; gap: 16px; justify-items: center; }
+  #vazio h1 { margin: 0; font-weight: 500; font-size: 30px; letter-spacing: .28em; color: var(--text); }
+  #vazio p { margin: 0; }
+  #vazio button { border: 1px solid var(--line); padding: 12px 22px; border-radius: 999px; color: var(--text); }
+  #selo { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #000a; color: #fff; font-size: 12px;
+    padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .06em; }
+  #aviso { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px;
+    border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%; text-align: center; }
+
+  #painel { background: var(--panel); padding-bottom: calc(6px + var(--safe-b)); border-top: 1px solid var(--line); }
+  .abas { display: flex; justify-content: center; gap: 28px; padding: 10px 0 2px; }
+  .abas button { color: var(--faint); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; padding: 6px 0; }
+  .abas button.on { color: var(--text); }
+  .conteudo { min-height: 170px; }
+  .pag { display: none; } .pag.on { display: block; }
+
+  .cats { display: flex; gap: 18px; padding: 8px 16px 10px; overflow-x: auto; scrollbar-width: none; }
+  .cats::-webkit-scrollbar, .faixa::-webkit-scrollbar { display: none; }
+  .cats button { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .cats button.on { color: var(--text); }
+  .faixa { display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 8px; scrollbar-width: none; }
+  .film { flex: 0 0 auto; width: 74px; display: grid; gap: 6px; justify-items: center; color: var(--muted); font-size: 11.5px; }
+  .film canvas, .film .ph { width: 74px; height: 74px; border-radius: 6px; object-fit: cover; background: var(--raise); display: block; outline: 2px solid transparent; outline-offset: 2px; }
+  .film.on { color: var(--text); } .film.on canvas, .film.on .ph { outline-color: var(--accent); }
+  .film .ph { display: grid; place-items: center; color: var(--faint); font-size: 11px; }
+  .nota { padding: 2px 18px 0; color: var(--muted); font-size: 12px; min-height: 18px; }
+
+  .ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 18px; }
+  .ctl label { font-size: 13px; color: var(--text); }
+  .ctl output { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctl input { grid-column: 1 / -1; width: 100%; }
+  .sec { padding: 10px 18px 0; color: var(--faint); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+  .rolar { max-height: 38vh; overflow-y: auto; padding-bottom: 6px; }
+
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 26px; background: transparent; margin: 0; touch-action: pan-y; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-moz-range-track { height: 2px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--text); margin-top: -8px; border: 0; }
+  input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--text); border: 0; }
+
+  @media (min-width: 900px) {
+    body { grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
+    header { grid-column: 1 / -1; }
+    #painel { border-top: 0; border-left: 1px solid var(--line); overflow-y: auto; }
+    .rolar { max-height: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="grp">
+    <button class="ib" id="bAbrir" title="Abrir foto" aria-label="Abrir foto"></button>
+    <span class="marca">REVELA</span>
+  </div>
+  <div class="grp">
+    <button class="ib" id="bDesfazer" title="Desfazer" aria-label="Desfazer" disabled></button>
+    <button class="ib" id="bRefazer" title="Refazer" aria-label="Refazer" disabled></button>
+    <button class="ib" id="bComparar" title="Segure para ver a foto original" aria-label="Comparar com a original" disabled></button>
+    <button class="exportar" id="bExportar" disabled>Exportar</button>
+  </div>
+</header>
+
+<main id="palco">
+  <canvas id="tela"></canvas>
+  <div id="vazio">
+    <h1>REVELA</h1>
+    <p>Sua foto digital, revelada em filme.</p>
+    <button id="bAbrir2">Abrir uma foto</button>
+  </div>
+  <div id="selo">ORIGINAL</div>
+  <div id="aviso"></div>
+</main>
+
+<section id="painel">
+  <nav class="abas">
+    <button data-p="filmes" class="on">Filmes</button>
+    <button data-p="ajustes">Ajustes</button>
+    <button data-p="analogico">Analógico</button>
+  </nav>
+  <div class="conteudo">
+    <div class="pag on" id="p-filmes">
+      <div class="cats" id="cats"></div>
+      <div class="faixa" id="faixa"></div>
+      <div class="nota" id="nota"></div>
+      <div class="ctl" id="cIntensidade"></div>
+    </div>
+    <div class="pag rolar" id="p-ajustes"></div>
+    <div class="pag rolar" id="p-analogico"></div>
+  </div>
+</section>
+
+<input type="file" id="arquivo" accept="image/*,.heic,.heif,.dng,.raf,.cr2,.cr3,.nef,.arw,.orf,.rw2" hidden>
+<script type="module" src="app.js"></script>
+</body>
+</html>
