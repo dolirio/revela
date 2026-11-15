@@ -11,6 +11,22 @@
 - **O papel comum** tem menos saturação (26 contra 35) e pretos mais claros. Mesmo assim, **os resultados relativos se repetem nos dois papéis**, o que dá confiança na medição.
 - As fotos saíram em f/2.8 e com a câmera na mão. Isso não afeta a comparação, porque cada simulação é comparada com a sua própria foto.
 
+## Conferência pelo vídeo da tela da câmera
+
+O vídeo da tela de informações (feito pelo fotógrafo) confirma:
+- **Av, f/2.8, ISO 100, Luz do dia, sRGB, 6000×4000, 40 mm**, compensação conforme a série;
+- **os parâmetros de cada simulação estão no padrão de fábrica da Ricoh**, iguais em todas as fotos (nada foi alterado sem querer).
+
+Esses padrões **não são zero**. Cada simulação da Ricoh já vem com o seu próprio ajuste. Leitura pela ordem dos parâmetros do Image Control da GR III (saturação, matiz, tom alto/baixo, contraste, contraste das luzes, contraste das sombras, nitidez, sombreamento, clareza):
+
+| Simulação | Tom alto/baixo | Contraste | Contraste das luzes | Contraste das sombras | Demais |
+|---|---|---|---|---|---|
+| Standard | 0 | 0 | 0 | 0 | 0 |
+| **Negative Film** | **+1** (mais claro) | **+1** | 0 | **−1** (sombras mais suaves) | 0 |
+| **Positive Film** | **−1** (mais escuro) | **+3** | −1 | **−2** | 0 |
+
+Isso **explica as medidas abaixo**: o Negative Film sai mais claro e com sombras abertas; o Positive Film, mais escuro e bem mais contrastado. A identificação de cada ícone é a leitura mais provável pela ordem dos parâmetros; os valores conferem com o comportamento medido.
+
 ## Curva de tons
 
 ![Curva de tons](curva_tons.png)

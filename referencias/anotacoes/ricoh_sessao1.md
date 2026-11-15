@@ -58,4 +58,5 @@ Não existem 459 nem 495 (apagados na câmera). Não há +3.
 - 463 e 465: os dois são Standard (confirmado pelo EXIF).
 - Exposições feitas: −3 a +2 nos dois papéis. Falta só +3.
 - Atenção: as fotos saíram em f/2.8 (modo Av), não em f/5.6. Não atrapalha a medição; nas próximas, usar U1.
-- Modo usado (M ou Av), velocidade e abertura: virão nos dados do arquivo (EXIF).
+- Modo, velocidade e abertura: confirmados pelo EXIF e pelo vídeo da tela (Av, f/2.8, ISO 100, Luz do dia).
+- Vídeo da tela de informações: parâmetros de cada simulação no padrão de fábrica, iguais em todas as fotos.
