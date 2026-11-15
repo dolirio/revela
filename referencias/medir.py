@@ -43,8 +43,29 @@ def acha_marcas(lin):
     g = np.clip(lin.mean(2) ** (1 / 2.2) * 255, 0, 255).astype(np.uint8)
     esc = max(1, int(max(g.shape) / 2000))
     g = cv2.resize(g, (g.shape[1] // esc, g.shape[0] // esc))
-    bw = cv2.adaptiveThreshold(g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 51, 15)
-    cs, hier = cv2.findContours(bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cand = []
+    # vários limiares: uma marca perto de texto ou de sombra pode sumir num deles e aparecer em outro
+    for bloco, k in ((51, 15), (31, 10), (75, 20)):
+        bw = cv2.adaptiveThreshold(g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, bloco, k)
+        cs, hier = cv2.findContours(bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cand += _candidatos(cs, hier, esc)
+    unicos = []
+    for c in sorted(cand, reverse=True):   # junta a mesma marca achada em mais de um limiar
+        if all(abs(c[1] - u[1]) > 12 * esc or abs(c[2] - u[2]) > 12 * esc for u in unicos):
+            unicos.append(c)
+    cand = unicos
+    if len(cand) < 4:
+        raise ValueError(f'achei só {len(cand)} marcas de canto; a cartela inteira precisa aparecer na foto')
+    cand.sort(reverse=True)
+    melhor = min((cand[i:i + 4] for i in range(len(cand) - 3)), key=lambda q: np.std([a for a, _, _ in q]) / np.mean([a for a, _, _ in q]))
+    pts = np.float32([[x, y] for _, x, y in melhor])
+    s, d = pts.sum(1), pts[:, 0] - pts[:, 1]
+    tl, br = pts[np.argmin(s)], pts[np.argmax(s)]
+    tr, bl = pts[np.argmax(d)], pts[np.argmin(d)]
+    return np.float32([tl, tr, bl, br])
+
+
+def _candidatos(cs, hier, esc):
     cand = []
     for i, c in enumerate(cs):
         a = cv2.contourArea(c)
@@ -60,16 +81,7 @@ def acha_marcas(lin):
         if 0.08 < af / a < 0.35:   # miolo branco: (40/90)² ≈ 0,2 da área
             m = cv2.moments(c)
             cand.append((a, m['m10'] / m['m00'] * esc, m['m01'] / m['m00'] * esc))
-    if len(cand) < 4:
-        raise ValueError(f'achei só {len(cand)} marcas de canto; a cartela inteira precisa aparecer na foto')
-    cand.sort(reverse=True)
-    # as 4 marcas têm o mesmo tamanho: pega o grupo de 4 de área mais parecida entre as maiores
-    melhor = min((cand[i:i + 4] for i in range(len(cand) - 3)), key=lambda q: np.std([a for a, _, _ in q]) / np.mean([a for a, _, _ in q]))
-    pts = np.float32([[x, y] for _, x, y in melhor])
-    s, d = pts.sum(1), pts[:, 0] - pts[:, 1]
-    tl, br = pts[np.argmin(s)], pts[np.argmax(s)]
-    tr, bl = pts[np.argmax(d)], pts[np.argmin(d)]
-    return np.float32([tl, tr, bl, br])
+    return cand
 
 
 def mede(caminho):
