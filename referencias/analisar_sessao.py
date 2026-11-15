@@ -155,6 +155,18 @@ def main(pasta, saida, nome='sessão', papeis=None):
     ax[0].set_ylabel('desvio de cor do cinza médio'); ax[1].legend(frameon=False, fontsize=7, loc='upper left', bbox_to_anchor=(1, 1))
     fig.tight_layout(); fig.savefig(os.path.join(saida, 'equilibrio_cinza.png')); plt.close(fig)
     rel['equilibrio_cinza'] = eq
+    # o cinza impresso não é neutro (a impressora deixa um tom): o que interessa é a diferença para o Standard
+    # da MESMA foto, que cancela a cor da impressão e da luz
+    relativo = {}
+    for papel in ['fotográfico', 'comum']:
+        for sim in ['Negative Film', 'Positive Film']:
+            linhas = []
+            for f in sorted(fotos, key=lambda f: f['comp']):
+                if f['papel'] == papel and sim in f['sims'] and 'Standard' in f['sims']:
+                    d = lab(M[f['sims'][sim]][CINZA_REF]) - lab(M[f['sims']['Standard']][CINZA_REF])
+                    linhas.append((f['comp'], round(float(d[1]), 2), round(float(d[2]), 2), round(float(d[0]), 1)))
+            relativo[f'{papel}/{sim}'] = [{'comp': c, 'da': a, 'db': b, 'dL': L} for c, a, b, L in linhas]
+    rel['cinza_relativo_ao_standard'] = relativo
 
     # ---- 3) cor na exposição 0, papel fotográfico: o que cada simulação faz em relação ao RAW
     f0 = next(f for f in fotos if f['comp'] == 0 and f['papel'] == 'fotográfico' and len(f['sims']) > 3)

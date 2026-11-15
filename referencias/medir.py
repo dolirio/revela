@@ -64,9 +64,20 @@ def acha_marcas(lin):
     # escolhe, entre as combinações de 4, a que tem a forma da cartela: proporção certa, lados opostos parecidos
     # e marcas do mesmo tamanho (evita confundir um quadro escuro com uma marca)
     from itertools import combinations
+    melhor, nota_min = _melhor_quadra(combinations(cand[:10], 4))
+    if melhor is None or nota_min > 0.8:
+        # reserva: três marcas verdadeiras + a quarta deduzida pela geometria e confirmada no lugar
+        quadras = [list(t) + [_quarta_marca(g, list(t), esc)] for t in combinations(cand[:8], 3)]
+        melhor, nota_min = _melhor_quadra(quadras)
+    if melhor is None or nota_min > 0.8:
+        raise ValueError('não achei as 4 marcas com a forma da cartela')
+    return melhor
+
+
+def _melhor_quadra(quadras):
     alvo = (W - 2 * M - LADO) / (H - 2 * M - LADO)
     melhor, nota_min = None, 1e9
-    for q in combinations(cand[:10], 4):
+    for q in quadras:
         pts = np.float32([[x, y] for _, x, y in q])
         s_, d_ = pts.sum(1), pts[:, 0] - pts[:, 1]
         o = np.float32([pts[np.argmin(s_)], pts[np.argmax(d_)], pts[np.argmin(d_)], pts[np.argmax(s_)]])  # tl, tr, bl, br
@@ -81,9 +92,7 @@ def acha_marcas(lin):
         nota = abs(np.log(prop / alvo)) + abs(np.log(topo / base)) + abs(np.log(esq / dir_)) + np.std(areas) / np.mean(areas)
         if nota < nota_min:
             melhor, nota_min = o, nota
-    if melhor is None or nota_min > 0.8:
-        raise ValueError('não achei as 4 marcas com a forma da cartela')
-    return melhor
+    return melhor, nota_min
 
 
 def _quarta_marca(g, tres, esc):
