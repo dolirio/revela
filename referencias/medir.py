@@ -135,11 +135,28 @@ def _candidatos(cs, hier, esc):
     return cand
 
 
+def mede_lado(caminho, lado, marcas=None):
+    """Foto com DUAS cartelas lado a lado: mede só a da esquerda ('esq') ou a da direita ('dir').
+    Procura as marcas apenas na metade escolhida da foto."""
+    lin = abre(caminho)
+    h, w = lin.shape[:2]
+    x0 = 0 if lado == 'esq' else w // 2
+    if marcas is None:
+        m = acha_marcas(lin[:, x0:x0 + w // 2]); m[:, 0] += x0
+    else:
+        m = np.float32(marcas)
+    return _mede_com(lin, m, caminho, sufixo='.' + lado)
+
+
 def mede(caminho, marcas=None):
     """marcas: posições já conhecidas (ex.: as da foto RAW de origem; a revelação RAW na câmera mantém o
     mesmo enquadramento, então todas as simulações de uma foto usam as marcas dela)."""
     lin = abre(caminho)
     marcas = acha_marcas(lin) if marcas is None else np.float32(marcas)
+    return _mede_com(lin, marcas, caminho)
+
+
+def _mede_com(lin, marcas, caminho, sufixo=''):
     Hm = cv2.getPerspectiveTransform(CANTOS, marcas)   # cartela -> foto
     out = []
     for q in MAPA['quadros']:
@@ -151,7 +168,7 @@ def mede(caminho, marcas=None):
         v = np.median(lin[yi, xi], axis=0)
         out.append({**{k: q[k] for k in ('grupo', 'i', 'srgb') if k in q}, 'linear': [round(float(a), 5) for a in v]})
     res = {'arquivo': os.path.basename(caminho), 'marcas_px': marcas.round(1).tolist(), 'quadros': out}
-    with open(caminho + '.medidas.json', 'w', encoding='utf-8') as f:
+    with open(caminho + sufixo + '.medidas.json', 'w', encoding='utf-8') as f:
         json.dump(res, f, ensure_ascii=False, indent=1)
     return res
 
