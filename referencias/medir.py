@@ -32,7 +32,7 @@ def abre(caminho):
         import rawpy
         with rawpy.imread(caminho) as r:
             rgb = r.postprocess(use_camera_wb=True, no_auto_bright=True, gamma=(1, 1), output_bps=16,
-                                output_color=rawpy.ColorSpace.sRGB, user_flip=0)
+                                output_color=rawpy.ColorSpace.sRGB)   # orientação do arquivo (foto na vertical)
         return rgb.astype(np.float32) / 65535
     img = cv2.cvtColor(cv2.imread(caminho, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB).astype(np.float32) / 255
     return np.where(img <= 0.04045, img / 12.92, ((img + 0.055) / 1.055) ** 2.4)
@@ -40,7 +40,9 @@ def abre(caminho):
 
 def acha_marcas(lin):
     """Acha as 4 marcas dos cantos: quadrado escuro com um quadrado claro dentro."""
-    g = np.clip(lin.mean(2) ** (1 / 2.2) * 255, 0, 255).astype(np.uint8)
+    y = lin.mean(2)
+    y = y / max(float(np.percentile(y, 99.5)), 1e-6)        # foto escura (subexposta) ou RAW linear: estica antes
+    g = np.clip(np.clip(y, 0, 1) ** (1 / 2.2) * 255, 0, 255).astype(np.uint8)
     esc = max(1, int(max(g.shape) / 2000))
     g = cv2.resize(g, (g.shape[1] // esc, g.shape[0] // esc))
     cand = []
@@ -54,15 +56,55 @@ def acha_marcas(lin):
         if all(abs(c[1] - u[1]) > 12 * esc or abs(c[2] - u[2]) > 12 * esc for u in unicos):
             unicos.append(c)
     cand = unicos
+    if len(cand) == 3:   # a quarta marca se perdeu (ex.: encostada na borda do papel): deduz e confirma
+        cand.append(_quarta_marca(g, cand, esc))
     if len(cand) < 4:
         raise ValueError(f'achei só {len(cand)} marcas de canto; a cartela inteira precisa aparecer na foto')
     cand.sort(reverse=True)
-    melhor = min((cand[i:i + 4] for i in range(len(cand) - 3)), key=lambda q: np.std([a for a, _, _ in q]) / np.mean([a for a, _, _ in q]))
-    pts = np.float32([[x, y] for _, x, y in melhor])
-    s, d = pts.sum(1), pts[:, 0] - pts[:, 1]
-    tl, br = pts[np.argmin(s)], pts[np.argmax(s)]
-    tr, bl = pts[np.argmax(d)], pts[np.argmin(d)]
-    return np.float32([tl, tr, bl, br])
+    # escolhe, entre as combinações de 4, a que tem a forma da cartela: proporção certa, lados opostos parecidos
+    # e marcas do mesmo tamanho (evita confundir um quadro escuro com uma marca)
+    from itertools import combinations
+    alvo = (W - 2 * M - LADO) / (H - 2 * M - LADO)
+    melhor, nota_min = None, 1e9
+    for q in combinations(cand[:10], 4):
+        pts = np.float32([[x, y] for _, x, y in q])
+        s_, d_ = pts.sum(1), pts[:, 0] - pts[:, 1]
+        o = np.float32([pts[np.argmin(s_)], pts[np.argmax(d_)], pts[np.argmin(d_)], pts[np.argmax(s_)]])  # tl, tr, bl, br
+        if len({tuple(p) for p in o.tolist()}) < 4:
+            continue
+        topo, base = np.linalg.norm(o[1] - o[0]), np.linalg.norm(o[3] - o[2])
+        esq, dir_ = np.linalg.norm(o[2] - o[0]), np.linalg.norm(o[3] - o[1])
+        if min(topo, base, esq, dir_) < 1:
+            continue
+        prop = (topo + base) / (esq + dir_)
+        areas = [a for a, _, _ in q]
+        nota = abs(np.log(prop / alvo)) + abs(np.log(topo / base)) + abs(np.log(esq / dir_)) + np.std(areas) / np.mean(areas)
+        if nota < nota_min:
+            melhor, nota_min = o, nota
+    if melhor is None or nota_min > 0.8:
+        raise ValueError('não achei as 4 marcas com a forma da cartela')
+    return melhor
+
+
+def _quarta_marca(g, tres, esc):
+    """Com 3 marcas, a quarta fica no canto que completa o paralelogramo; depois procura, numa janela em volta,
+    o padrão da marca (quadrado escuro com miolo claro) por correlação."""
+    pts = np.array([[x, y] for _, x, y in tres]) / esc
+    d = [np.linalg.norm(pts[i] - pts[j]) for i, j in ((0, 1), (0, 2), (1, 2))]
+    k = int(np.argmax(d)); a, b = ((0, 1), (0, 2), (1, 2))[k]; c = 3 - a - b   # a e b são opostos; c é o canto do meio
+    est = pts[a] + pts[b] - pts[c]
+    lado = np.sqrt(np.mean([t[0] for t in tres])) / esc                        # lado da marca (pixels reduzidos)
+    L = max(int(round(lado)), 8)
+    mol = np.full((L, L), 0, np.uint8); m0 = int(round(L * 25 / 90)); m1 = L - m0
+    mol[m0:m1, m0:m1] = 255
+    r = int(4 * L)
+    x0, y0 = int(max(est[0] - r, 0)), int(max(est[1] - r, 0))
+    jan = g[y0:int(est[1] + r), x0:int(est[0] + r)]
+    if jan.shape[0] <= L or jan.shape[1] <= L:
+        return (tres[0][0], est[0] * esc, est[1] * esc)
+    res = cv2.matchTemplate(jan, mol, cv2.TM_CCOEFF_NORMED)
+    _, _, _, mx = cv2.minMaxLoc(res)
+    return (tres[0][0], (x0 + mx[0] + L / 2) * esc, (y0 + mx[1] + L / 2) * esc)
 
 
 def _candidatos(cs, hier, esc):
@@ -84,9 +126,11 @@ def _candidatos(cs, hier, esc):
     return cand
 
 
-def mede(caminho):
+def mede(caminho, marcas=None):
+    """marcas: posições já conhecidas (ex.: as da foto RAW de origem; a revelação RAW na câmera mantém o
+    mesmo enquadramento, então todas as simulações de uma foto usam as marcas dela)."""
     lin = abre(caminho)
-    marcas = acha_marcas(lin)
+    marcas = acha_marcas(lin) if marcas is None else np.float32(marcas)
     Hm = cv2.getPerspectiveTransform(CANTOS, marcas)   # cartela -> foto
     out = []
     for q in MAPA['quadros']:
