@@ -13,7 +13,7 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, labAuto: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
@@ -120,6 +120,13 @@ function controle(k, pai) {
   r.addEventListener('change', memoriza);
   r.addEventListener('dblclick', () => { s[k] = PADRAO[k] ?? 0; if (k === 'grao' || k === 'halacao') { const a = filmeAtual()?.meta.analogico || {}; s[k] = (k === 'grao' ? a.grao : a.halacao) ?? 0; } sincroniza(); desenha(); memoriza(); });
 }
+// chave liga/desliga (valor 1 ou 0 no estado)
+function chave(k, nome, nota, pai) {
+  const w = document.createElement('label'); w.className = 'chave';
+  w.innerHTML = `<span><b>${nome}</b><small>${nota}</small></span><input type="checkbox" id="c_${k}"><i></i>`;
+  pai.append(w);
+  w.querySelector('input').addEventListener('change', (e) => { s[k] = e.target.checked ? 1 : 0; desenha(); memoriza(); });
+}
 function secao(pai, t, nota) { const e = document.createElement('div'); e.className = 'sec'; e.textContent = t; if (nota) e.title = nota; pai.append(e); }
 
 $('cIntensidade').className = '';
@@ -128,6 +135,7 @@ secao($('p-ajustes'), 'Na câmera', 'Antes do filme: a luz que chega ao negativo
 controle('exposicao', $('p-ajustes'));
 controle('cenaTemp', $('p-ajustes')); controle('cenaMatiz', $('p-ajustes'));
 secao($('p-ajustes'), 'No laboratório', 'Depois do filme: o equilíbrio feito no scan');
+chave('labAuto', 'Equilíbrio automático', 'Como o scanner do laboratório: o cinza fica neutro em qualquer exposição', $('p-ajustes'));
 controle('labTemp', $('p-ajustes')); controle('labMatiz', $('p-ajustes'));
 secao($('p-analogico'), 'Do filme');
 controle('grao', $('p-analogico')); controle('graoTamanho', $('p-analogico'));
@@ -135,6 +143,7 @@ controle('halacao', $('p-analogico')); controle('caraterFilme', $('p-analogico')
 
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
+  const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
 }
 
 document.querySelectorAll('.abas button').forEach((b) => b.onclick = () => {
