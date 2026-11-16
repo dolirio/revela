@@ -1,0 +1,34 @@
+{
+ "id": "ku400v",
+ "nome": "KU 400 · 20 anos",
+ "inspirado": "Kodak UltraMax 400 vencido",
+ "cat": "vencido",
+ "nota": "vencido · 20 anos em temperatura ambiente · véu forte, cor desbotada",
+ "analogico": {
+  "grao": 0.614,
+  "grao_tamanho": 1.2,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.67,
+   1.0,
+   1.0
+  ]
+ },
+ "labs": [
+  "neutro",
+  "frontier"
+ ],
+ "ficha": "Kodak UltraMax 400",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.371,
+  0.413,
+  0.4059
+ ]
+}

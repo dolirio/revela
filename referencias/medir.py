@@ -32,26 +32,141 @@ def abre(caminho):
         import rawpy
         with rawpy.imread(caminho) as r:
             rgb = r.postprocess(use_camera_wb=True, no_auto_bright=True, gamma=(1, 1), output_bps=16,
-                                output_color=rawpy.ColorSpace.sRGB, user_flip=0)
+                                output_color=rawpy.ColorSpace.sRGB)   # orientação do arquivo (foto na vertical)
         return rgb.astype(np.float32) / 65535
     img = cv2.cvtColor(cv2.imread(caminho, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB).astype(np.float32) / 255
     return np.where(img <= 0.04045, img / 12.92, ((img + 0.055) / 1.055) ** 2.4)
 
 
 def acha_marcas(lin):
-    """Acha as 4 marcas dos cantos: quadrado escuro com um quadrado claro dentro."""
-    g = np.clip(lin.mean(2) ** (1 / 2.2) * 255, 0, 255).astype(np.uint8)
-    esc = max(1, int(max(g.shape) / 2000))
-    g = cv2.resize(g, (g.shape[1] // esc, g.shape[0] // esc))
-    bw = cv2.adaptiveThreshold(g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 51, 15)
-    cs, hier = cv2.findContours(bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    """Acha as 4 marcas dos cantos: quadrado escuro com um quadrado claro dentro.
+    Se falhar, tenta de novo com a imagem mais reduzida: numa foto tremida a marca fica borrada,
+    e reduzir encolhe o borrão junto com ela."""
+    erro = None
+    for fator in (1, 2, 3):
+        try:
+            return _acha_marcas(lin, fator)
+        except ValueError as e:
+            erro = e
+    raise erro
+
+
+def _candidatos_img(lin, fator=1):
+    y = lin.mean(2)
+    y = y / max(float(np.percentile(y, 99.5)), 1e-6)        # foto escura (subexposta) ou RAW linear: estica antes
+    g = np.clip(np.clip(y, 0, 1) ** (1 / 2.2) * 255, 0, 255).astype(np.uint8)
+    esc = max(1, int(max(g.shape) / 2000)) * fator
+    g = cv2.resize(g, (g.shape[1] // esc, g.shape[0] // esc), interpolation=cv2.INTER_AREA)
+    cand = []
+    # vários limiares: uma marca perto de texto ou de sombra pode sumir num deles e aparecer em outro
+    for bloco, k in ((51, 15), (31, 10), (75, 20)):
+        bw = cv2.adaptiveThreshold(g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, bloco, k)
+        cs, hier = cv2.findContours(bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cand += _candidatos(cs, hier, esc)
+    unicos = []
+    for c in sorted(cand, reverse=True):   # junta a mesma marca achada em mais de um limiar
+        if all(abs(c[1] - u[1]) > 12 * esc or abs(c[2] - u[2]) > 12 * esc for u in unicos):
+            unicos.append(c)
+    return g, esc, unicos
+
+
+def acha_cartelas(lin, n=2):
+    """Foto com n cartelas (ex.: papel fotográfico à esquerda e papel comum à direita): acha cada uma pelas
+    suas 4 marcas, escolhendo a melhor quadra, tirando as marcas dela e escolhendo a próxima.
+    Devolve as quadras da esquerda para a direita."""
+    from itertools import combinations
+    for fator in (1, 2, 3):
+        g, esc, cand = _candidatos_img(lin, fator)
+        quadras, resto = [], sorted(cand, reverse=True)[:16]
+        for _ in range(n):
+            if len(resto) < 3:
+                break
+            melhor, nota = _melhor_quadra(combinations(resto, 4)) if len(resto) >= 4 else (None, 1e9)
+            if melhor is None or nota > 0.8:
+                # reserva: três marcas + a quarta deduzida pela geometria (ex.: marca encostada na borda da foto)
+                melhor, nota = _melhor_quadra([list(t) + [_quarta_marca(g, list(t), esc)] for t in combinations(resto[:8], 3)])
+            if melhor is None or nota > 0.8:
+                break
+            quadras.append(melhor)
+            usados = {(round(float(x)), round(float(y))) for x, y in melhor}
+            resto = [c for c in resto if (round(c[1]), round(c[2])) not in usados]
+        if len(quadras) == n:
+            return sorted(quadras, key=lambda q: float(np.mean(q[:, 0])))
+    raise ValueError(f'não achei {n} cartelas na foto')
+
+
+def _acha_marcas(lin, fator=1):
+    g, esc, cand = _candidatos_img(lin, fator)
+    if len(cand) == 3:   # a quarta marca se perdeu (ex.: encostada na borda do papel): deduz e confirma
+        cand.append(_quarta_marca(g, cand, esc))
+    if len(cand) < 4:
+        raise ValueError(f'achei só {len(cand)} marcas de canto; a cartela inteira precisa aparecer na foto')
+    cand.sort(reverse=True)
+    # escolhe, entre as combinações de 4, a que tem a forma da cartela: proporção certa, lados opostos parecidos
+    # e marcas do mesmo tamanho (evita confundir um quadro escuro com uma marca)
+    from itertools import combinations
+    melhor, nota_min = _melhor_quadra(combinations(cand[:10], 4))
+    if melhor is None or nota_min > 0.8:
+        # reserva: três marcas verdadeiras + a quarta deduzida pela geometria e confirmada no lugar
+        quadras = [list(t) + [_quarta_marca(g, list(t), esc)] for t in combinations(cand[:8], 3)]
+        melhor, nota_min = _melhor_quadra(quadras)
+    if melhor is None or nota_min > 0.8:
+        raise ValueError('não achei as 4 marcas com a forma da cartela')
+    return melhor
+
+
+def _melhor_quadra(quadras):
+    alvo = (W - 2 * M - LADO) / (H - 2 * M - LADO)
+    melhor, nota_min = None, 1e9
+    for q in quadras:
+        pts = np.float32([[x, y] for _, x, y in q])
+        s_, d_ = pts.sum(1), pts[:, 0] - pts[:, 1]
+        o = np.float32([pts[np.argmin(s_)], pts[np.argmax(d_)], pts[np.argmin(d_)], pts[np.argmax(s_)]])  # tl, tr, bl, br
+        if len({tuple(p) for p in o.tolist()}) < 4:
+            continue
+        topo, base = np.linalg.norm(o[1] - o[0]), np.linalg.norm(o[3] - o[2])
+        esq, dir_ = np.linalg.norm(o[2] - o[0]), np.linalg.norm(o[3] - o[1])
+        if min(topo, base, esq, dir_) < 1:
+            continue
+        prop = (topo + base) / (esq + dir_)
+        areas = [a for a, _, _ in q]
+        nota = abs(np.log(prop / alvo)) + abs(np.log(topo / base)) + abs(np.log(esq / dir_)) + np.std(areas) / np.mean(areas)
+        if nota < nota_min:
+            melhor, nota_min = o, nota
+    return melhor, nota_min
+
+
+def _quarta_marca(g, tres, esc):
+    """Com 3 marcas, a quarta fica no canto que completa o paralelogramo; depois procura, numa janela em volta,
+    o padrão da marca (quadrado escuro com miolo claro) por correlação."""
+    pts = np.array([[x, y] for _, x, y in tres]) / esc
+    d = [np.linalg.norm(pts[i] - pts[j]) for i, j in ((0, 1), (0, 2), (1, 2))]
+    k = int(np.argmax(d)); a, b = ((0, 1), (0, 2), (1, 2))[k]; c = 3 - a - b   # a e b são opostos; c é o canto do meio
+    est = pts[a] + pts[b] - pts[c]
+    lado = np.sqrt(np.mean([t[0] for t in tres])) / esc                        # lado da marca (pixels reduzidos)
+    L = max(int(round(lado)), 8)
+    mol = np.full((L, L), 0, np.uint8); m0 = int(round(L * 25 / 90)); m1 = L - m0
+    mol[m0:m1, m0:m1] = 255
+    r = int(4 * L)
+    x0, y0 = int(max(est[0] - r, 0)), int(max(est[1] - r, 0))
+    jan = g[y0:int(est[1] + r), x0:int(est[0] + r)]
+    if jan.shape[0] <= L or jan.shape[1] <= L:
+        return (tres[0][0], est[0] * esc, est[1] * esc)
+    res = cv2.matchTemplate(jan, mol, cv2.TM_CCOEFF_NORMED)
+    _, _, _, mx = cv2.minMaxLoc(res)
+    return (tres[0][0], (x0 + mx[0] + L / 2) * esc, (y0 + mx[1] + L / 2) * esc)
+
+
+def _candidatos(cs, hier, esc):
     cand = []
     for i, c in enumerate(cs):
         a = cv2.contourArea(c)
         if a < 60:
             continue
-        x, y, w, h = cv2.boundingRect(c)
-        if not 0.7 < w / h < 1.4 or a < 0.75 * w * h:
+        # retângulo girado: a cartela pode estar inclinada na foto (na X-T50, ~10°), e um quadrado girado
+        # ocupa só ~75% da caixa reta em volta dele, o que reprovava marcas verdadeiras
+        (_, _), (w, h), _ = cv2.minAreaRect(c)
+        if min(w, h) < 1 or not 0.7 < w / h < 1.4 or a < 0.8 * w * h:
             continue
         filho = hier[0][i][2]
         if filho < 0:
@@ -60,21 +175,38 @@ def acha_marcas(lin):
         if 0.08 < af / a < 0.35:   # miolo branco: (40/90)² ≈ 0,2 da área
             m = cv2.moments(c)
             cand.append((a, m['m10'] / m['m00'] * esc, m['m01'] / m['m00'] * esc))
-    if len(cand) < 4:
-        raise ValueError(f'achei só {len(cand)} marcas de canto; a cartela inteira precisa aparecer na foto')
-    cand.sort(reverse=True)
-    # as 4 marcas têm o mesmo tamanho: pega o grupo de 4 de área mais parecida entre as maiores
-    melhor = min((cand[i:i + 4] for i in range(len(cand) - 3)), key=lambda q: np.std([a for a, _, _ in q]) / np.mean([a for a, _, _ in q]))
-    pts = np.float32([[x, y] for _, x, y in melhor])
-    s, d = pts.sum(1), pts[:, 0] - pts[:, 1]
-    tl, br = pts[np.argmin(s)], pts[np.argmax(s)]
-    tr, bl = pts[np.argmax(d)], pts[np.argmin(d)]
-    return np.float32([tl, tr, bl, br])
+    return cand
 
 
-def mede(caminho):
+def mede_lado(caminho, lado, marcas=None):
+    """Foto com DUAS cartelas lado a lado: mede só a da esquerda ('esq') ou a da direita ('dir').
+    Procura as marcas apenas na metade escolhida da foto."""
     lin = abre(caminho)
-    marcas = acha_marcas(lin)
+    h, w = lin.shape[:2]
+    x0 = 0 if lado == 'esq' else w // 2
+    if marcas is None:
+        m = acha_marcas(lin[:, x0:x0 + w // 2]); m[:, 0] += x0
+    else:
+        m = np.float32(marcas)
+    return _mede_com(lin, m, caminho, sufixo='.' + lado)
+
+
+def mede_cartelas(caminho, n=2, marcas=None):
+    """Mede as n cartelas da foto (da esquerda para a direita). marcas: lista de quadras já conhecidas."""
+    lin = abre(caminho)
+    quadras = acha_cartelas(lin, n) if marcas is None else [np.float32(m) for m in marcas]
+    return [_mede_com(lin, q, caminho, sufixo=f'.c{i}') for i, q in enumerate(quadras)]
+
+
+def mede(caminho, marcas=None):
+    """marcas: posições já conhecidas (ex.: as da foto RAW de origem; a revelação RAW na câmera mantém o
+    mesmo enquadramento, então todas as simulações de uma foto usam as marcas dela)."""
+    lin = abre(caminho)
+    marcas = acha_marcas(lin) if marcas is None else np.float32(marcas)
+    return _mede_com(lin, marcas, caminho)
+
+
+def _mede_com(lin, marcas, caminho, sufixo=''):
     Hm = cv2.getPerspectiveTransform(CANTOS, marcas)   # cartela -> foto
     out = []
     for q in MAPA['quadros']:
@@ -86,7 +218,7 @@ def mede(caminho):
         v = np.median(lin[yi, xi], axis=0)
         out.append({**{k: q[k] for k in ('grupo', 'i', 'srgb') if k in q}, 'linear': [round(float(a), 5) for a in v]})
     res = {'arquivo': os.path.basename(caminho), 'marcas_px': marcas.round(1).tolist(), 'quadros': out}
-    with open(caminho + '.medidas.json', 'w', encoding='utf-8') as f:
+    with open(caminho + sufixo + '.medidas.json', 'w', encoding='utf-8') as f:
         json.dump(res, f, ensure_ascii=False, indent=1)
     return res
 

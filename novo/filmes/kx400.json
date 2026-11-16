@@ -1,0 +1,40 @@
+{
+ "id": "kx400",
+ "nome": "KX 400",
+ "inspirado": "Kodak Tri-X 400",
+ "cat": "pb",
+ "nota": "preto e branco · ISO 400 · contraste firme, vermelhos e pele mais escuros",
+ "analogico": {
+  "grao": 0.341,
+  "grao_tamanho": 1.1,
+  "halacao": 0.0,
+  "nitidez_canal": [
+   1.0,
+   1.0,
+   1.0
+  ]
+ },
+ "filtros": [
+  "nenhum",
+  "amarelo",
+  "laranja",
+  "vermelho",
+  "verde"
+ ],
+ "labs": [
+  "neutro"
+ ],
+ "ficha": "Kodak Tri-X 400",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4661,
+  0.4661,
+  0.4661
+ ]
+}

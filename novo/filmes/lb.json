@@ -1,0 +1,37 @@
+{
+ "id": "lb",
+ "nome": "Lindbergh",
+ "inspirado": "receita PB Peter Lindbergh (C1 do usuário)",
+ "cat": "pb",
+ "nota": "retrato P&B · filtro verde · pele no cinza médio, rosto destacado · marque o rosto em Ajustes",
+ "analogico": {
+  "grao": 0.205,
+  "grao_tamanho": 1.0,
+  "halacao": 0.0,
+  "nitidez_canal": [
+   0.85,
+   0.85,
+   0.85
+  ]
+ },
+ "labs": [
+  "neutro"
+ ],
+ "retrato": {
+  "pele_v6": 0.30031,
+  "pele_v5": 0.22547
+ },
+ "ficha": "Receita PB Peter Lindbergh (C1 do usuário, v6)",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.467,
+  0.467,
+  0.467
+ ]
+}

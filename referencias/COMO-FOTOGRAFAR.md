@@ -1,188 +1,183 @@
-# Como fotografar as referências (Fujifilm, Ricoh e celular)
+# Guia das referências do Revela
 
-**Objetivo:** medir, com números, o que cada simulação de filme da Fuji e da Ricoh faz com as cores, e usar isso como referência de apoio para o motor de filmes do Revela.
+**Para quê:** medir, com números, como cada simulação de filme da Fuji e da Ricoh e o filme instantâneo da Instax tratam as cores, e como cada celular entrega a foto. Isso calibra os filmes do Revela.
 
-**A ideia central:** fotografar em **RAW**, que é o arquivo "cru" e neutro, e depois usar o **conversor RAW da própria câmera** para gerar um JPEG de cada simulação **a partir da mesma foto**. Assim todas as simulações têm exatamente a mesma luz e a mesma exposição, e a única diferença entre elas é a simulação. É assim que dá para medir.
+**O princípio:** fotografar em **RAW** (o arquivo "cru", neutro) e depois usar o **conversor RAW da própria câmera** para gerar um JPEG de cada simulação **a partir da mesma foto**. Assim a única diferença entre os arquivos é a simulação, e dá para medir.
+
+**Seu equipamento:** HP Smart Tank 794 · Fujifilm X-T50 · Ricoh GR IIIx · Instax Mini 9 · iPhone 18 Pro Max · Galaxy S23 Ultra · Motorola Edge 50 Neo. A Cyber-shot P93 não é necessária agora.
+
+**Ordem do dia (cerca de 2 horas):**
+1. Imprimir e escanear a cartela (etapa 1)
+2. Montar a cena (etapa 2)
+3. Fotografar com a X-T50, a GR IIIx, a Instax e os celulares (etapas 3 a 6)
+4. Cenas reais, se der tempo (etapa 7)
+5. Converter as simulações, que pode ficar para depois, com calma (etapas 3 e 4)
+6. Escanear as fotos da Instax e enviar tudo (etapas 8 e 9)
 
 ---
 
-## 1. Preparar a cartela
+## Etapa 1. Imprimir a cartela na HP
 
-1. Imprima **`cartela_revela_A4.pdf`** em tamanho A4, de preferência num laboratório de fotos, em **papel fotográfico fosco**. O papel brilhante reflete luz e atrapalha.
-2. Peça ao laboratório **para não fazer correção automática de cor**. Em casa, imprima em papel fotográfico fosco, com a impressora em "sem ajuste de cor" ou "cores do aplicativo".
-3. Não precisa ficar perfeita. O que vou medir é a **diferença** entre o RAW e cada simulação, sobre a mesma foto da mesma cartela.
-4. **Não use a cartela na tela** de um computador ou celular. A tela emite luz em cores muito puras, que não se comportam como objetos reais, e isso enganaria a medição.
+Arquivo: **`cartela_revela_A4.pdf`**
 
-## 2. Montar a cena (vale para as duas câmeras)
+1. Papel fotográfico A4, **no lado brilhante**. É o lado que recebe a tinta; o lado fosco é o verso, e a tinta borra nele.
+2. No diálogo de impressão:
+   - tipo de papel **"Papel fotográfico brilhante"**;
+   - qualidade **"Alta"** ou **"Máxima"**;
+   - tamanho **100%**, sem "ajustar à página";
+   - **toda correção automática desligada** ("Real Life", "Corrigir foto", "Aprimorar").
+3. Deixe **secar 30 minutos**.
+4. **Escaneie a cartela impressa** no scanner da HP: 600 ppp, em cores, sem correção automática. Assim fico sabendo as cores que a impressora realmente produziu.
+5. **Plano B contra reflexo:** imprima também uma cópia em **papel sulfite comum**. As cores saem mais fracas, mas para a comparação funciona.
+
+> A cartela não precisa ser perfeita: o que meço é a **diferença** entre o RAW e cada simulação sobre a mesma foto. Mas **não fotografe a cartela numa tela** (computador ou celular). A tela emite cores puras demais, que não se comportam como objetos reais.
+
+## Etapa 2. Montar a cena (vale para todos os aparelhos)
 
 | Item | Como fazer |
 |---|---|
-| Luz | **Luz do dia**, de uma destas formas: (a) ao ar livre, na sombra aberta ou em dia nublado; ou (b) **dentro de casa, perto de uma janela grande**, com as lâmpadas **apagadas** e a cartela virada para a janela (você de costas para ela). Entre 2 horas depois do nascer do sol e 2 horas antes do pôr. **Sem sol batendo direto** na cartela. **Não use as lâmpadas da casa** para a cartela (ver nota abaixo) |
-| Cartela | Presa numa parede ou num papelão, bem plana, **de frente para a câmera** (sem inclinação). Sem sombra sua ou de outros objetos sobre ela |
-| Enquadramento | A cartela ocupando **mais ou menos metade do quadro, no centro**. Os 4 quadradinhos dos cantos precisam aparecer |
-| Foco | Na cartela. Tripé ajuda, mas não é obrigatório |
-| ISO | O mais baixo **nativo** (Fuji: 125 ou 160 conforme o modelo; Ricoh: 100) |
-| Abertura | f/5.6 ou f/8 |
-| Balanço de branco | **Fixo em "Luz do dia" (Daylight)**, nunca automático |
-| Formato | **RAW + JPEG** (Fuji: RAW sem compressão ou com compressão sem perda; Ricoh: DNG) |
+| **Luz** | **Luz do dia, suave e forte.** Ao ar livre, na sombra aberta ou em dia nublado; ou **dentro de casa, perto de uma janela grande**, com as lâmpadas **apagadas**. Das 2 horas depois do nascer do sol às 2 horas antes do pôr. **Sem sol direto** na cartela |
+| **Posição** | Cartela presa na parede ou num papelão, **plana**. Câmera **de frente** para ela. A luz **de lado**, com a janela a uns 45°, nunca atrás de você: isso evita o reflexo do papel brilhante e a sua sombra |
+| **Enquadramento** | Cartela ocupando **mais ou menos metade do quadro, no centro**. Os **4 quadradinhos dos cantos** precisam aparecer |
+| **Balanço de branco** | **Fixo em "Luz do dia"**, nunca automático |
 
-> **Por que não as lâmpadas da casa?** As lâmpadas comuns, de LED ou fluorescentes, têm "buracos" no espectro: faltam algumas cores na luz. Além disso, costumam ser fracas (obrigam a subir o ISO, o que gera ruído) e, muitas vezes, misturam tipos de lâmpada. As fichas dos filmes e as simulações são feitas para luz do dia. A luz da casa só entra de propósito, na cena 5 ("interior com lâmpada amarela").
+> **Por que não as lâmpadas da casa?** Elas têm "buracos" no espectro (faltam algumas cores na luz), costumam ser fracas (obrigam a subir o ISO) e muitas vezes misturam tipos diferentes. A luz da casa só entra de propósito, numa cena específica da etapa 7.
 
-### A série de exposições
-
-Com a **abertura fixa**, faça 6 fotos variando a **compensação de exposição**:
-
-**−2, −1, 0, +1, +2, +3**
-
-Ou seja, o 0 mais uma série mais escura e uma mais clara. É isso que mostra como cada simulação trata a superexposição e a subexposição, uma das marcas mais fortes de cada filme.
+**A série de exposições.** Com a abertura fixa, faça 6 fotos variando a compensação de exposição: **−2, −1, 0, +1, +2, +3**. Ela mostra como cada simulação trata a falta e o excesso de luz, uma das marcas mais fortes de cada filme.
 
 ---
 
-## 3. Fujifilm (X-T50)
+## Etapa 3. Fujifilm X-T50
 
-> **Específico da X-T50:** ISO base **125**. Lente do kit em torno de **35 mm**, a f/5.6. A X-T50 tem as **20 simulações**, incluindo Reala Ace e Nostalgic Neg., e é compatível com o **FUJIFILM X RAW STUDIO** pelo cabo USB-C.
-> O **seletor de simulação** no topo da câmera só vale na hora de fotografar. Na **Conversão RAW** você escolhe a simulação no menu, qualquer que seja a posição do seletor.
-> Fotografe em **RAW sem compressão** ou **com compressão sem perda** (Menu › Qualidade de imagem › Gravação RAW).
-
-### 3.1 Ajustes antes de fotografar
-
-Ponha tudo no **neutro**:
+### Antes de fotografar
 
 | Ajuste | Valor |
 |---|---|
-| Faixa dinâmica (DR) | **DR100** |
-| Prioridade de faixa dinâmica (D-Range Priority) | Desligada |
-| Tons: luzes / sombras | 0 / 0 |
-| Cor | 0 |
-| Nitidez | 0 |
-| Redução de ruído (High ISO NR) | **−4** (o mínimo) |
-| Clareza (Clarity) | 0 |
-| Efeito de grão | Desligado |
-| Color Chrome Effect / FX Blue | Desligados |
-| Pele suave | Desligada |
-| Espaço de cor | sRGB |
+| Formato | **RAW + JPEG**, RAW **sem compressão** ou **com compressão sem perda** (Menu › Qualidade de imagem › Gravação RAW) |
+| ISO | **125** (o ISO base) |
+| Lente do kit | em torno de **35 mm**, a **f/5.6** |
+| Balanço de branco | **Luz do dia** |
+| Faixa dinâmica | **DR100**, com a prioridade de faixa dinâmica **desligada** |
+| Tons (luzes / sombras), cor, nitidez, clareza | **0** |
+| Redução de ruído | **−4** (o mínimo) |
+| Grão, Color Chrome Effect, Color Chrome FX Blue, pele suave | **desligados** |
+| Espaço de cor | **sRGB** |
 
-### 3.2 Gerar as simulações no conversor RAW da câmera
+Fotografe a série **−2 a +3**.
 
-**Menu de reprodução › Conversão RAW (RAW CONVERSION)**
+### Gerar as simulações
 
-1. Escolha a foto **0** da série.
-2. Em **Simulação de filme**, escolha uma simulação, confira se os outros ajustes continuam neutros (como em 3.1) e crie o JPEG.
-3. Repita para **cada simulação que a sua câmera tiver**:
+**Na câmera:** Menu de reprodução › **Conversão RAW**. Escolha a foto, mude **só a simulação** (os outros ajustes neutros, como acima) e crie o JPEG. O seletor de simulação no topo da câmera não importa aqui: a simulação é escolhida no menu.
+
+**Pelo computador (mais rápido):** **FUJIFILM X RAW STUDIO** (gratuito, Windows e Mac), com a X-T50 ligada pelo cabo USB-C. Usa o processador da própria câmera, dá o mesmo resultado e converte várias fotos de uma vez.
 
 | Prioridade | Simulação | Por que importa |
 |---|---|---|
-| ⭐ | **Classic Neg.** | A Fuji descreve como negativo de consumo, no estilo do Superia |
-| ⭐ | **Pro Neg. Std** e **Pro Neg. Hi** | Negativo profissional de retrato (família Pro 160) |
-| ⭐ | **Nostalgic Neg.** | Negativo com aparência de cópia antiga |
+| ⭐ | **Classic Neg.** | Negativo de consumo, no estilo do Superia |
+| ⭐ | **Pro Neg. Std** e **Pro Neg. Hi** | Negativo profissional de retrato |
+| ⭐ | **Nostalgic Neg.** | Aparência de cópia antiga |
 | ⭐ | **Reala Ace** | Inspirado no Superia Reala |
 | ⭐ | **Velvia**, **Provia**, **Astia** | Os cromos da própria Fuji |
-| ⭐ | **Acros** (sem filtro) | P&B da Fuji |
-| | Classic Chrome | A Fuji diz que não imita um filme específico; útil como comparação |
+| ⭐ | **Acros** (sem filtro) | Preto e branco da Fuji |
+| | Classic Chrome | A Fuji diz que não imita um filme específico; serve de comparação |
 | | Eterna e Eterna Bleach Bypass | Filme de cinema |
-| | Monocromático e Sépia | Referência de P&B simples |
+| | Monocromático e Sépia | Preto e branco simples |
 
-4. Para as fotos **−2, −1, +1, +2, +3**, converta **só as simulações principais**: Classic Neg., Pro Neg. Std, Nostalgic Neg. e Velvia (se tiver).
+- **Foto 0:** converta em **todas** (cerca de 12 JPEGs).
+- **Fotos −2, −1, +1, +2 e +3:** converta só em **Classic Neg., Pro Neg. Std, Nostalgic Neg. e Velvia** (20 JPEGs).
 
-Na prática, isso dá uns 12 JPEGs da foto 0 e uns 20 da série. O conversor deixa repetir a mesma foto quantas vezes você quiser.
+## Etapa 4. Ricoh GR IIIx
 
-> **Atalho pelo computador:** o **FUJIFILM X RAW STUDIO** (gratuito, Windows e Mac) faz a mesma conversão usando o processador da própria câmera, ligada ao computador por cabo USB. O resultado é idêntico ao da câmera e dá para converter várias fotos de uma vez. Confira no site da Fujifilm se o seu modelo é compatível. Use os mesmos ajustes neutros do item 3.1, mudando só a simulação.
-
----
-
-## 4. Ricoh GR
-
-### 4.1 Ajustes antes de fotografar
+### Antes de fotografar
 
 | Ajuste | Valor |
 |---|---|
-| Image Control | **Standard** (padrão) para fotografar |
-| Correção de sombras (Shadow Correction) | **Desligada** |
-| Correção de iluminação periférica | Desligada |
-| Redução de ruído de ISO alto | Desligada ou no mínimo |
-| Clareza / nitidez | 0 |
+| Formato | **RAW (DNG) + JPEG** |
+| ISO | **100** |
+| Abertura | **f/5.6** |
+| Balanço de branco | **Luz do dia** |
+| Image Control | **Standard** |
+| Correção de sombras, correção de iluminação periférica | **desligadas** |
+| Redução de ruído | desligada ou no mínimo |
 
-### 4.2 Gerar as simulações na revelação RAW da câmera
+Fotografe a série **−2 a +3**.
 
-**Reprodução › menu › Revelação RAW (RAW Development)**
+### Gerar as simulações
 
-1. Escolha a foto **0**.
-2. Em **Image Control**, escolha um efeito **com os parâmetros dele no padrão** e salve o JPEG.
-3. Repita para:
+Reprodução › menu › **Revelação RAW**. Escolha o **Image Control** com os parâmetros dele **no padrão** e salve. Com o firmware 2.00 ou mais novo, dá para aplicar em **várias fotos de uma vez**.
 
 | Prioridade | Image Control |
 |---|---|
-| ⭐ | **Negative Film** (se o seu firmware tiver) |
+| ⭐ | **Negative Film** |
 | ⭐ | **Positive Film** |
 | ⭐ | **Standard** (a referência neutra da Ricoh) |
 | | Retro, Bleach Bypass, Cross Processing |
-| | Monotone, Hard Monotone, Soft Monotone, Hi-Contrast B&W |
+| | Monotone, Soft Monotone, Hard Monotone, Hi-Contrast B&W |
 
-4. Para a série **−2 a +3**, converta só **Negative Film** e **Positive Film**.
+- **Foto 0:** converta em todos.
+- **Fotos −2 a +3:** converta só em **Negative Film** e **Positive Film**.
 
-> Com o firmware 2.00 ou mais novo, a revelação RAW da GR III/IIIx aceita **várias fotos de uma vez**: escolha o Image Control e aplique na série inteira.
+## Etapa 5. Instax Mini 9 (vale ouro: não existe ficha técnica pública do Instax)
+
+1. Fotografe a **cartela impressa**, na mesma luz, enquadrando a cartela inteira com os 4 cantos visíveis. Fique a uns **50 a 60 cm**. Se tiver a lente de close da Instax, use-a; lembre que o visor fica um pouco acima da lente.
+2. Faça **3 fotos**:
+   - uma no ajuste que a câmera indica;
+   - uma **um passo mais claro** no seletor;
+   - uma **um passo mais escuro**.
+
+   Cada passo equivale a mais ou menos uma parada.
+3. Espere uns **10 minutos** para revelar.
+
+## Etapa 6. Os celulares
+
+Fotografe a cartela, na mesma luz, com cada um, na **lente principal (1×)**, **sem filtro, sem modo retrato e sem HDR forçado**:
+
+| Celular | Fotos |
+|---|---|
+| **iPhone 18 Pro Max** | uma na câmera normal e uma em **ProRAW** |
+| **Galaxy S23 Ultra** | uma na câmera normal e uma no app **Expert RAW** |
+| **Motorola Edge 50 Neo** | uma na câmera normal; se houver modo Pro com RAW, uma nele também |
+
+São os celulares que entregam a foto ao Revela, e cada marca "cozinha" a cor de um jeito. Com isso, o Revela pode ter um **perfil de entrada por celular**, que deixa a foto neutra antes do filme. É o que o RNI faz com os perfis de câmera.
 
 ---
 
-## 5. Cenas reais (opcional, mas muito útil)
+## Etapa 7. Cenas reais (opcional, mas muito útil)
 
-A cartela mede as cores. Cenas reais mostram como cada simulação trata **pele, céu, folhagem e luzes fortes**. Faça em RAW, exposição 0 e balanço de branco **Luz do dia**:
+A cartela mede as cores; as cenas mostram **pele, céu, folhagem e luzes fortes**. Use a X-T50 e a GR IIIx, em RAW, exposição 0 e balanço de branco Luz do dia:
 
 1. **Retrato** à sombra (pele de perto)
 2. **Paisagem** com céu azul e nuvens
 3. **Folhagem e flores** (vermelhos, rosas, verdes)
-4. **Contraluz** (sol atrás do assunto ou janela clara)
-5. **Interior com lâmpada amarela**, sem ajustar o branco (mostra o comportamento com luz quente)
+4. **Contraluz** (sol atrás da pessoa ou janela clara)
+5. **Interior com lâmpada amarela**, sem ajustar o branco
 
-Converta cada uma só com as simulações ⭐ principais.
+Converta cada cena só nas simulações ⭐.
 
-## 6. O celular
+## Etapa 8. Escanear na HP
 
-Veja a seção 7 (celulares).
+- **As 3 fotos Instax da cartela.**
+- **Todas as suas fotos Instax antigas.** Mesmo sem o original, elas mostram como o filme instantâneo trata pele, céu, sombras e luzes.
+
+Use 600 ppp, em cores, sem correção automática. Pode pôr várias fotos de uma vez no vidro.
+
+## Etapa 9. Enviar
+
+1. No **Google Drive**, crie a pasta **`Revela - referências`** com estas subpastas:
+   `cartela` · `fuji` · `ricoh` · `instax` · `iphone` · `galaxy` · `motorola`
+2. Envie **os arquivos originais**: os RAW (`.RAF` da Fuji, `.DNG` da Ricoh e do iPhone/Galaxy) e os JPEGs que as câmeras geraram. **Não edite e não mande por WhatsApp**, que comprime e apaga os dados.
+3. Se puder, escreva num bloco de notas qual foto é qual. Os arquivos costumam guardar o nome da simulação, mas a anotação evita confusão.
+4. Me avise. Eu leio a pasta, acho a cartela pelas marcas dos cantos e meço cada quadro automaticamente.
 
 ---
 
-## 7. Com o seu equipamento (HP Smart Tank 794, celulares e Instax Mini 9)
+### Resumo de bolso
 
-### Imprimir na HP Smart Tank 794
-
-- Papel fotográfico: imprima **no lado brilhante**, que é o lado que recebe a tinta. O lado fosco é o verso do papel: a tinta não seca nele e borra.
-- No diálogo de impressão: tipo de papel **"Papel fotográfico brilhante"**, qualidade **"Alta"** ou **"Máxima"**, tamanho A4, **100% (sem ajustar à página)**. **Desligue qualquer correção automática** ("Real Life", "Corrigir foto", "Aprimorar").
-- Deixe secar **30 minutos** antes de fotografar.
-- **Contra o reflexo do brilho:** câmera **de frente** para a cartela e a luz **de lado** (a janela a uns 45°, nunca atrás de você). Se ainda aparecer reflexo, imprima também uma cópia em **papel comum (sulfite)**. As cores saem mais fracas, mas para a comparação isso não atrapalha.
-
-### Escanear na HP (o scanner de mesa dela)
-
-1. **A cartela impressa:** escaneie a 600 ppp, em cores, **sem nenhuma correção automática**. Assim fico sabendo as cores reais que a impressora produziu.
-2. **As fotos da Instax:** escaneie **todas**, a 600 ppp, também sem correção, várias de uma vez no vidro. Mesmo sem o original, elas mostram como o filme instantâneo trata pele, céu, sombras e luzes.
-
-### A Instax Mini 9 (vale ouro: não existe ficha técnica pública do Instax)
-
-1. Fotografe a **cartela impressa** com a Instax, na mesma luz do dia, enquadrando a cartela inteira (as 4 marcas dos cantos precisam aparecer).
-2. Faça **3 fotos**: uma com o ajuste de luz que a câmera indica, uma **um passo mais claro** e uma **um passo mais escuro** no seletor. Cada passo equivale a mais ou menos uma parada.
-3. Depois de revelar (espere uns 10 minutos), **escaneie** as fotos instantâneas na HP.
-
-Com isso, eu meço o filme instantâneo de verdade: cor, contraste e o que acontece quando ele recebe luz de mais ou de menos.
-
-### Os celulares (iPhone 18 Pro Max, Galaxy S23 Ultra, Motorola Edge 50 Neo)
-
-São eles que entregam a foto ao Revela, e cada marca "cozinha" a cor de um jeito. Fotografe a cartela, na mesma luz, com cada um:
-- **Câmera normal**, sem filtro, sem modo retrato e sem HDR forçado, na lente principal (1×).
-- **iPhone:** também em **ProRAW**.
-- **Galaxy:** também pelo app **Expert RAW**.
-- **Motorola:** só a câmera normal basta. Se tiver modo "Pro" com RAW, faça também.
-
-Assim o Revela pode ter um **perfil de entrada por celular**, que deixa a foto neutra antes do filme. É o que o RNI faz com os perfis de câmera.
-
-### A Cyber-shot P93
-
-Não é necessária agora. Pode ficar para uma ideia futura: o "visual de câmera digital antiga", que é outro nicho.
-
-## 8. Como me enviar
-
-1. Crie no **Google Drive** uma pasta chamada **`Revela - referências`**, com as subpastas `fuji`, `ricoh`, `iphone`, `galaxy`, `motorola`, `instax` (os escaneamentos) e `cartela` (o escaneamento da cartela impressa).
-2. Envie **os arquivos originais**: os RAW (`.RAF` da Fuji, `.DNG` da Ricoh) e os JPEGs gerados pelas câmeras. **Não edite e não mande por WhatsApp**, que comprime e apaga os dados.
-3. Me diga **os modelos exatos das câmeras** (ex.: X100V, GR IIIx). As simulações mudam de geração para geração.
-4. Se puder, escreva num bloco de notas qual foto é qual. Os JPEGs da Fuji e da Ricoh costumam guardar o nome da simulação nos dados do arquivo, mas a anotação evita confusão.
-
-Com acesso à pasta, eu leio os arquivos, localizo a cartela automaticamente pelas marcas dos cantos e meço cada quadro.
+- Luz do dia suave, sem sol direto, lâmpadas apagadas
+- Balanço de branco **Luz do dia**, ISO base, f/5.6
+- **RAW**, série **−2, −1, 0, +1, +2, +3**
+- Simulações geradas **do RAW**, só a simulação mudando
+- Cartela inteira no quadro, de frente, luz de lado
+- Instax: 3 fotos (indicado, +1, −1), depois escanear
+- Celulares: câmera normal + RAW (iPhone e Galaxy)
+- Tudo **original** no Google Drive

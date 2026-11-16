@@ -2,7 +2,7 @@
 //   foto (sRGB) -> luz linear -> nitidez do filme por camada -> halação (luz que volta pela base)
 //   -> equilíbrio da luz da cena (ANTES do filme) -> exposição do negativo
 //   -> tabela do filme (negativo + scanner + laboratório, gerada pelo motor espectral)
-//   -> equilíbrio do laboratório (DEPOIS do filme) -> grão -> tela
+//   -> equilíbrio automático do cinza (como o scanner, foto a foto) -> equilíbrio do laboratório (DEPOIS) -> grão -> tela
 // A tabela do filme recebe luz da cena em paradas (log2), por isso a exposição empurra a foto pela curva real do filme.
 
 const VS = `#version 300 es
@@ -13,7 +13,8 @@ const FS = `#version 300 es
 precision highp float; precision highp sampler3D;
 in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler3D uLut;
-uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uLong, uHasFilm, uBypass;
+uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uLong, uHasFilm, uBypass, uAuto;
+uniform float uRet, uSep, uPele6, uPele5, uFaceLod; uniform vec4 uFace;
 uniform vec3 uPre, uPost, uSoftCh;
 uniform vec2 uRes;
 
@@ -70,7 +71,29 @@ void main(){
   }
   vec3 x = lin * uPre * exp2(uExp);                 // luz que chega ao filme
   vec3 dig = enc(clamp(x * uPost, 0.0, 1.0));       // a mesma foto sem filme (intensidade 0)
-  vec3 f = uHasFilm > 0.5 ? enc(dec(filme(x)) * uPost) : dig;
+  vec3 f = dig;
+  // retrato (receita Lindbergh): rosto marcado -> contraste centrado no rosto, pele exposta para o alvo e o
+  // entorno escurecido por máscara suave, como na ampliação com máscara (referencias/lindbergh/README.md, v3/v6/v5)
+  if (uRet > 0.5) {
+    float fx = max(luma(dec(textureLod(uImg, uFace.xy, uFaceLod).rgb)) * exp2(uExp), 1e-5);
+    float t = uSep, a = clamp(t * 2.0, 0.0, 1.0), b = clamp(t * 2.0 - 1.0, 0.0, 1.0);
+    float c = mix(mix(1.0, 1.12, a), 1.25, b);
+    float burn = mix(mix(0.0, 0.55, a), 1.5, b);
+    float ef = clamp(log2(mix(uPele6, uPele5, b) / fx), -3.0, 3.0) * a;
+    vec2 d = (vUv - uFace.xy) / uFace.zw;
+    float mask = exp(-0.5 * dot(d, d));
+    x *= exp2((c - 1.0) * log2(max(luma(x), 1e-7) / fx) + ef - burn * (1.0 - mask));
+  }
+  if (uHasFilm > 0.5) {
+    vec3 fl = dec(filme(x));
+    // equilíbrio automático do laboratório: como o scanner faz foto a foto, o cinza médio desta exposição volta a
+    // ser neutro (o brilho fica). Usa o cinza SEM a luz da cena, para a temperatura "na câmera" continuar valendo.
+    if (uAuto > 0.0) {
+      vec3 g = max(dec(filme(vec3(0.18) * exp2(uExp))), vec3(1e-5));
+      fl *= mix(vec3(1.0), vec3(luma(g)) / g, uAuto);
+    }
+    f = enc(fl * uPost);
+  }
   vec3 col = mix(dig, f, uMix);
   // grão: o tamanho segue a foto inteira (igual na prévia e na exportação)
   if (uGrain > 0.0) {
@@ -99,7 +122,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uHasFilm', 'uBypass', 'uPre', 'uPost', 'uSoftCh', 'uRes'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1);
     this.img = gl.createTexture(); this.lut = gl.createTexture();
@@ -139,11 +162,20 @@ export class Render {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lut);
     const m = this.film?.meta, a = m?.analogico || {};
     gl.uniform1f(u.uLutN, m ? m.tabela.n : 2); gl.uniform1f(u.uLutMin, m ? m.tabela.min : -9); gl.uniform1f(u.uLutMax, m ? m.tabela.max : 7);
-    gl.uniform1f(u.uHasFilm, m ? 1 : 0); gl.uniform1f(u.uBypass, bypass ? 1 : 0);
+    gl.uniform1f(u.uHasFilm, m ? 1 : 0); gl.uniform1f(u.uAuto, s.labAuto ?? 1); gl.uniform1f(u.uBypass, bypass ? 1 : 0);
     gl.uniform1f(u.uMix, s.intensidade); gl.uniform1f(u.uExp, s.exposicao);
     gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, wb(s.labTemp, s.labMatiz));
     gl.uniform1f(u.uHalo, s.halacao); gl.uniform1f(u.uGrain, s.grao); gl.uniform1f(u.uGrainSize, s.graoTamanho);
     gl.uniform1f(u.uSoft, m ? s.caraterFilme : 0); gl.uniform3fv(u.uSoftCh, a.nitidez_canal ? a.nitidez_canal.map((v) => 1 - v) : [0, 0, 0]);
+    // retrato: só com filme de retrato e rosto marcado (posição em fração da foto)
+    const ret = m?.retrato && s.rosto;
+    gl.uniform1f(u.uRet, ret ? 1 : 0);
+    if (ret) {
+      const raio = 0.16 * (s.rostoTam ?? 1) * Math.min(this.w, this.h);
+      gl.uniform4f(u.uFace, s.rosto.x, s.rosto.y, raio / this.w, raio * 1.25 / this.h);
+      gl.uniform1f(u.uFaceLod, Math.max(0, Math.log2(raio * 0.7)));
+      gl.uniform1f(u.uSep, s.separacao ?? 0.5); gl.uniform1f(u.uPele6, m.retrato.pele_v6); gl.uniform1f(u.uPele5, m.retrato.pele_v5);
+    }
     gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uLong, longSide); gl.uniform2f(u.uRes, outW, outH);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }

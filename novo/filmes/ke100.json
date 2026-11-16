@@ -14,6 +14,10 @@
    0.937
   ]
  },
+ "labs": [
+  "neutro",
+  "frontier"
+ ],
  "ficha": "Kodak Ektar 100",
  "tabela": {
   "n": 33,
@@ -23,8 +27,8 @@
   "motor": "pesquisa/motor (espectral, caminho escaneado)"
  },
  "cinza_medio_saida": [
-  0.4729,
-  0.4729,
-  0.4729
+  0.4748,
+  0.4748,
+  0.4748
  ]
 }

@@ -104,6 +104,42 @@ def base_espectral():
     return r * luz                                   # (3, n)
 
 
+class EspectroNatural:
+    """RGB -> espectro aprendido com objetos reais (pesquisa/dados/refletancias_reais.json, 190 refletâncias).
+    Para cada cor, faz a média dos espectros reais de cromaticidade parecida (núcleo gaussiano) e corrige o resultado
+    para a cor EXATA da entrada somando a base suave (a cor vista não muda; muda só a forma do espectro, que é o
+    que o filme enxerga diferente do olho). Vale nas cores do dia a dia (pele, folhagem, céu, terra), onde há muitos
+    dados; nas cores muito saturadas volta suavemente à base suave (lá os dados são poucos e a tabela ficava áspera).
+    Motivo e testes: pesquisa/espectros_naturais.md."""
+
+    def __init__(self, base_suave, luz, sigma=0.06, k=2.0, sat=(0.25, 0.45)):
+        d = _carrega('refletancias_reais')
+        tr = np.array([np.interp(NM, d['nm'], r) for r in d['treino']])
+        self.Bs, self.luz, self.sigma, self.k, self.sat = base_suave, luz, sigma, k, sat
+        self.M = np.linalg.inv(self.rgb_de(base_suave))
+        X = self.rgb_de(tr * luz); Y = X @ SRGB_XYZ[1]; ok = Y > 0.01
+        self.esp = (tr * luz)[ok] / Y[ok, None]
+        self.cro = X[ok] / X[ok].sum(1, keepdims=True)          # cromaticidade r+g+b = 1
+
+    def rgb_de(self, E):
+        return ((E @ CMF.T) / (self.luz @ CMF.T)[1]) @ XYZ_SRGB.T
+
+    def __call__(self, rgb):
+        rgb = np.asarray(rgb, float); Y = np.maximum(rgb @ SRGB_XYZ[1], 1e-12)
+        c = rgb / Y[..., None]; q = c / np.maximum(c.sum(-1, keepdims=True), 1e-12)
+        n = len(NM); out = np.empty(rgb.shape[:-1] + (n,))
+        cf, qf, of = c.reshape(-1, 3), q.reshape(-1, 3), out.reshape(-1, n)
+        r0, r1 = self.sat
+        for i in range(0, len(cf), 4096):                     # em blocos, para caber na memória
+            ci, qi = cf[i:i + 4096], qf[i:i + 4096]
+            w = np.exp(-0.5 * ((qi[:, None, :] - self.cro) ** 2).sum(-1) / self.sigma ** 2); W = w.sum(-1)
+            t = np.clip((r1 - np.linalg.norm(qi - 1 / 3, axis=1)) / (r1 - r0), 0, 1)
+            a = (W / (W + self.k) * t * t * (3 - 2 * t))[:, None]   # peso dos dados reais (0 = só base suave)
+            pri = a * (w @ self.esp) / np.maximum(W, 1e-12)[:, None] + (1 - a) * (ci @ self.Bs)
+            of[i:i + 4096] = pri + ((ci - self.rgb_de(pri)) @ self.M) @ self.Bs
+        return out * Y[..., None]
+
+
 # ------------------------------------------------------------------ o filme
 class Filme:
     def __init__(self, dados='portra400'):
@@ -208,6 +244,24 @@ class Papel:
         return np.interp(L, x[ok], y[ok])
 
 
+# Inclinação média do Portra 400 no scanner (gama efetivo, média de R, G, B), medida no próprio motor.
+# É a referência de contraste: um filme com inclinação maior sai mais contrastado que o Portra 400.
+# Laboratórios (a máquina que escaneia o negativo). A inversão "neutra" estica cada canal pela inclinação do próprio
+# filme: o cinza fica cinza em qualquer exposição. Os scanners reais usam ajustes de fábrica por tipo de filme que não
+# casam exatamente com cada filme; a diferença de contraste entre os canais vira cor que muda com a luz (sombra de uma
+# cor, luz alta de outra). Medido em pares do MESMO negativo escaneado no Frontier SP-3000 e no Noritsu HS-1800
+# (pesquisa/laboratorios.md): no Frontier o canal vermelho tem ~25 % mais contraste que o verde e o azul ~8 % menos,
+# e o contraste geral é um pouco maior. Isso explica as sombras ciano-azuladas, o verde puxando para o ciano e as
+# luzes altas (onde fica um rosto bem exposto) mais douradas.
+LABS = {
+    'neutro': {'canais': (1.0, 1.0, 1.0)},
+    'frontier': {'canais': (1.25 * 1.1, 1.0 * 1.1, 0.92 * 1.1)},
+}
+
+
+GAMA_REF = 0.587
+
+
 def planck(T, x=NM):
     x = x * 1e-9
     return 1 / (x ** 5 * (np.exp(1.4388e-2 / (x * T)) - 1))
@@ -234,14 +288,16 @@ class Motor:
     """
 
     def __init__(self, filme='portra400', papel='endura_premier', corantes='kodak', correcao_lab=1.0, dir_calibracao=0.1,
-                 paradas_base=0.0):
+                 paradas_base=0.0, espectros='natural'):
         self.f, self.p = Filme(filme), Papel(papel)
         self.correcao_lab, self.dir_cal = correcao_lab, dir_calibracao
         self.paradas_base = paradas_base      # fotometrar o filme fora da ISO nominal (ex.: CineStill 500T a 800)
         self.base_rgb = base_espectral()
         self.branco = self.base_rgb.sum(0)                     # luz da cena e da sala de visão (D65)
+        # como a cor RGB vira espectro: 'natural' (aprendido com objetos reais) ou 'suave' (a base mais lisa)
+        self.espectro = EspectroNatural(self.base_rgb, self.branco) if espectros == 'natural' else (lambda rgb: rgb @ self.base_rgb)
         # exposição de cada camada para a luz branca: normaliza para o cinza 18% cair no log H de referência
-        self.k_cam = 1.0 / (self.f.sens @ (self.branco * 0.18))
+        self.k_cam = 1.0 / (self.f.sens @ self.espectro(np.full(3, 0.18)))
         self.cor_neg, self.ajuste_corantes = (desmistura_corantes_kodak if corantes == 'kodak' else desmistura_corantes)(self.f)
         # quanto de cada corante corresponde a cada nível de densidade Status M, medido em cinzas
         self.M = status_m(); self.M = self.M / self.M.sum(1, keepdims=True)
@@ -256,7 +312,7 @@ class Motor:
 
     # --- negativo
     def exposicao(self, rgb_lin, paradas=0.0):
-        esp = rgb_lin @ self.base_rgb                           # (..., n) espectro da luz de cada ponto
+        esp = self.espectro(rgb_lin)                            # (..., n) espectro da luz de cada ponto
         H = (esp @ self.f.sens.T) * self.k_cam * 0.18          # exposição relativa de cada camada
         return self.f.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + (paradas + self.paradas_base) * np.log10(2)
 
@@ -314,6 +370,10 @@ class Motor:
         L = self.f.ref + np.linspace(-2, 2, 17) * np.log10(2)
         Ds = self._densidade_scan(self.negativo(np.repeat(L[:, None], 3, 1)))
         self.inv = [np.polyfit(L, Ds[:, i], 1) for i in range(3)]   # (gama, base) por canal
+        # O laboratório inverte cada canal pela inclinação dele (o cinza fica neutro), mas o CONTRASTE do filme
+        # continua: a inclinação média do filme é comparada com a de um filme de referência (Portra 400). Sem isso
+        # todos os filmes saíam com o mesmo contraste (conferência de 16/11/2026, pesquisa/conferencia_assinatura.md).
+        self.fator_contraste = float(np.mean([p[0] for p in self.inv])) / GAMA_REF
         self.D_lab = np.zeros((3, 3)); self.equilibrio = np.zeros(3)
         # equilíbrio do laboratório: o cinza médio bem fotometrado sai exatamente cinza e no meio-tom
         cinza = self._lhat(self._densidade_scan(self.negativo(self.exposicao(np.array([0.18, 0.18, 0.18])), self.dir_cal)))
@@ -323,11 +383,16 @@ class Motor:
     def _calibra_lab(self, lam=0.02):
         """Calibração do scanner para o filme, como os laboratórios fazem (Frontier e Noritsu têm ajustes por tipo
         de filme): uma correção 3×3 em escala logarítmica que desfaz a mistura linear entre os corantes, aprendida
-        numa cartela de cores. Linhas somam zero, então o cinza não muda. O caráter do filme (o que cada camada
-        enxerga, as curvas, o DIR, o pé e o ombro) continua; sai só o "embaralhamento" de primeira ordem."""
+        numa cartela de cores. Linhas somam zero, então o cinza não muda.
+        O alvo é a EXPOSIÇÃO DE CADA CAMADA do filme (o que o filme viu), não a cor da cena: a correção desfaz só a
+        mistura dos corantes e do scanner. O que vem da sensibilidade espectral de cada camada (o filme enxergar a
+        cor diferente do olho) é caráter do filme e fica. (Antes o alvo era a cor da cena: a correção apagava junto
+        esse caráter e deixava a cor saturada demais; ver pesquisa/espectros_naturais.md.)"""
         rgb = srgb_decode(np.array(TREINO, float) / 255)
-        Lhat = self._lhat(self._densidade_scan(self.negativo(self.exposicao(rgb), self.dir_cal))) - self.f.ref
-        T = np.clip(np.log10(np.maximum(rgb, 1e-4) / 0.18), -2.2, 1.0)
+        Lexp = self.exposicao(rgb)
+        Lhat = self._lhat(self._densidade_scan(self.negativo(Lexp, self.dir_cal))) - self.f.ref
+        T = (Lexp - self.f.ref) * self.fator_contraste           # exposição de cada camada, no contraste final
+        T = T - T.mean(-1, keepdims=True) + Lhat.mean(-1, keepdims=True)   # só a parte cromática
         # D com linhas de soma zero: D = B @ P, P projeta fora do neutro
         P = np.eye(3) - 1 / 3
         X = Lhat @ P.T                      # parte cromática
@@ -337,28 +402,35 @@ class Motor:
         return B @ P
 
     def _lhat(self, Ds):
-        return np.stack([(Ds[..., i] - self.inv[i][1]) / self.inv[i][0] for i in range(3)], -1) + self.equilibrio
+        L = np.stack([(Ds[..., i] - self.inv[i][1]) / self.inv[i][0] for i in range(3)], -1)
+        return self.f.ref + (L - self.f.ref) * getattr(self, 'fator_contraste', 1.0) + self.equilibrio
 
     def _densidade_scan(self, Dneg):
         return -np.log10(np.maximum((10 ** (-Dneg)) @ self.sensor.T, 1e-12))
 
     @staticmethod
-    def curva_lab(x, contraste=1.15, preto=0.012, branco=0.985):
+    def curva_lab(x, contraste=1.15, preto=0.012, branco=0.985, sombra=0.35):
         """Curva de tons do laboratório: meio-tom fixo (0,18 -> 0,18), luzes que dobram suave para o branco,
-        preto levemente aberto. contraste = inclinação no meio-tom (1 = foto digital)."""
+        preto levemente aberto. contraste = inclinação no meio-tom (1 = foto digital).
+        sombra: aprofunda só as sombras (peso 1 nelas, 0,5 no cinza, ~0 nas luzes; o cinza não muda). Medido em
+        16/11/2026 (pesquisa/hald_labbet.md): a 2 paradas abaixo do cinza as referências caem −32,5 L* (mediana de
+        Labbet e RNI; câmeras −34 a −36), o Revela caía só −26. As luzes já batiam (+32)."""
         n = contraste / (1 - 0.18 / branco)
         s = 0.18 * (branco / 0.18 - 1) ** (1 / n)
         x = np.maximum(x, 0)
         y = branco * x ** n / (x ** n + s ** n)
-        return preto + (branco - preto) * y / branco
+        y = preto + (branco - preto) * y / branco
+        r = np.maximum(y, 1e-6) / 0.18
+        return y * r ** (sombra / (1 + r ** 2))
 
-    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15):
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15, lab='neutro'):
         """sRGB linear de entrada -> sRGB linear de saída, pelo caminho negativo -> scanner -> inversão -> curva."""
         if not hasattr(self, 'inv'):
             self._prepara_scanner()
         Ds = self._densidade_scan(self.negativo(self.exposicao(rgb_lin, paradas), dir_))
         Lhat = self._lhat(Ds)
         Lhat = Lhat + (Lhat - self.f.ref) @ self.D_lab.T   # calibração do laboratório para o filme
+        Lhat = self.f.ref + (Lhat - self.f.ref) * np.array(LABS[lab]['canais'])   # a máquina do laboratório
         x = 0.18 * 10 ** (Lhat - self.f.ref)          # exposição recuperada de cada canal (cinza médio = 0,18)
         return self.curva_lab(x, contraste)
 
@@ -370,6 +442,144 @@ class Motor:
         rgb = srgb_decode(np.stack([r, gg, b], -1).reshape(-1, 3))
         out = self.escaneia(rgb, paradas, dir_) if caminho == 'scan' else self.srgb(rgb, paradas, dir_)
         return np.clip(srgb_encode(out), 0, 1)
+
+
+# ------------------------------------------------------------------ preto e branco
+# Filtros de cor na frente da lente (transmitância). # APROX: formas suaves pelos cortes publicados dos Wratten
+# (8 amarelo ~470 nm, 21 laranja ~540, 25 vermelho ~590, 11 amarelo-esverdeado). A exposição é compensada
+# (o fotógrafo abre o diafragma pelo fator do filtro), então o cinza médio fica onde estava.
+# Conferência com a ficha F-4017 (fatores à luz do dia): amarelo 2,1 (ficha 2), vermelho 8,7 (8), verde 4,0 (4).
+# Mistura de canais com o verde: R 0,14 · G 0,67 · B 0,19, contra R 0,10 · G 0,69 · B 0,21 medidos na receita
+# Lindbergh (Fuji Acros + filtro G).
+def _sig(x):
+    return 1 / (1 + np.exp(-x))
+
+
+FILTROS_PB = {
+    'nenhum': np.ones_like(NM),
+    'amarelo': _sig((NM - 475) / 8),
+    'laranja': _sig((NM - 555) / 8),
+    'vermelho': _sig((NM - 595) / 7),
+    'verde': 0.6 * _sig((NM - 470) / 9) * (1 - 0.7 * _sig((NM - 590) / 12)),   # pico ~60 %, como a gelatina
+}
+
+
+class MotorPB:
+    """Filme preto e branco: uma camada de prata com sensibilidade espectral própria (ficha técnica), curva
+    característica da revelação escolhida, escaneamento com inversão linear em densidade (como no colorido).
+    A cor da cena vira cinza pelo que o filme ENXERGA (ex.: o Tri-X quase não vê acima de 650 nm, então
+    vermelhos e pele saem mais escuros que numa conversão digital)."""
+
+    def __init__(self, dados='trix400', revelacao='D76_8min', filtro='nenhum'):
+        d = _carrega(dados)
+        self.nome = d['filme']
+        s = d['sensibilidade']
+        sens = 10 ** _na_grade(s['nm'], s['D1.0'], fora=-9)
+        sens[NM > max(n for n, v in zip(s['nm'], s['D1.0']) if v is not None)] = 0.0
+        self.sens = sens * FILTROS_PB[filtro]
+        c = d['caracteristica']
+        self.logH = _arr(c['logH']); self.curva = _arr(c[revelacao])
+        ok = ~np.isnan(self.curva); self.logH, self.curva = self.logH[ok], self.curva[ok]
+        self.base_rgb = base_espectral(); self.branco = self.base_rgb.sum(0)
+        self.espectro = EspectroNatural(self.base_rgb, self.branco)
+        # cinza médio: 1,0 log acima do ponto de sensibilidade ISO (H = 0,8 / ISO), regra usual de fotometria
+        self.ref = float(np.log10(0.8 / 400) + 1.0)
+        self.k = 1.0 / (self.espectro(np.full(3, 0.18)) @ self.sens)
+        L = self.ref + np.linspace(-2, 2, 17) * np.log10(2)
+        self.inv = np.polyfit(L, self.densidade(L), 1)
+        self.fator_contraste = self.inv[0] / GAMA_REF
+
+    def densidade(self, L):
+        x, y = self.logH, self.curva
+        g = (y[-1] - y[-5]) / (x[-1] - x[-5])
+        L = np.asarray(L, float)
+        return np.where(L > x[-1], y[-1] + (L - x[-1]) * g, np.interp(L, x, y))
+
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15, lab='neutro'):
+        H = (self.espectro(rgb_lin) @ self.sens) * self.k * 0.18
+        L = self.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + paradas * np.log10(2)
+        D = self.densidade(L)
+        Lhat = self.ref + ((D - self.inv[1]) / self.inv[0] - self.ref) * self.fator_contraste
+        x = 0.18 * 10 ** (Lhat - self.ref)
+        y = Motor.curva_lab(x, contraste)
+        return np.repeat(y[..., None], 3, -1)
+
+
+# ------------------------------------------------------------------ cromo (diapositivo)
+class MotorCromo:
+    """Filme reversível (slide): mais luz = MENOS corante, e o próprio filme é a imagem final, sem inversão nem
+    papel. Cadeia: espectro da cena -> exposição de cada camada (ficha) -> densidade de cada camada (curva da
+    ficha, decrescente) -> quantidade de cada corante (densidades espectrais da ficha) -> luz que atravessa o
+    slide numa mesa de luz do dia -> cor vista. O "escaneamento" só fixa o cinza médio e dobra as luzes altas
+    para o branco; o contraste alto e a cor saturada vêm do próprio slide.
+    # APROX: filtros Status A como gaussianas (B 440, G 545, R 645 nm); base do filme plana (Dmin da curva);
+    corantes da ficha tratados como mistura linear."""
+
+    def __init__(self, dados='ektachrome_e100'):
+        d = _carrega(dados)
+        self.nome = d['filme']
+        c = d['caracteristica']
+        self.logH = _arr(c['logH']); self.curva = {k: _arr(c[k]) for k in 'RGB'}
+        sv = d['sensibilidade']
+        chaves = {'B': 'azul (forma amarelo)', 'G': 'verde (forma magenta)', 'R': 'vermelho (forma ciano)'}
+        self.sens = np.stack([10 ** _na_grade(sv['nm'], sv[chaves[k]], fora=-9) for k in 'RGB'])
+        e = d['densidade_espectral']
+        cor = [_na_grade(e['nm'], e[k], fora=np.nan) for k in ('corante_ciano', 'corante_magenta', 'corante_amarelo')]
+        for v in cor:
+            ok = ~np.isnan(v); v[~ok] = np.interp(NM[~ok], NM[ok], v[ok])
+        self.corantes = np.clip(np.stack(cor), 0, None)              # C, M, Y (formados por R, G, B)
+        self.statusA = np.stack([_g(NM, mu, sg, sg) for mu, sg in ((645, 12), (545, 15), (440, 15))])
+        self.statusA /= self.statusA.sum(1, keepdims=True)
+        self.A = self.statusA @ self.corantes.T                      # Status A de cada corante (3x3)
+        self.dmin = np.array([np.nanmin(self.curva[k]) for k in 'RGB'])
+        self.base_rgb = base_espectral(); self.branco = self.base_rgb.sum(0)
+        self.espectro = EspectroNatural(self.base_rgb, self.branco)
+        # exposição do cinza médio: a camada verde no meio-tom da ficha (D = 1,0), as outras no mesmo cinza
+        self.ref = float(np.interp(1.0, self.curva['G'][::-1], self.logH[::-1]))
+        self.k = 1.0 / (self.sens @ self.espectro(np.full(3, 0.18)))
+        alvo = self.densidade(np.full(3, self.ref))[1]
+        self.desvio = np.array([float(np.interp(alvo, self.curva[k][::-1], self.logH[::-1])) - self.ref for k in 'RGB'])
+        self.xyz_branco = (10 ** (-self.dmin.mean()) * self.branco) @ CMF.T
+        g = self._xyz(np.full((1, 3), 0.18))[0]
+        self.escala = 0.18 / g[1] * (g[1] / ((self.branco * 10 ** (-self.dmin.mean())) @ CMF.T)[1])
+
+    def densidade(self, L):
+        out = []
+        for i, k in enumerate('RGB'):
+            x, y = self.logH, self.curva[k]; ok = ~np.isnan(y)
+            out.append(np.interp(L[..., i], x[ok], y[ok]))
+        return np.stack(out, -1)
+
+    def _xyz(self, rgb_lin, paradas=0.0):
+        H = (self.espectro(rgb_lin) @ self.sens.T) * self.k * 0.18
+        L = self.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + self.desvio + paradas * np.log10(2)
+        D = self.densidade(L)
+        q = np.clip((D - self.dmin) @ np.linalg.inv(self.A).T, 0, None)
+        Desp = self.dmin.mean() + q @ self.corantes
+        return ((10 ** (-Desp)) * self.branco) @ CMF.T / self.xyz_branco[1]
+
+    def _lin(self, rgb_lin, paradas=0.0):
+        xyz = self._xyz(rgb_lin, paradas)
+        return (xyz / (self.xyz_branco / self.xyz_branco[1])) @ XYZ_SRGB.T * (SRGB_XYZ @ np.ones(3))
+
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.0, lab='neutro'):
+        if not hasattr(self, 'cal'):
+            # calibração de cinza do scanner de slides (como com um alvo IT8): uma curva por canal leva a escala de
+            # cinzas a sair neutra em todos os níveis. Corrige o desvio do eixo neutro que vem das aproximações
+            # (Status A e mistura dos corantes): sem ela, luzes rosadas (a* +2) e sombras esverdeadas (a* −3).
+            s = np.linspace(-9, 7, 161)
+            n = np.maximum(self._lin(0.18 * 2.0 ** s[:, None] * np.ones(3)), 1e-9)
+            y = n @ SRGB_XYZ[1]
+            self.cal = [(np.log(n[:, k]), np.log(y)) for k in range(3)]
+            self.cal_escala = 1.0
+            g = self.escaneia_bruto(np.full((1, 3), 0.18), 0.0)[0]
+            self.cal_escala = 0.18 / (g @ SRGB_XYZ[1])
+        return Motor.curva_lab(self.escaneia_bruto(rgb_lin, paradas), contraste, sombra=0.0)
+
+    def escaneia_bruto(self, rgb_lin, paradas=0.0):
+        lin = np.maximum(self._lin(rgb_lin, paradas), 1e-9)
+        out = np.stack([np.exp(np.interp(np.log(lin[..., k]), *self.cal[k])) for k in range(3)], -1)
+        return out * self.cal_escala
 
 
 def grava_cube(caminho, lut, n, titulo):
