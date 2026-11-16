@@ -31,3 +31,15 @@ Oito filmes exportados do Labbet sobre `hald_identidade_12.png` (1728 × 1728, s
 ## Para o Revela
 - **Curva do laboratório:** subir as luzes altas (+2 paradas ≈ 89–91) e decidir o cinza médio (hoje 50,7; referências de 54 a 64). Isso é decisão de produto; ver a resposta ao usuário.
 - **Cor:** não há consenso entre os apps além do que já está no motor e na opção de Laboratório.
+
+## Correção aplicada (16/11/2026, opção B: cinza médio mantido)
+Conferindo as **distâncias ao cinza médio** (e não o valor absoluto), as luzes do Revela já estavam certas: +2 paradas dava +31 a +32, contra a mediana +32 das referências. A diferença aparente vinha do brilho geral dos apps, que é escolha de estilo e ficou de fora. O que destoava eram as **sombras**: −2 paradas dava −24 a −28, contra −32,5 nas referências e −34 a −36 nas câmeras.
+
+**Mudança:** `Motor.curva_lab` ganhou o termo `sombra=0,35`, que aprofunda só as sombras (o cinza fica onde estava e as luzes quase não mudam). Filmes reexportados.
+
+| Revela | −2 paradas | +2 paradas | Saturação |
+|---|---|---|---|
+| Antes | −24,2 a −27,8 | +28,4 a +32,5 | 0,74–1,09 |
+| Agora | **−30,0 a −34,2** | +29,4 a +33,4 | 0,84–1,22 |
+
+Efeito colateral: a saturação medida subiu ~0,1, porque sombras mais densas guardam mais cor. A faixa continua dentro da das referências; só o Ektar (1,22) fica acima, o que combina com a descrição do filme ("ultra vívido").

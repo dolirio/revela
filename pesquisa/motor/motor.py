@@ -409,14 +409,19 @@ class Motor:
         return -np.log10(np.maximum((10 ** (-Dneg)) @ self.sensor.T, 1e-12))
 
     @staticmethod
-    def curva_lab(x, contraste=1.15, preto=0.012, branco=0.985):
+    def curva_lab(x, contraste=1.15, preto=0.012, branco=0.985, sombra=0.35):
         """Curva de tons do laboratório: meio-tom fixo (0,18 -> 0,18), luzes que dobram suave para o branco,
-        preto levemente aberto. contraste = inclinação no meio-tom (1 = foto digital)."""
+        preto levemente aberto. contraste = inclinação no meio-tom (1 = foto digital).
+        sombra: aprofunda só as sombras (peso 1 nelas, 0,5 no cinza, ~0 nas luzes; o cinza não muda). Medido em
+        16/11/2026 (pesquisa/hald_labbet.md): a 2 paradas abaixo do cinza as referências caem −32,5 L* (mediana de
+        Labbet e RNI; câmeras −34 a −36), o Revela caía só −26. As luzes já batiam (+32)."""
         n = contraste / (1 - 0.18 / branco)
         s = 0.18 * (branco / 0.18 - 1) ** (1 / n)
         x = np.maximum(x, 0)
         y = branco * x ** n / (x ** n + s ** n)
-        return preto + (branco - preto) * y / branco
+        y = preto + (branco - preto) * y / branco
+        r = np.maximum(y, 1e-6) / 0.18
+        return y * r ** (sombra / (1 + r ** 2))
 
     def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15, lab='neutro'):
         """sRGB linear de entrada -> sRGB linear de saída, pelo caminho negativo -> scanner -> inversão -> curva."""
