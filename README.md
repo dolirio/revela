@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (em construção) | 2026-11-17 | **Poeira como no RNI**: pontinhos redondos e traços finos, sem manchas nem bloquinhos, na mesma quantidade a cada sorteio. Controle de dois lados (meio = sem; direita = branca; esquerda = preta) com o **dado** ao lado para sortear outra. Luz vazada e riscos longos saíram (pareciam artificiais). |
 | v48 (em construção) | 2026-11-17 | **Poeira e riscos sutis** (como no RNI): sem as manchas grandes e macias, partículas menores e mais raras, riscos finos como fio de cabelo; o pó e o risco clareiam o que está embaixo em vez de pintar de branco. |
 | v48 (em construção) | 2026-11-17 | **Tempo no app novo** (aba Analógico): **Luz vazada**, **Poeira** e **Riscos**, trazidos do app publicado (mesma física, um controle para cada), mais a **Moldura do filme** 35 mm com os furos e o botão **Sortear de novo**. A exportação inclui a moldura. |
 | v48 (em construção) | 2026-11-17 | **Correções no computador**: a faixa de filmes não rolava com o mouse (agora mostra todos os filmes no computador, com roda e arrastar onde não couber); a halação quase não aparecia (agora reage a lâmpadas, janelas e neon, com brilho vermelho-alaranjado em volta). |

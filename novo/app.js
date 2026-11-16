@@ -140,7 +140,7 @@ const CTL = {
   grao: { n: 'Grão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   graoTamanho: { n: 'Tamanho do grão', min: 0.5, max: 2.5, passo: 0.05, fmt: (v) => v.toFixed(2) },
   halacao: { n: 'Halação', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
-  poeira: { n: 'Poeira', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  poeira: { n: 'Poeira', min: -1, max: 1, passo: 0.01, fmt: (v) => (v === 0 ? '0' : (v > 0 ? 'branca ' : 'preta ') + Math.round(Math.abs(v) * 100)) },   // como no RNI: meio = sem, direita = branca, esquerda = preta
   riscos: { n: 'Riscos', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   luzVazada: { n: 'Luz vazada', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   separacao: { n: 'Separação do rosto', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) + (v < 0.2 ? ' · suave' : v > 0.8 ? ' · forte' : '') },
@@ -190,13 +190,16 @@ secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara')
 controle('separacao', retrato); controle('rostoTam', retrato);
 controle('grao', $('p-analogico')); controle('graoTamanho', $('p-analogico'));
 controle('halacao', $('p-analogico'));
-// tempo: o que acontece com o filme na câmera e no scanner (do app publicado, com um controle só para cada coisa)
+// tempo: poeira do filme (pontinhos brancos e traços finos, sutis como no RNI) com o dado ao lado, e a moldura
+// (luz vazada e riscos longos saíram a pedido do usuário: pareciam artificiais)
 secao($('p-analogico'), 'Tempo');
-controle('luzVazada', $('p-analogico')); controle('poeira', $('p-analogico')); controle('riscos', $('p-analogico'));
+controle('poeira', $('p-analogico'));
+{ const c = $('r_poeira').parentElement, b = document.createElement('button');
+  b.className = 'dado'; b.id = 'bSorte'; b.title = 'Sortear outra poeira'; b.setAttribute('aria-label', 'Sortear outra poeira');
+  b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor"/><circle cx="15" cy="15" r="1.1" fill="currentColor"/><circle cx="15" cy="9" r="1.1" fill="currentColor"/><circle cx="9" cy="15" r="1.1" fill="currentColor"/></svg>';
+  c.style.gridTemplateColumns = '1fr auto auto'; c.insertBefore(b, $('o_poeira'));
+  b.onclick = () => { s.sorte = Math.floor(Math.random() * 1000) + 1; if (!s.poeira) s.poeira = 0.5; sincroniza(); desenha(); memoriza(); }; }
 chave('moldura', 'Moldura do filme', 'A borda preta e os furos do negativo, como num escaneamento completo', $('p-analogico'));
-{ const w = document.createElement('div'); w.className = 'escolha';
-  w.innerHTML = '<div><button id="bSorte">Sortear de novo</button></div><small>Outra posição para a poeira, os riscos e a luz vazada</small>'; $('p-analogico').append(w);
-  $('bSorte').onclick = () => { s.sorte = Math.floor(Math.random() * 1000) + 1; desenha(); memoriza(); }; }
 
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }

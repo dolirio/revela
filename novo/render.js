@@ -67,35 +67,31 @@ float gnoise(vec2 p){
   return clamp(0.5 + 0.75 * n, 0.0, 1.0);
 }
 float fbm2(vec2 p){ return 0.55 * gnoise(p) + 0.3 * gnoise(p * 2.03 + 7.1) + 0.15 * gnoise(p * 4.1 + 3.7); }
-// poeira: pontos de contorno irregular e fiapos finos e curvos
-vec2 specks(vec2 q, float sc, float p, float rmin, float rmax, float elong, float soft, float off){
+// pontinhos: sempre redondos e pequenos (1 a 3 px na foto), sem contorno irregular, na mesma quantidade a cada sorteio
+float dots(vec2 q, float sc, float p, float rpx, float off){
   vec2 gp = q * sc; vec2 cell = floor(gp) + off + uDustSeed * 13.7;
-  if (hash(cell) >= p) return vec2(0.0);
-  vec2 dv = fract(gp) - (0.25 + 0.5 * vec2(hash(cell + 1.7), hash(cell + 3.1)));
-  float ang = hash(cell + 7.7) * 6.283;
-  dv = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * dv;
-  dv.x /= mix(1.0, elong, step(0.6, hash(cell + 4.4)));
-  float rr = mix(rmin, rmax, hash(cell + 5.3)) * (0.8 + 0.4 * vnoise(dv * 24.0 + cell * 3.1));
-  float d = length(dv) / rr;
-  return vec2(1.0 - smoothstep(1.0 - max(fwidth(d) * 1.5, soft), 1.0, d), hash(cell + 9.1));
+  if (hash(cell) >= p) return 0.0;
+  vec2 dv = (fract(gp) - (0.2 + 0.6 * vec2(hash(cell + 1.7), hash(cell + 3.1)))) / sc * uRes.y;   // em pixels da foto
+  float r = rpx * (0.5 + hash(cell + 5.3)) * (uRes.y / 2000.0);   // tamanho relativo à foto: a prévia reduzida mostra o mesmo que a exportação
+  float px = max(fwidth(gp.y) / sc * uRes.y, 0.5);
+  return (1.0 - smoothstep(r - px * 0.5, r + px * 0.5, length(dv))) * min(1.0, r / px) * mix(0.55, 1.0, hash(cell + 9.1));
 }
-vec2 hairs(vec2 q, float sc, float p, float off){
+// traços: curtinhos e finíssimos (pelinhos e marcas de papel)
+float traco(vec2 q, float sc, float p, float off){
   vec2 gp = q * sc; vec2 cell = floor(gp) + off + uDustSeed * 13.7;
-  if (hash(cell) >= p) return vec2(0.0);
-  vec2 dv = fract(gp) - (0.38 + 0.24 * vec2(hash(cell + 1.3), hash(cell + 2.9)));
+  if (hash(cell) >= p) return 0.0;
+  vec2 dv = fract(gp) - (0.3 + 0.4 * vec2(hash(cell + 1.3), hash(cell + 2.9)));
   float ang = hash(cell + 6.1) * 6.283;
-  dv = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * dv;
-  float len = mix(0.12, 0.3, hash(cell + 8.2)), bend = (hash(cell + 3.7) - 0.5) * 2.4;
-  float y = bend * dv.x * dv.x + 0.006 * sin(dv.x * 18.0 + hash(cell) * 6.0);
-  float px = fwidth(gp.y), w = max(0.0035, px * 0.45);
-  float aa = (1.0 - smoothstep(w, w + px * 1.2, abs(dv.y - y))) * (1.0 - smoothstep(len * 0.75, len, abs(dv.x)));
-  return vec2(aa, hash(cell + 9.1));
+  dv = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * dv * uRes.y / sc;              // em pixels da foto
+  float esc = uRes.y / 2000.0, len = mix(6.0, 22.0, hash(cell + 8.2)) * esc, bend = (hash(cell + 3.7) - 0.5) * 0.08 / esc;
+  float px = max(fwidth(gp.y) / sc * uRes.y, 0.5), w = 0.6 * esc;
+  float d = abs(dv.y - bend * dv.x * dv.x);
+  return (1.0 - smoothstep(w, w + px, d)) * (1.0 - smoothstep(len * 0.6, len, abs(dv.x))) * min(1.0, w * 2.0 / px) * 0.8;
 }
-vec2 dustOf(vec2 q){   // sutil, como no negativo bem cuidado: pó fino, alguns grãos alongados pequenos e raros fiapos.
-  // (sem as manchas grandes e macias do app publicado: pareciam sujeira na imagem, não no filme)
-  vec2 a = specks(q, 90.0, 0.16, 0.05, 0.11, 1.5, 0.0, 41.0), b;
-  b = specks(q, 34.0, 0.10, 0.025, 0.06, 2.5, 0.0, 0.0); b.x *= 0.8; if (b.x > a.x) a = b;
-  b = hairs(q, 4.0, 0.12, 3.0); b.x *= 0.7; if (b.x > a.x) a = b;
+float dustOf(vec2 q){   // como no RNI: pontinhos brancos e traços finos, sutis e constantes (sem manchas nem bloquinhos)
+  float a = dots(q, 60.0, 0.16, 1.3, 41.0);
+  a = max(a, dots(q, 140.0, 0.05, 0.8, 7.0));
+  a = max(a, traco(q, 9.0, 0.14, 3.0));
   return a;
 }
 float lineAA(float d, float w, float px){ float ww = max(w, px); return (1.0 - smoothstep(ww * 0.5, ww * 0.5 + px, d)) * min(1.0, w / max(px, 1e-4)); }
@@ -226,10 +222,9 @@ void main(){
     col = mix(col, col * 0.88 + 0.1, clamp(x, 0.0, 1.0) * 0.25);
     col = 1.0 - (1.0 - col) * (1.0 - lk);
   }
-  if (uDust > 0.0) {   // poeira na base do negativo: no escaneado sai CLARA
-    vec2 d = dustOf(uv * vec2(uRes.x / uRes.y, 1.0));
-    // não é branco chapado: o pó clareia o que está embaixo (luz do scanner contornando a partícula)
-    if (d.x > 0.0) col = mix(col, 1.0 - (1.0 - col) * 0.25, d.x * min(1.0, uDust) * mix(0.45, 0.8, d.y));
+  if (uDust != 0.0) {   // direita (+) = poeira branca, como no negativo escaneado; esquerda (−) = preta, como na cópia em papel
+    float d = dustOf(uv * vec2(uRes.x / uRes.y, 1.0));
+    if (d > 0.0) col = mix(col, uDust > 0.0 ? 1.0 - (1.0 - col) * 0.06 : col * 0.06, d * min(1.0, abs(uDust)) * 0.95);   // clareia o que está embaixo
   }
   if (uScratch > 0.0) {
     float sa = scratchOf(uv);
