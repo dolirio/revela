@@ -28,3 +28,20 @@ Curva do cinza (L\* em −4…+4 paradas) praticamente igual em todos: ~14 / 17 
 - **Tom:** fazer cada filme guardar o próprio contraste (da ficha técnica) através da etapa do laboratório.
 - **Pele:** rever no motor o caminho da cor da pele no Portra (corantes, máscara laranja e correção do scanner). A direção esperada é âmbar.
 - **Prova final:** as câmeras dão a *direção* do "jeito de negativo", não o valor certo de cada filme Kodak. Quem decide são as fotos da cartela em filme real escaneado (fase 8 do plano).
+
+## Causa do "tom igual em todos" (encontrada no motor)
+Em `motor.py`, `_prepara_scanner` ajusta a inversão do scanner **com a inclinação do próprio filme** (reta em densidade, cinza de −2 a +2 paradas), e depois todos passam pela mesma `curva_lab(contraste=1,15)`. Com isso, a inclinação de cada filme é dividida por ela mesma, e todos saem com o mesmo contraste.
+
+Inclinação medida no motor (gama efetivo no scanner, R/G/B):
+
+| Filme | R | G | B | média |
+|---|---|---|---|---|
+| Ektar 100 | 0,628 | 0,588 | 0,664 | **0,627** |
+| Portra 400 | 0,572 | 0,556 | 0,634 | 0,587 |
+| Gold 200 | 0,576 | 0,571 | 0,615 | 0,587 |
+| Portra 800 | 0,556 | 0,539 | 0,604 | 0,566 |
+| Portra 160 | 0,569 | 0,540 | 0,597 | 0,569 |
+| Ultramax 400 | 0,542 | 0,533 | 0,591 | 0,555 |
+| Vision3 500T | 0,487 | 0,547 | 0,518 | 0,517 |
+
+**Proposta:** dividir pela inclinação de um filme de referência comum (ex.: Portra 400), mantendo a correção por canal de cada filme para o cinza continuar neutro. O Ektar ficaria ~7 % mais contrastado que o Portra 400, e o Vision3 ~12 % mais suave, como nas fichas.
