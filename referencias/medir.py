@@ -39,12 +39,24 @@ def abre(caminho):
 
 
 def acha_marcas(lin):
-    """Acha as 4 marcas dos cantos: quadrado escuro com um quadrado claro dentro."""
+    """Acha as 4 marcas dos cantos: quadrado escuro com um quadrado claro dentro.
+    Se falhar, tenta de novo com a imagem mais reduzida: numa foto tremida a marca fica borrada,
+    e reduzir encolhe o borrão junto com ela."""
+    erro = None
+    for fator in (1, 2, 3):
+        try:
+            return _acha_marcas(lin, fator)
+        except ValueError as e:
+            erro = e
+    raise erro
+
+
+def _candidatos_img(lin, fator=1):
     y = lin.mean(2)
     y = y / max(float(np.percentile(y, 99.5)), 1e-6)        # foto escura (subexposta) ou RAW linear: estica antes
     g = np.clip(np.clip(y, 0, 1) ** (1 / 2.2) * 255, 0, 255).astype(np.uint8)
-    esc = max(1, int(max(g.shape) / 2000))
-    g = cv2.resize(g, (g.shape[1] // esc, g.shape[0] // esc))
+    esc = max(1, int(max(g.shape) / 2000)) * fator
+    g = cv2.resize(g, (g.shape[1] // esc, g.shape[0] // esc), interpolation=cv2.INTER_AREA)
     cand = []
     # vários limiares: uma marca perto de texto ou de sombra pode sumir num deles e aparecer em outro
     for bloco, k in ((51, 15), (31, 10), (75, 20)):
@@ -55,7 +67,36 @@ def acha_marcas(lin):
     for c in sorted(cand, reverse=True):   # junta a mesma marca achada em mais de um limiar
         if all(abs(c[1] - u[1]) > 12 * esc or abs(c[2] - u[2]) > 12 * esc for u in unicos):
             unicos.append(c)
-    cand = unicos
+    return g, esc, unicos
+
+
+def acha_cartelas(lin, n=2):
+    """Foto com n cartelas (ex.: papel fotográfico à esquerda e papel comum à direita): acha cada uma pelas
+    suas 4 marcas, escolhendo a melhor quadra, tirando as marcas dela e escolhendo a próxima.
+    Devolve as quadras da esquerda para a direita."""
+    from itertools import combinations
+    for fator in (1, 2, 3):
+        g, esc, cand = _candidatos_img(lin, fator)
+        quadras, resto = [], sorted(cand, reverse=True)[:16]
+        for _ in range(n):
+            if len(resto) < 3:
+                break
+            melhor, nota = _melhor_quadra(combinations(resto, 4)) if len(resto) >= 4 else (None, 1e9)
+            if melhor is None or nota > 0.8:
+                # reserva: três marcas + a quarta deduzida pela geometria (ex.: marca encostada na borda da foto)
+                melhor, nota = _melhor_quadra([list(t) + [_quarta_marca(g, list(t), esc)] for t in combinations(resto[:8], 3)])
+            if melhor is None or nota > 0.8:
+                break
+            quadras.append(melhor)
+            usados = {(round(float(x)), round(float(y))) for x, y in melhor}
+            resto = [c for c in resto if (round(c[1]), round(c[2])) not in usados]
+        if len(quadras) == n:
+            return sorted(quadras, key=lambda q: float(np.mean(q[:, 0])))
+    raise ValueError(f'não achei {n} cartelas na foto')
+
+
+def _acha_marcas(lin, fator=1):
+    g, esc, cand = _candidatos_img(lin, fator)
     if len(cand) == 3:   # a quarta marca se perdeu (ex.: encostada na borda do papel): deduz e confirma
         cand.append(_quarta_marca(g, cand, esc))
     if len(cand) < 4:
@@ -122,8 +163,10 @@ def _candidatos(cs, hier, esc):
         a = cv2.contourArea(c)
         if a < 60:
             continue
-        x, y, w, h = cv2.boundingRect(c)
-        if not 0.7 < w / h < 1.4 or a < 0.75 * w * h:
+        # retângulo girado: a cartela pode estar inclinada na foto (na X-T50, ~10°), e um quadrado girado
+        # ocupa só ~75% da caixa reta em volta dele, o que reprovava marcas verdadeiras
+        (_, _), (w, h), _ = cv2.minAreaRect(c)
+        if min(w, h) < 1 or not 0.7 < w / h < 1.4 or a < 0.8 * w * h:
             continue
         filho = hier[0][i][2]
         if filho < 0:
@@ -146,6 +189,13 @@ def mede_lado(caminho, lado, marcas=None):
     else:
         m = np.float32(marcas)
     return _mede_com(lin, m, caminho, sufixo='.' + lado)
+
+
+def mede_cartelas(caminho, n=2, marcas=None):
+    """Mede as n cartelas da foto (da esquerda para a direita). marcas: lista de quadras já conhecidas."""
+    lin = abre(caminho)
+    quadras = acha_cartelas(lin, n) if marcas is None else [np.float32(m) for m in marcas]
+    return [_mede_com(lin, q, caminho, sufixo=f'.c{i}') for i, q in enumerate(quadras)]
 
 
 def mede(caminho, marcas=None):
