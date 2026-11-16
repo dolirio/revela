@@ -13,7 +13,7 @@ const FS = `#version 300 es
 precision highp float; precision highp sampler3D;
 in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler3D uLut;
-uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uLong, uHasFilm, uBypass, uAuto;
+uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uLong, uTex, uOut, uHasFilm, uBypass, uAuto;
 uniform float uRet, uSep, uPele6, uPele5, uFaceLod; uniform vec4 uFace;
 uniform vec3 uPre, uPost, uSoftCh;
 uniform vec2 uRes;
@@ -58,13 +58,13 @@ void main(){
   vec3 lin = dec(c);
   // nitidez do filme: cada camada perde detalhe fino de um jeito (o vermelho, mais funda, é a mais macia)
   if (uSoft > 0.0) {
-    float lod = clamp(log2(uLong / 1500.0) + 0.6, 0.0, 4.0);
+    float lod = clamp(log2(uTex / 1500.0) + 0.6, 0.0, 4.0);   // uTex: lado da textura (o desfoque segue a foto)
     vec3 b = dec(textureLod(uImg, vUv, lod).rgb);
     lin = mix(lin, b, clamp(uSoft * uSoftCh, 0.0, 1.0));
   }
   // halação: a luz forte atravessa o filme, reflete na base e volta expondo de novo a camada vermelha
   if (uHalo > 0.0) {
-    float lod = clamp(log2(uLong / 1500.0) + 4.0, 0.0, 9.0);
+    float lod = clamp(log2(uTex / 1500.0) + 4.0, 0.0, 9.0);
     vec3 h = dec(textureLod(uImg, vUv, lod).rgb) * 0.5 + dec(textureLod(uImg, vUv, lod + 1.5).rgb) * 0.5;
     float hi = max(luma(h) - 0.55, 0.0) * 2.2;
     lin += uHalo * hi * vec3(1.0, 0.22, 0.04);
@@ -97,7 +97,9 @@ void main(){
   vec3 col = mix(dig, f, uMix);
   // grão: o tamanho segue a foto inteira (igual na prévia e na exportação)
   if (uGrain > 0.0) {
-    float cellPx = uGrainSize * 1.6 * (uLong / 4000.0);
+    // célula do grão em pixels DA SAÍDA: o mesmo tamanho relativo à foto na prévia e na exportação
+    // (antes usava o lado da foto original e a prévia mostrava o grão ~5× maior que o exportado)
+    float cellPx = uGrainSize * 1.6 * (uOut / 4000.0);
     float vis = smoothstep(0.35, 1.2, cellPx);          // células menores que um pixel viram ruído fino
     vec2 p = gl_FragCoord.xy / max(cellPx, 0.6);
     float l = luma(col);
@@ -122,7 +124,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1);
     this.img = gl.createTexture(); this.lut = gl.createTexture();
@@ -164,7 +166,7 @@ export class Render {
     gl.uniform1f(u.uLutN, m ? m.tabela.n : 2); gl.uniform1f(u.uLutMin, m ? m.tabela.min : -9); gl.uniform1f(u.uLutMax, m ? m.tabela.max : 7);
     gl.uniform1f(u.uHasFilm, m ? 1 : 0); gl.uniform1f(u.uAuto, s.labAuto ?? 1); gl.uniform1f(u.uBypass, bypass ? 1 : 0);
     gl.uniform1f(u.uMix, s.intensidade); gl.uniform1f(u.uExp, s.exposicao);
-    gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, wb(s.labTemp, s.labMatiz));
+    gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, m?.cat === 'pb' ? [1, 1, 1] : wb(s.labTemp, s.labMatiz));   // P&B: o scan é cinza, não há o que equilibrar
     gl.uniform1f(u.uHalo, s.halacao); gl.uniform1f(u.uGrain, s.grao); gl.uniform1f(u.uGrainSize, s.graoTamanho);
     gl.uniform1f(u.uSoft, m ? s.caraterFilme : 0); gl.uniform3fv(u.uSoftCh, a.nitidez_canal ? a.nitidez_canal.map((v) => 1 - v) : [0, 0, 0]);
     // retrato: só com filme de retrato e rosto marcado (posição em fração da foto)
@@ -176,7 +178,7 @@ export class Render {
       gl.uniform1f(u.uFaceLod, Math.max(0, Math.log2(raio * 0.7)));
       gl.uniform1f(u.uSep, s.separacao ?? 0.5); gl.uniform1f(u.uPele6, m.retrato.pele_v6); gl.uniform1f(u.uPele5, m.retrato.pele_v5);
     }
-    gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uLong, longSide); gl.uniform2f(u.uRes, outW, outH);
+    gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uLong, longSide); gl.uniform1f(u.uTex, Math.max(this.w, this.h)); gl.uniform1f(u.uOut, Math.max(outW, outH)); gl.uniform2f(u.uRes, outW, outH);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }
