@@ -329,9 +329,11 @@ export class Render {
     const ret = m?.retrato && s.rosto;
     gl.uniform1f(u.uRet, ret ? 1 : 0);
     if (ret) {
-      const raio = 0.16 * (s.rostoTam ?? 1) * Math.min(this.w, this.h);
-      gl.uniform4f(u.uFace, s.rosto.x, s.rosto.y, raio / this.w, raio * 1.25 / this.h);
-      gl.uniform1f(u.uFaceLod, Math.max(0, Math.log2(raio * 0.7)));
+      // oval desenhado (a, b em fração da foto) ou o padrão de um toque; × "Tamanho do rosto"
+      const k = s.rostoTam ?? 1, mm = Math.min(this.w, this.h);
+      const fa = (s.rosto.a ?? 0.16 * mm / this.w) * k, fb = (s.rosto.b ?? 0.2 * mm / this.h) * k;
+      gl.uniform4f(u.uFace, s.rosto.x, s.rosto.y, fa * 1.1, fb * 1.1);
+      gl.uniform1f(u.uFaceLod, Math.max(0, Math.log2(Math.min(fa * this.w, fb * this.h) * 0.7)));
       gl.uniform1f(u.uSep, s.separacao ?? 0.5); gl.uniform1f(u.uPele6, m.retrato.pele_v6); gl.uniform1f(u.uPele5, m.retrato.pele_v5);
     }
     gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uLong, longSide); gl.uniform1f(u.uTex, Math.max(this.w, this.h)); gl.uniform1f(u.uOut, Math.max(outW, outH)); gl.uniform2f(u.uRes, outW, outH);

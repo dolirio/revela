@@ -235,8 +235,9 @@ function sincroniza() {
   // P&B: temperatura e matiz do laboratório não existem (o scan é cinza)
   for (const k of ['labTemp', 'labMatiz']) { const r = $('r_' + k); if (r) r.parentElement.style.display = f?.meta.cat === 'pb' ? 'none' : ''; }
   if ($('c_labAuto')) $('c_labAuto').closest('.chave').style.display = f?.meta.cat === 'pb' ? 'none' : '';
-  $('nRosto').textContent = marcando ? 'Toque no rosto na foto' : s.rosto ? 'Rosto marcado. 0 = suave (v3), 50 = padrão (v6), 100 = forte (v5)' : 'Toque em "Marcar o rosto" e depois no rosto da pessoa';
+  $('nRosto').textContent = marcando ? 'Desenhe em volta do rosto (ou toque no centro dele)' : s.rosto ? 'Rosto marcado. Separação: 0 = suave, 50 = padrão, 100 = forte' : 'Destaque o rosto como na ampliação com máscara: toque em "Marcar o rosto" e desenhe em volta dele';
   $('bRosto').classList.toggle('on', marcando);
+  $('bRosto').textContent = s.rosto && !marcando ? 'Marcar de novo' : 'Marcar o rosto';
   anel();
   if ($('e_filtro')) $('e_filtro').style.display = f?.meta.filtros ? '' : 'none';
   if ($('e_lab')) $('e_lab').style.display = !f || (f.meta.labs || []).length > 1 ? '' : 'none';
@@ -272,7 +273,7 @@ function desenha() {
     const box = $('palco').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
     const Q = quadro(original ? {} : s, R.w, R.h);                            // com a moldura, o quadro é maior que a foto
     const k = Math.min((box.width - 28) / Q.W, (box.height - 18) / Q.H);   // tamanho na tela (CSS)
-    const px = Math.min(k * dpr, 1);                                         // pixels de verdade: nunca acima da foto carregada
+    const px = Math.min(k * dpr * zoom.z, 1);                                // pixels de verdade (mais com zoom): nunca acima da foto carregada
     const w = Math.max(1, Math.round(R.w * px)), h = Math.max(1, Math.round(R.h * px));
     R.draw(original ? { ...s, moldura: 0 } : s, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
     tela.style.width = Math.floor(Q.W * k) + 'px'; tela.style.height = Math.floor(Q.H * k) + 'px';
@@ -283,12 +284,31 @@ new ResizeObserver(desenha).observe($('palco'));
 
 // marcar o rosto: o próximo toque na foto define o centro do rosto (até a detecção automática chegar)
 $('bRosto').onclick = () => { marcando = !marcando; sincroniza(); };
+// marcar o rosto: arrastar o dedo em volta do rosto desenha a área (oval); um toque só marca o centro com o tamanho padrão
+let risco = null;   // {x0, y0, x1, y1} em fração da foto, enquanto desenha
+const fr = (e) => { const r = fotoRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; };
 tela.addEventListener('pointerdown', (e) => {
   if (!marcando) return;
-  const r = fotoRect();
-  s.rosto = { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
-  marcando = false; sincroniza(); desenha(); memoriza();
+  e.preventDefault(); tela.setPointerCapture?.(e.pointerId);
+  const [x, y] = fr(e); risco = { x0: x, y0: y, x1: x, y1: y }; anel();
 });
+tela.addEventListener('pointermove', (e) => { if (!risco) return; [risco.x1, risco.y1] = fr(e); anel(); });
+const fimRisco = () => {
+  if (!risco) return;
+  const r = fotoRect(), w = Math.abs(risco.x1 - risco.x0) * r.width, h = Math.abs(risco.y1 - risco.y0) * r.height;
+  if (Math.max(w, h) < 14) {   // toque: centro no ponto, tamanho padrão
+    s.rosto = { x: risco.x0, y: risco.y0 };
+  } else {                     // desenho: oval que cabe no retângulo arrastado
+    s.rosto = { x: (risco.x0 + risco.x1) / 2, y: (risco.y0 + risco.y1) / 2, a: Math.abs(risco.x1 - risco.x0) / 2, b: Math.abs(risco.y1 - risco.y0) / 2 };
+  }
+  s.rostoTam = 1; risco = null; marcando = false; sincroniza(); desenha(); memoriza();
+};
+tela.addEventListener('pointerup', fimRisco); tela.addEventListener('pointercancel', fimRisco);
+// tamanho do oval do rosto (em fração da foto): o desenhado, ou o padrão de um toque; × o controle "Tamanho do rosto"
+function ovalRosto(ro, w, h, k = 1) {
+  const m = Math.min(w, h);
+  return { a: (ro.a ?? 0.16 * m / w) * k, b: (ro.b ?? 0.2 * m / h) * k };
+}
 // retângulo da FOTO na tela (sem a moldura do filme)
 function fotoRect() {
   const t = tela.getBoundingClientRect(), j = R.janela || [0, 0, 1, 1];
@@ -298,16 +318,71 @@ function anel() {
   let a = $('anel');
   if (!a) { a = document.createElement('div'); a.id = 'anel'; $('palco').append(a); }
   const f = filmeAtual();
-  if (!foto || !f?.meta.retrato || !s.rosto || original) { a.style.display = 'none'; return; }
   const r = fotoRect(), p = $('palco').getBoundingClientRect();
-  const raio = 0.16 * s.rostoTam * Math.min(r.width, r.height);
-  Object.assign(a.style, { display: 'block', left: (r.left - p.left + s.rosto.x * r.width - raio) + 'px', top: (r.top - p.top + s.rosto.y * r.height - raio * 1.25) + 'px',
-    width: 2 * raio + 'px', height: 2.5 * raio + 'px' });
+  let o = null;
+  if (risco) o = { x: (risco.x0 + risco.x1) / 2, y: (risco.y0 + risco.y1) / 2, a: Math.abs(risco.x1 - risco.x0) / 2, b: Math.abs(risco.y1 - risco.y0) / 2 };
+  else if (foto && f?.meta.retrato && s.rosto && !original) o = { ...s.rosto, ...ovalRosto(s.rosto, r.width, r.height, s.rostoTam) };
+  if (!o) { a.style.display = 'none'; return; }
+  Object.assign(a.style, { display: 'block', left: (r.left - p.left + (o.x - o.a) * r.width) + 'px', top: (r.top - p.top + (o.y - o.b) * r.height) + 'px',
+    width: 2 * o.a * r.width + 'px', height: 2 * o.b * r.height + 'px' });
 }
+
+// ------------------------------------------------------------ zoom: pinça com dois dedos (até 4×), um dedo arrasta, toque duplo volta
+const zoom = { z: 1, tx: 0, ty: 0 };
+const dedos = new Map();
+let pinca = null, ultimoToque = 0;
+function aplicaZoom() {
+  const pr = $('palco').getBoundingClientRect(), w = tela.offsetWidth * zoom.z, h = tela.offsetHeight * zoom.z;
+  const mx = Math.max(0, (w - pr.width) / 2 + 40), my = Math.max(0, (h - pr.height) / 2 + 40);   // não deixa a foto fugir da tela
+  zoom.tx = Math.min(mx, Math.max(-mx, zoom.tx)); zoom.ty = Math.min(my, Math.max(-my, zoom.ty));
+  if (zoom.z <= 1.001) { zoom.z = 1; zoom.tx = zoom.ty = 0; }
+  tela.style.transform = zoom.z === 1 ? '' : `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.z})`;
+  anel();
+}
+function zeraZoom() { zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom(); desenha(); }
+const centro = () => { const r = tela.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+$('palco').addEventListener('pointerdown', (e) => {
+  if (!foto || e.pointerType === 'mouse' && e.button !== 0) return;
+  dedos.set(e.pointerId, [e.clientX, e.clientY]);
+  if (dedos.size === 2 && !risco) {
+    const [a, b] = [...dedos.values()];
+    pinca = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoom.z, m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], tx: zoom.tx, ty: zoom.ty, c: centro() };
+    if (original) { original = false; $('selo').style.display = 'none'; desenha(); }   // pinça não é "ver a original"
+  } else if (dedos.size === 1 && e.pointerType !== 'mouse') {
+    const t = performance.now(); if (t - ultimoToque < 300 && zoom.z > 1 && !marcando) zeraZoom(); ultimoToque = t;
+  }
+});
+addEventListener('pointermove', (e) => {
+  if (!dedos.has(e.pointerId)) return;
+  const ant = dedos.get(e.pointerId); dedos.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinca && dedos.size === 2) {
+    const [a, b] = [...dedos.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const z = Math.min(4, Math.max(1, pinca.z * d / pinca.d)), k = z / pinca.z;
+    // o ponto entre os dedos fica parado na foto
+    zoom.z = z;
+    zoom.tx = m[0] - (pinca.c[0] - pinca.tx) - (pinca.m[0] - pinca.c[0]) * k;
+    zoom.ty = m[1] - (pinca.c[1] - pinca.ty) - (pinca.m[1] - pinca.c[1]) * k;
+    aplicaZoom();
+  } else if (dedos.size === 1 && zoom.z > 1 && !marcando && !risco) {
+    zoom.tx += e.clientX - ant[0]; zoom.ty += e.clientY - ant[1]; aplicaZoom();
+  }
+});
+const soltaDedo = (e) => {
+  if (!dedos.delete(e.pointerId)) return;
+  if (dedos.size < 2 && pinca) { pinca = null; desenha(); }   // redesenha na resolução do zoom
+};
+addEventListener('pointerup', soltaDedo); addEventListener('pointercancel', soltaDedo);
+$('palco').addEventListener('wheel', (e) => {   // computador: roda do mouse (ou pinça do trackpad) também dá zoom
+  if (!foto) return; e.preventDefault();
+  const c = centro(), z0 = zoom.z, z = Math.min(4, Math.max(1, z0 * Math.exp(-e.deltaY * 0.0015))), k = z / z0;
+  zoom.tx = e.clientX - (c[0] - zoom.tx) - (e.clientX - c[0]) * k; zoom.ty = e.clientY - (c[1] - zoom.ty) - (e.clientY - c[1]) * k;
+  zoom.z = z; aplicaZoom(); clearTimeout(zoom.t); zoom.t = setTimeout(desenha, 120);
+}, { passive: false });
+$('palco').addEventListener('dblclick', () => { if (zoom.z > 1) zeraZoom(); });
 
 // comparar: segurar o botão (ou a foto) mostra a original
 const segura = (el) => {
-  const on = (e) => { if (!foto || marcando) return; e.preventDefault(); original = true; $('selo').style.display = 'block'; desenha(); };
+  const on = (e) => { if (!foto || marcando || (el === tela && (zoom.z > 1 || dedos.size > 1))) return; e.preventDefault(); original = true; $('selo').style.display = 'block'; desenha(); };
   const off = () => { if (!original) return; original = false; $('selo').style.display = 'none'; desenha(); };
   el.addEventListener('pointerdown', on); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, off);
 };
@@ -354,7 +429,7 @@ async function abre(file) {
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
     // a foto nova começa limpa; se a anterior foi editada, pergunta se quer repetir (nunca aplica sozinho)
     const anterior = tinhaFoto && editada() ? { ...s } : null;
-    s = { ...PADRAO, semente: Math.random() }; marcando = false; R.setFilm(null);
+    s = { ...PADRAO, semente: Math.random() }; marcando = false; R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none';
     for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;

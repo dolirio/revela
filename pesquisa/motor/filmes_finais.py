@@ -86,7 +86,12 @@ if __name__ == '__main__':
         an = dict(mb['analogico']); an['grao'] = A['grao']
         meta = {'id': A['id'], 'nome': A['nome'], 'inspirado': A['inspirado'], 'cat': 'pb' if A.get('pb') else 'cor', 'nota': A['nota'],
                 'analogico': an, 'labs': ['neutro'], 'tabela': mb['tabela'], 'cinza_medio_saida': [round(float(v), 4) for v in mid]}
-        if 'retrato' in mb: meta['retrato'] = mb['retrato']
+        if 'retrato' in mb:
+            meta['retrato'] = mb['retrato']
+        else:   # separação do rosto em qualquer filme: luz da cena que sai com a pele no alvo (v6 155, v5 135, como no Lindbergh)
+            t = np.linspace(-6, 4, 2001); xs = 0.18 * 2.0 ** t
+            v = identidade(base(np.repeat(xs[:, None], 3, 1), A['base'])[0], A) @ [0.2126, 0.7152, 0.0722]
+            meta['retrato'] = {'pele_v6': round(float(np.interp(155 / 255, v, xs)), 5), 'pele_v5': round(float(np.interp(135 / 255, v, xs)), 5)}
         json.dump(meta, open(os.path.join(F, A['id'] + '.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         print(A['id'], 'cinza médio', meta['cinza_medio_saida'])
     json.dump([A['id'] for A in FILMES], open(os.path.join(F, 'indice.json'), 'w'))
