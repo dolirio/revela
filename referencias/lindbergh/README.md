@@ -37,3 +37,6 @@ Medido em 4 fotos de referência do fotógrafo (rua, praia, sol, retrato), compa
 Conclusões: a pele fica no cinza médio (não clara); a separação vem do rosto acima da foto inteira, não do fundo imediato (nas fotos de praia o fundo é mais claro que o rosto); há luz e sombra dentro do rosto; a textura vem do grão, não da nitidez.
 
 `v5_retrato.py`: exposição ajustada até a pele cair em 135; contraste ×1,25 em paradas centrado no rosto; entorno escurecido por máscara suave (adaptativo, até 2,5 paradas) até o rosto ficar ≥ +60 acima da mediana; Shadow +1, Highlight −1, Clarity 0, sem nitidez, leve suavização da nitidez do iPhone; grão orgânico. **O rosto foi marcado à mão neste teste**; no app, viria de detecção de rosto.
+
+## v5 → v6 (16/11/2026)
+O usuário achou a v5 escura demais ("prefiro a v3"). A v6 é o meio-termo: pele no topo da faixa medida (alvo 155), contraste ×1,12, entorno −0,55 parada fixo (sem escurecimento adaptativo), Shadow −1 (como a v1/v3). Resultado: pele 156–157, rosto +44 a +46 acima da mediana (v3: +20; v5: +78). O perfil contra a janela (IMG_7117) não separa sem escurecer muito: aí a luz da cena manda.
