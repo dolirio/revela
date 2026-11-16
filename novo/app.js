@@ -90,7 +90,7 @@ function montaFaixa() {
     fx.append(b);
   };
   item('none', 'Digital', (c) => miniatura(c, null));
-  for (const f of filmes.filter((x) => x.meta.cat === catAtual)) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
+  for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
   atualizaNota();
 }
 
@@ -123,8 +123,8 @@ function escolheFilme(id) {
 // ------------------------------------------------------------ controles
 const CTL = {
   intensidade: { n: 'Intensidade do filme', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
-  exposicao: { n: 'Exposição do negativo', min: -3, max: 3, passo: 0.05, fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) },
-  cenaTemp: { n: 'Temperatura', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  exposicao: { n: 'Luz', min: -3, max: 3, passo: 0.05, fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) },
+  cenaTemp: { n: 'Calor', min: -1, max: 1, passo: 0.01, fmt: sinal },
   cenaMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
   labTemp: { n: 'Temperatura', min: -1, max: 1, passo: 0.01, fmt: sinal },
   labMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
@@ -168,23 +168,16 @@ function secao(pai, t, nota) { const e = document.createElement('div'); e.classN
 
 $('cIntensidade').className = '';
 controle('intensidade', $('cIntensidade'));
-secao($('p-ajustes'), 'Na câmera', 'Antes do filme: a luz que chega ao negativo');
+// tela enxuta (17/11/2026): Luz, Calor e Matiz; o retrato só no Silver Portrait. O laboratório e o filtro já vêm em cada filme.
 controle('exposicao', $('p-ajustes'));
-escolha('filtro', FILTROS, $('p-ajustes'), 'Filtro na lente');
-// retrato: só nos filmes com receita de retrato (Lindbergh)
+controle('cenaTemp', $('p-ajustes')); controle('cenaMatiz', $('p-ajustes'));
 const retrato = document.createElement('div'); retrato.id = 'g_retrato'; $('p-ajustes').prepend(retrato);
 secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara');
 { const w = document.createElement('div'); w.className = 'escolha';
   w.innerHTML = '<div><button id="bRosto">Marcar o rosto</button></div><small id="nRosto"></small>'; retrato.append(w); }
 controle('separacao', retrato); controle('rostoTam', retrato);
-controle('cenaTemp', $('p-ajustes')); controle('cenaMatiz', $('p-ajustes'));
-secao($('p-ajustes'), 'No laboratório', 'Depois do filme: o equilíbrio feito no scan');
-escolha('lab', LABS, $('p-ajustes'));
-chave('labAuto', 'Equilíbrio automático', 'Como o scanner do laboratório: o cinza fica neutro em qualquer exposição', $('p-ajustes'));
-controle('labTemp', $('p-ajustes')); controle('labMatiz', $('p-ajustes'));
-secao($('p-analogico'), 'Do filme');
 controle('grao', $('p-analogico')); controle('graoTamanho', $('p-analogico'));
-controle('halacao', $('p-analogico')); controle('caraterFilme', $('p-analogico'));
+controle('halacao', $('p-analogico'));
 
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }

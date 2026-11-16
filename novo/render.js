@@ -15,7 +15,7 @@ in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler3D uLut;
 uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uLong, uTex, uOut, uHasFilm, uBypass, uAuto;
 uniform float uRet, uSep, uPele6, uPele5, uFaceLod; uniform vec4 uFace;
-uniform vec3 uPre, uPost, uSoftCh;
+uniform vec3 uPre, uPost, uSoftCh, uG0;
 uniform vec2 uRes;
 
 vec3 dec(vec3 c){ return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
@@ -90,7 +90,7 @@ void main(){
     // ser neutro (o brilho fica). Usa o cinza SEM a luz da cena, para a temperatura "na câmera" continuar valendo.
     if (uAuto > 0.0) {
       vec3 g = max(dec(filme(vec3(0.18) * exp2(uExp))), vec3(1e-5));
-      fl *= mix(vec3(1.0), vec3(luma(g)) / g, uAuto);
+      fl *= mix(vec3(1.0), (uG0 / luma(uG0)) * luma(g) / g, uAuto);   // volta ao cinza do PRÓPRIO filme (mantém o tom dele)
     }
     f = enc(fl * uPost);
   }
@@ -124,7 +124,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1);
     this.img = gl.createTexture(); this.lut = gl.createTexture();
@@ -164,6 +164,8 @@ export class Render {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lut);
     const m = this.film?.meta, a = m?.analogico || {};
     gl.uniform1f(u.uLutN, m ? m.tabela.n : 2); gl.uniform1f(u.uLutMin, m ? m.tabela.min : -9); gl.uniform1f(u.uLutMax, m ? m.tabela.max : 7);
+    const g0 = (m?.cinza_medio_saida || [0.47, 0.47, 0.47]).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    gl.uniform3fv(u.uG0, g0);
     gl.uniform1f(u.uHasFilm, m ? 1 : 0); gl.uniform1f(u.uAuto, s.labAuto ?? 1); gl.uniform1f(u.uBypass, bypass ? 1 : 0);
     gl.uniform1f(u.uMix, s.intensidade); gl.uniform1f(u.uExp, s.exposicao);
     gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, m?.cat === 'pb' ? [1, 1, 1] : wb(s.labTemp, s.labMatiz));   // P&B: o scan é cinza, não há o que equilibrar
