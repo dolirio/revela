@@ -40,3 +40,8 @@ Conclusões: a pele fica no cinza médio (não clara); a separação vem do rost
 
 ## v5 → v6 (16/11/2026)
 O usuário achou a v5 escura demais ("prefiro a v3"). A v6 é o meio-termo: pele no topo da faixa medida (alvo 155), contraste ×1,12, entorno −0,55 parada fixo (sem escurecimento adaptativo), Shadow −1 (como a v1/v3). Resultado: pele 156–157, rosto +44 a +46 acima da mediana (v3: +20; v5: +78). O perfil contra a janela (IMG_7117) não separa sem escurecer muito: aí a luz da cena manda.
+
+## Decisão (16/11/2026)
+- **v6 é o ponto padrão** do retrato Lindbergh.
+- **v3 e v5 ficam como extremos** de um controle de "separação do rosto" (0 = v3, padrão = v6, máximo = v5), como recurso criativo.
+- No app, a posição do rosto viria de detecção automática no próprio aparelho (pessoas e, quando possível, animais), com ajuste manual por toque como alternativa.
