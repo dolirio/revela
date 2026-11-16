@@ -12,6 +12,15 @@ const LABS = [
   { id: 'frontier', n: 'Frontier', nota: 'Inspirado no Fuji Frontier: sombras ciano, verdes frios, luzes douradas, mais contraste' },
 ];
 
+// filtro de cor na lente (só nos filmes P&B; fatores conferidos com a ficha do Tri-X)
+const FILTROS = [
+  { id: 'nenhum', n: 'Sem', nota: 'Como o filme enxerga: azul claro, vermelho e pele mais escuros' },
+  { id: 'amarelo', n: 'Amarelo', nota: 'Céu um pouco mais escuro, nuvens destacadas (o clássico de paisagem)' },
+  { id: 'laranja', n: 'Laranja', nota: 'Céu escuro, pele mais lisa e clara' },
+  { id: 'vermelho', n: 'Vermelho', nota: 'Céu quase preto, contraste dramático; pele muito clara' },
+  { id: 'verde', n: 'Verde', nota: 'Pele e lábios mais escuros, folhagem clara (o da receita Lindbergh)' },
+];
+
 const CATS = [
   { id: 'negativo', n: 'Negativo' }, { id: 'cromo', n: 'Cromo' }, { id: 'pb', n: 'P&B' },
   { id: 'instantaneo', n: 'Instantâneo' }, { id: 'vencido', n: 'Vencido' },
@@ -19,7 +28,7 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', labAuto: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
@@ -46,11 +55,14 @@ async function carregaFilmes() {
   filmes = await Promise.all(ids.map(async (id) => {
     const meta = await fetch(`filmes/${id}.json`).then((r) => r.json());
     const labs = {};
-    await Promise.all((meta.labs || ['neutro']).map(async (l) => {
-      labs[l] = new Uint16Array(await fetch(`filmes/${id}${l === 'neutro' ? '' : '.' + l}.bin`).then((r) => r.arrayBuffer()));
+    // variantes: um laboratório por tabela (colorido) ou um filtro de lente por tabela (P&B)
+    const vars = meta.filtros ? meta.filtros : (meta.labs || ['neutro']);
+    const base = meta.filtros ? 'nenhum' : 'neutro';
+    await Promise.all(vars.map(async (v) => {
+      labs[v] = new Uint16Array(await fetch(`filmes/${id}${v === base ? '' : '.' + v}.bin`).then((r) => r.arrayBuffer()));
     }));
-    // data: a tabela do laboratório escolhido agora
-    return { meta, labs, get data() { return labs[s.lab] || labs.neutro; } };
+    // data: a tabela da variante escolhida agora
+    return { meta, labs, get data() { return meta.filtros ? (labs[s.filtro] || labs.nenhum) : (labs[s.lab] || labs.neutro); } };
   }));
 }
 const filmeAtual = () => filmes.find((f) => f.meta.id === s.filme) || null;
@@ -139,22 +151,23 @@ function chave(k, nome, nota, pai) {
   w.querySelector('input').addEventListener('change', (e) => { s[k] = e.target.checked ? 1 : 0; desenha(); memoriza(); });
 }
 // escolha entre opções (botões lado a lado)
-function escolha(k, ops, pai) {
+function escolha(k, ops, pai, titulo) {
   const w = document.createElement('div'); w.className = 'escolha'; w.id = 'e_' + k;
-  w.innerHTML = '<div></div><small></small>'; pai.append(w);
+  w.innerHTML = (titulo ? `<label>${titulo}</label>` : '') + '<div></div><small></small>'; pai.append(w);
   for (const o of ops) {
     const b = document.createElement('button'); b.textContent = o.n; b.dataset.v = o.id;
     b.onclick = () => { if (s[k] === o.id) return; s[k] = o.id; aoMudar(k); sincroniza(); desenha(); memoriza(); };
-    w.firstChild.append(b);
+    w.querySelector('div').append(b);
   }
 }
-function aoMudar(k) { if (k === 'lab') { R.setFilm(filmeAtual()); montaFaixa(); } }
+function aoMudar(k) { if (k === 'lab' || k === 'filtro') { R.setFilm(filmeAtual()); montaFaixa(); } }
 function secao(pai, t, nota) { const e = document.createElement('div'); e.className = 'sec'; e.textContent = t; if (nota) e.title = nota; pai.append(e); }
 
 $('cIntensidade').className = '';
 controle('intensidade', $('cIntensidade'));
 secao($('p-ajustes'), 'Na câmera', 'Antes do filme: a luz que chega ao negativo');
 controle('exposicao', $('p-ajustes'));
+escolha('filtro', FILTROS, $('p-ajustes'), 'Filtro na lente');
 controle('cenaTemp', $('p-ajustes')); controle('cenaMatiz', $('p-ajustes'));
 secao($('p-ajustes'), 'No laboratório', 'Depois do filme: o equilíbrio feito no scan');
 escolha('lab', LABS, $('p-ajustes'));
@@ -167,8 +180,15 @@ controle('halacao', $('p-analogico')); controle('caraterFilme', $('p-analogico')
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
-  const e = $('e_lab');
-  if (e) { e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s.lab)); e.querySelector('small').textContent = LABS.find((l) => l.id === s.lab)?.nota || ''; }
+  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS]]) {
+    const e = $('e_' + k); if (!e) continue;
+    e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s[k]));
+    e.querySelector('small').textContent = ops.find((l) => l.id === s[k])?.nota || '';
+  }
+  // o filtro só existe no P&B; o laboratório (Frontier) só nos coloridos que têm a tabela
+  const f = filmeAtual();
+  if ($('e_filtro')) $('e_filtro').style.display = f?.meta.filtros ? '' : 'none';
+  if ($('e_lab')) $('e_lab').style.display = !f || (f.meta.labs || []).length > 1 ? '' : 'none';
 }
 
 document.querySelectorAll('.abas button').forEach((b) => b.onclick = () => {
@@ -185,8 +205,8 @@ function memoriza() {
 }
 function volta(n) {
   if (hi + n < 0 || hi + n >= hist.length) return;
-  hi += n; const ant = s.filme, antLab = s.lab; s = { ...PADRAO, ...JSON.parse(hist[hi]) };
-  if (s.filme !== ant || s.lab !== antLab) { R.setFilm(filmeAtual()); montaFaixa(); }
+  hi += n; const ant = s.filme, antLab = s.lab, antF = s.filtro; s = { ...PADRAO, ...JSON.parse(hist[hi]) };
+  if (s.filme !== ant || s.lab !== antLab || s.filtro !== antF) { R.setFilm(filmeAtual()); montaFaixa(); }
   sincroniza(); atualizaNota(); desenha(); botoes();
 }
 function botoes() { $('bDesfazer').disabled = hi <= 0; $('bRefazer').disabled = hi >= hist.length - 1; }

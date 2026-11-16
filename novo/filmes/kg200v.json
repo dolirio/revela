@@ -1,0 +1,34 @@
+{
+ "id": "kg200v",
+ "nome": "KG 200 · 10 anos",
+ "inspirado": "Kodak Gold 200 vencido",
+ "cat": "vencido",
+ "nota": "vencido · 10 anos numa gaveta · mais escuro, menos cor, sombras com véu",
+ "analogico": {
+  "grao": 0.505,
+  "grao_tamanho": 1.05,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.67,
+   1.0,
+   1.0
+  ]
+ },
+ "labs": [
+  "neutro",
+  "frontier"
+ ],
+ "ficha": "Kodak Gold 200",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4095,
+  0.3958,
+  0.4003
+ ]
+}

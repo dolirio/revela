@@ -444,6 +444,144 @@ class Motor:
         return np.clip(srgb_encode(out), 0, 1)
 
 
+# ------------------------------------------------------------------ preto e branco
+# Filtros de cor na frente da lente (transmitância). # APROX: formas suaves pelos cortes publicados dos Wratten
+# (8 amarelo ~470 nm, 21 laranja ~540, 25 vermelho ~590, 11 amarelo-esverdeado). A exposição é compensada
+# (o fotógrafo abre o diafragma pelo fator do filtro), então o cinza médio fica onde estava.
+# Conferência com a ficha F-4017 (fatores à luz do dia): amarelo 2,1 (ficha 2), vermelho 8,7 (8), verde 4,0 (4).
+# Mistura de canais com o verde: R 0,14 · G 0,67 · B 0,19, contra R 0,10 · G 0,69 · B 0,21 medidos na receita
+# Lindbergh (Fuji Acros + filtro G).
+def _sig(x):
+    return 1 / (1 + np.exp(-x))
+
+
+FILTROS_PB = {
+    'nenhum': np.ones_like(NM),
+    'amarelo': _sig((NM - 475) / 8),
+    'laranja': _sig((NM - 555) / 8),
+    'vermelho': _sig((NM - 595) / 7),
+    'verde': 0.6 * _sig((NM - 470) / 9) * (1 - 0.7 * _sig((NM - 590) / 12)),   # pico ~60 %, como a gelatina
+}
+
+
+class MotorPB:
+    """Filme preto e branco: uma camada de prata com sensibilidade espectral própria (ficha técnica), curva
+    característica da revelação escolhida, escaneamento com inversão linear em densidade (como no colorido).
+    A cor da cena vira cinza pelo que o filme ENXERGA (ex.: o Tri-X quase não vê acima de 650 nm, então
+    vermelhos e pele saem mais escuros que numa conversão digital)."""
+
+    def __init__(self, dados='trix400', revelacao='D76_8min', filtro='nenhum'):
+        d = _carrega(dados)
+        self.nome = d['filme']
+        s = d['sensibilidade']
+        sens = 10 ** _na_grade(s['nm'], s['D1.0'], fora=-9)
+        sens[NM > max(n for n, v in zip(s['nm'], s['D1.0']) if v is not None)] = 0.0
+        self.sens = sens * FILTROS_PB[filtro]
+        c = d['caracteristica']
+        self.logH = _arr(c['logH']); self.curva = _arr(c[revelacao])
+        ok = ~np.isnan(self.curva); self.logH, self.curva = self.logH[ok], self.curva[ok]
+        self.base_rgb = base_espectral(); self.branco = self.base_rgb.sum(0)
+        self.espectro = EspectroNatural(self.base_rgb, self.branco)
+        # cinza médio: 1,0 log acima do ponto de sensibilidade ISO (H = 0,8 / ISO), regra usual de fotometria
+        self.ref = float(np.log10(0.8 / 400) + 1.0)
+        self.k = 1.0 / (self.espectro(np.full(3, 0.18)) @ self.sens)
+        L = self.ref + np.linspace(-2, 2, 17) * np.log10(2)
+        self.inv = np.polyfit(L, self.densidade(L), 1)
+        self.fator_contraste = self.inv[0] / GAMA_REF
+
+    def densidade(self, L):
+        x, y = self.logH, self.curva
+        g = (y[-1] - y[-5]) / (x[-1] - x[-5])
+        L = np.asarray(L, float)
+        return np.where(L > x[-1], y[-1] + (L - x[-1]) * g, np.interp(L, x, y))
+
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15, lab='neutro'):
+        H = (self.espectro(rgb_lin) @ self.sens) * self.k * 0.18
+        L = self.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + paradas * np.log10(2)
+        D = self.densidade(L)
+        Lhat = self.ref + ((D - self.inv[1]) / self.inv[0] - self.ref) * self.fator_contraste
+        x = 0.18 * 10 ** (Lhat - self.ref)
+        y = Motor.curva_lab(x, contraste)
+        return np.repeat(y[..., None], 3, -1)
+
+
+# ------------------------------------------------------------------ cromo (diapositivo)
+class MotorCromo:
+    """Filme reversível (slide): mais luz = MENOS corante, e o próprio filme é a imagem final, sem inversão nem
+    papel. Cadeia: espectro da cena -> exposição de cada camada (ficha) -> densidade de cada camada (curva da
+    ficha, decrescente) -> quantidade de cada corante (densidades espectrais da ficha) -> luz que atravessa o
+    slide numa mesa de luz do dia -> cor vista. O "escaneamento" só fixa o cinza médio e dobra as luzes altas
+    para o branco; o contraste alto e a cor saturada vêm do próprio slide.
+    # APROX: filtros Status A como gaussianas (B 440, G 545, R 645 nm); base do filme plana (Dmin da curva);
+    corantes da ficha tratados como mistura linear."""
+
+    def __init__(self, dados='ektachrome_e100'):
+        d = _carrega(dados)
+        self.nome = d['filme']
+        c = d['caracteristica']
+        self.logH = _arr(c['logH']); self.curva = {k: _arr(c[k]) for k in 'RGB'}
+        sv = d['sensibilidade']
+        chaves = {'B': 'azul (forma amarelo)', 'G': 'verde (forma magenta)', 'R': 'vermelho (forma ciano)'}
+        self.sens = np.stack([10 ** _na_grade(sv['nm'], sv[chaves[k]], fora=-9) for k in 'RGB'])
+        e = d['densidade_espectral']
+        cor = [_na_grade(e['nm'], e[k], fora=np.nan) for k in ('corante_ciano', 'corante_magenta', 'corante_amarelo')]
+        for v in cor:
+            ok = ~np.isnan(v); v[~ok] = np.interp(NM[~ok], NM[ok], v[ok])
+        self.corantes = np.clip(np.stack(cor), 0, None)              # C, M, Y (formados por R, G, B)
+        self.statusA = np.stack([_g(NM, mu, sg, sg) for mu, sg in ((645, 12), (545, 15), (440, 15))])
+        self.statusA /= self.statusA.sum(1, keepdims=True)
+        self.A = self.statusA @ self.corantes.T                      # Status A de cada corante (3x3)
+        self.dmin = np.array([np.nanmin(self.curva[k]) for k in 'RGB'])
+        self.base_rgb = base_espectral(); self.branco = self.base_rgb.sum(0)
+        self.espectro = EspectroNatural(self.base_rgb, self.branco)
+        # exposição do cinza médio: a camada verde no meio-tom da ficha (D = 1,0), as outras no mesmo cinza
+        self.ref = float(np.interp(1.0, self.curva['G'][::-1], self.logH[::-1]))
+        self.k = 1.0 / (self.sens @ self.espectro(np.full(3, 0.18)))
+        alvo = self.densidade(np.full(3, self.ref))[1]
+        self.desvio = np.array([float(np.interp(alvo, self.curva[k][::-1], self.logH[::-1])) - self.ref for k in 'RGB'])
+        self.xyz_branco = (10 ** (-self.dmin.mean()) * self.branco) @ CMF.T
+        g = self._xyz(np.full((1, 3), 0.18))[0]
+        self.escala = 0.18 / g[1] * (g[1] / ((self.branco * 10 ** (-self.dmin.mean())) @ CMF.T)[1])
+
+    def densidade(self, L):
+        out = []
+        for i, k in enumerate('RGB'):
+            x, y = self.logH, self.curva[k]; ok = ~np.isnan(y)
+            out.append(np.interp(L[..., i], x[ok], y[ok]))
+        return np.stack(out, -1)
+
+    def _xyz(self, rgb_lin, paradas=0.0):
+        H = (self.espectro(rgb_lin) @ self.sens.T) * self.k * 0.18
+        L = self.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + self.desvio + paradas * np.log10(2)
+        D = self.densidade(L)
+        q = np.clip((D - self.dmin) @ np.linalg.inv(self.A).T, 0, None)
+        Desp = self.dmin.mean() + q @ self.corantes
+        return ((10 ** (-Desp)) * self.branco) @ CMF.T / self.xyz_branco[1]
+
+    def _lin(self, rgb_lin, paradas=0.0):
+        xyz = self._xyz(rgb_lin, paradas)
+        return (xyz / (self.xyz_branco / self.xyz_branco[1])) @ XYZ_SRGB.T * (SRGB_XYZ @ np.ones(3))
+
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.0, lab='neutro'):
+        if not hasattr(self, 'cal'):
+            # calibração de cinza do scanner de slides (como com um alvo IT8): uma curva por canal leva a escala de
+            # cinzas a sair neutra em todos os níveis. Corrige o desvio do eixo neutro que vem das aproximações
+            # (Status A e mistura dos corantes): sem ela, luzes rosadas (a* +2) e sombras esverdeadas (a* −3).
+            s = np.linspace(-9, 7, 161)
+            n = np.maximum(self._lin(0.18 * 2.0 ** s[:, None] * np.ones(3)), 1e-9)
+            y = n @ SRGB_XYZ[1]
+            self.cal = [(np.log(n[:, k]), np.log(y)) for k in range(3)]
+            self.cal_escala = 1.0
+            g = self.escaneia_bruto(np.full((1, 3), 0.18), 0.0)[0]
+            self.cal_escala = 0.18 / (g @ SRGB_XYZ[1])
+        return Motor.curva_lab(self.escaneia_bruto(rgb_lin, paradas), contraste, sombra=0.0)
+
+    def escaneia_bruto(self, rgb_lin, paradas=0.0):
+        lin = np.maximum(self._lin(rgb_lin, paradas), 1e-9)
+        out = np.stack([np.exp(np.interp(np.log(lin[..., k]), *self.cal[k])) for k in range(3)], -1)
+        return out * self.cal_escala
+
+
 def grava_cube(caminho, lut, n, titulo):
     with open(caminho, 'w') as f:
         f.write(f'TITLE "{titulo}"\nLUT_3D_SIZE {n}\nDOMAIN_MIN 0 0 0\nDOMAIN_MAX 1 1 1\n')

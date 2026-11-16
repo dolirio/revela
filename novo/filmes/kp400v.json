@@ -1,0 +1,34 @@
+{
+ "id": "kp400v",
+ "nome": "KP 400 · calor",
+ "inspirado": "Kodak Portra 400 vencido no calor",
+ "cat": "vencido",
+ "nota": "vencido · 10 anos guardado no calor · dominante que muda de rolo para rolo",
+ "analogico": {
+  "grao": 0.477,
+  "grao_tamanho": 1.15,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.665,
+   1.0,
+   1.0
+  ]
+ },
+ "labs": [
+  "neutro",
+  "frontier"
+ ],
+ "ficha": "Kodak Professional Portra 400",
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.3085,
+  0.5481,
+  0.3491
+ ]
+}

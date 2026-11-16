@@ -45,7 +45,7 @@ python3 pesquisa/ferramentas/graficos.py
 | Kodak Ektar 100 | ✅ | — | ⏳ | ✅ (KE 100) |
 | Kodak Gold 200 e UltraMax 400 | ✅ | — | ⏳ | ✅ (KG 200, KU 400) |
 | Kodak Vision3 500T (base do CineStill 800T; **corantes C, M, Y publicados separados**) | ✅ | — | ⏳ | ✅ (C 800T) |
-| Kodak Ektachrome E100 (cromo; corantes separados) | ✅ | — | ⏳ | falta o caminho de cromo no motor |
+| Kodak Ektachrome E100 (cromo; corantes separados) | ✅ | — | ✅ | caminho de cromo no motor (`MotorCromo`, 16/11/2026) |
 | Fuji, preto e branco, instantâneo | ver [fichas.md](fichas.md) | — | — | — |
 
 As 25 extrações das fichas Kodak têm conferência visual em [`figuras/fichas/`](figuras/fichas/) (dados em cor sobre o gráfico original).

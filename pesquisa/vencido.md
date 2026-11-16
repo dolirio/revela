@@ -17,7 +17,7 @@ Os dois documentos foram citados pelo app Flashget no filme "C200 expired". Conf
 ## O que NÃO dizem
 - **Taxas** (quantas paradas por ano), **em que direção** cada camada muda e qual camada muda primeiro. A direção varia de filme para filme. A regra prática dos fotógrafos é "1 parada a mais por década vencida", sem medição publicada.
 
-## Como entrou no motor (`motor/vencido.py`, protótipo, ainda fora do app)
+## Como entrou no motor (`motor/vencido.py`; no app desde 16/11/2026 em três filmes, ver `pb_cromo.md`)
 Dois mecanismos, como na física:
 1. **Radiação** (a geladeira não ajuda): uma exposição extra igual nas três camadas, como um pré-flash lento. Sobe a base e o pé da curva, apaga o detalhe das sombras e aumenta o grão. Cresce com os anos e com a sensibilidade (expoente 0,79, tirado do "3× para 4× de ISO").
 2. **Química** (depende do calor: freezer 0,05 · geladeira 0,25 · ambiente 1 · calor 3): cada camada perde sensibilidade e contraste **no seu próprio ritmo**. A direção vem de uma semente, porque cada rolo vencido é diferente ("unpredictable").

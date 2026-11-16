@@ -19,7 +19,8 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from motor import LABS, Motor, srgb_encode  # noqa: E402
+from motor import FILTROS_PB, LABS, Motor, MotorCromo, MotorPB, srgb_encode  # noqa: E402
+import vencido  # noqa: E402
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 DESTINO = os.path.join(AQUI, '..', '..', 'novo', 'filmes')
@@ -37,9 +38,9 @@ def grao(pgi):
     return round(max(0.06, 0.30 * (pgi - 15) / (37 - 15)), 3)
 
 
-def F(id_, motor, nome, inspirado, nota, pgi, tam, dir_, halacao=0.04, nit=None, paradas=0.0, cat='negativo', lab=1.0):
+def F(id_, motor, nome, inspirado, nota, pgi, tam, dir_, halacao=0.04, nit=None, paradas=0.0, cat='negativo', lab=1.0, venc=None):
     return {'id': id_, 'motor': {'filme': motor}, 'nome': nome, 'inspirado': inspirado, 'cat': cat, 'nota': nota,
-            'paradas': paradas, 'dir': dir_, 'lab': lab,
+            'paradas': paradas, 'dir': dir_, 'lab': lab, 'venc': venc,
             'analogico': {'grao': grao(pgi), 'grao_tamanho': tam, 'halacao': halacao, 'nitidez_canal': nit or P400_NIT}}
 
 
@@ -53,6 +54,19 @@ FILMES = [
     # CineStill 800T: o Vision3 500T sem a camada anti-halo, fotometrado a ISO 800 (2/3 de parada a menos de luz)
     F('cs800t', 'vision3_500t', 'C 800T', 'CineStill 800T (Kodak Vision3 500T)', 'filme de cinema para luz de tungstênio · ISO 800 · halação vermelha nas luzes',
       52, 1.15, 0.10, halacao=0.55, paradas=-0.68),
+    # Preto e branco: Tri-X 400 em D-76 (8 min). Uma tabela por filtro de cor na lente (ficha F-4017).
+    F('kx400', 'trix400', 'KX 400', 'Kodak Tri-X 400', 'preto e branco · ISO 400 · contraste firme, vermelhos e pele mais escuros', 40, 1.1, 0.0,
+      halacao=0.0, nit=[1.0, 1.0, 1.0], cat='pb'),
+    # Cromo: Ektachrome E100 (ficha E-4000). O slide é a imagem final: contraste alto, pouca margem nas luzes.
+    F('ka100', 'ektachrome_e100', 'KA 100', 'Kodak Ektachrome E100', 'cromo (slide) · ISO 100 · cor limpa, sombras profundas, luzes estouram cedo', 18, 0.8, 0.0,
+      halacao=0.0, cat='cromo'),
+    # Vencidos (pesquisa/vencido.md): véu da radiação + cada camada envelhecendo no seu ritmo. Tamanhos # APROX.
+    F('kg200v', 'gold200', 'KG 200 · 10 anos', 'Kodak Gold 200 vencido', 'vencido · 10 anos numa gaveta · mais escuro, menos cor, sombras com véu', 52, 1.05, 0.28,
+      cat='vencido', venc=(10, 200, 'ambiente', 1)),
+    F('ku400v', 'ultramax400', 'KU 400 · 20 anos', 'Kodak UltraMax 400 vencido', 'vencido · 20 anos em temperatura ambiente · véu forte, cor desbotada', 60, 1.2, 0.32,
+      cat='vencido', venc=(20, 400, 'ambiente', 2)),
+    F('kp400v', 'portra400', 'KP 400 · calor', 'Kodak Portra 400 vencido no calor', 'vencido · 10 anos guardado no calor · dominante que muda de rolo para rolo', 50, 1.15, 0.18,
+      cat='vencido', venc=(10, 400, 'calor', 3)),
 ]
 
 
@@ -70,23 +84,41 @@ def exporta(f):
     # correção do laboratório: desfaz a mistura dos corantes por completo (lab=1). O caráter de cor do filme vem da
     # sensibilidade de cada camada a espectros reais (pesquisa/espectros_naturais.md). Até 16/11/2026 era 0,7/0,9,
     # porque a correção antiga apagava também esse caráter (pesquisa/conferencia_assinatura.md).
-    m = Motor(**f['motor'], corantes='kodak', correcao_lab=f['lab'], dir_calibracao=0.0, paradas_base=f['paradas'])
-    nit = nitidez_da_ficha(f['motor']['filme'])
-    if nit:
-        f['analogico']['nitidez_canal'] = nit
     g = np.linspace(0, 1, N)
     b, gg, r = np.meshgrid(g, g, g, indexing='ij')
     t = np.stack([r, gg, b], -1).reshape(-1, 3)
     x = 0.18 * 2.0 ** (MIN + t * (MAX - MIN))
     os.makedirs(DESTINO, exist_ok=True)
-    # uma tabela por laboratório: <id>.bin (neutro) e <id>.<lab>.bin
-    for lab in LABS:
-        out = np.clip(srgb_encode(m.escaneia(x, 0.0, f['dir'], lab=lab)), 0, 1)
-        nome = f['id'] + ('' if lab == 'neutro' else '.' + lab) + '.bin'
-        (np.round(out * 65535).astype('<u2')).tofile(os.path.join(DESTINO, nome))
+
+    def grava(motor, sufixo, **kw):
+        out = np.clip(srgb_encode(motor.escaneia(x, 0.0, f['dir'], **kw)), 0, 1)
+        (np.round(out * 65535).astype('<u2')).tofile(os.path.join(DESTINO, f['id'] + sufixo + '.bin'))
+    extra = {}
+    if f['cat'] == 'pb':
+        # uma tabela por filtro: <id>.bin (sem filtro) e <id>.<filtro>.bin
+        for filtro in FILTROS_PB:
+            m = MotorPB(f['motor']['filme'], filtro=filtro)
+            grava(m, '' if filtro == 'nenhum' else '.' + filtro)
+        extra['filtros'] = list(FILTROS_PB); extra['labs'] = ['neutro']
+    elif f['cat'] == 'cromo':
+        m = MotorCromo(f['motor']['filme'])
+        grava(m, ''); extra['labs'] = ['neutro']
+    else:
+        m = Motor(**f['motor'], corantes='kodak', correcao_lab=f['lab'], dir_calibracao=0.0, paradas_base=f['paradas'])
+        m._prepara_scanner()
+        if f['venc']:
+            anos, iso, arm, sem = f['venc']
+            vencido.aplica(m, vencido.parametros(anos, iso, arm, sem))
+        # uma tabela por laboratório: <id>.bin (neutro) e <id>.<lab>.bin
+        for lab in LABS:
+            grava(m, '' if lab == 'neutro' else '.' + lab, lab=lab)
+        extra['labs'] = list(LABS)
+    nit = nitidez_da_ficha(f['motor']['filme'])
+    if nit:
+        f['analogico']['nitidez_canal'] = nit
     meta = {k: f[k] for k in ('id', 'nome', 'inspirado', 'cat', 'nota', 'analogico')}
-    meta['labs'] = list(LABS)
-    meta['ficha'] = m.f.nome
+    meta.update(extra)
+    meta['ficha'] = m.f.nome if hasattr(m, 'f') else m.nome
     meta['tabela'] = {'n': N, 'min': MIN, 'max': MAX, 'formato': 'uint16le rgb, r mais rápido', 'motor': 'pesquisa/motor (espectral, caminho escaneado)'}
     # cinza médio na saída: o app usa para alinhar o modo "digital" (intensidade 0) ao mesmo meio-tom
     mid = srgb_encode(m.escaneia(np.array([[0.18, 0.18, 0.18]]), 0.0, f['dir']))[0]
