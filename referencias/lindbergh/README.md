@@ -45,3 +45,16 @@ O usuário achou a v5 escura demais ("prefiro a v3"). A v6 é o meio-termo: pele
 - **v6 é o ponto padrão** do retrato Lindbergh.
 - **v3 e v5 ficam como extremos** de um controle de "separação do rosto" (0 = v3, padrão = v6, máximo = v5), como recurso criativo.
 - No app, a posição do rosto viria de detecção automática no próprio aparelho (pessoas e, quando possível, animais), com ajuste manual por toque como alternativa.
+
+## No app novo (16/11/2026)
+- **Filme "Lindbergh"** (categoria P&B, `novo/filmes/lb.*`): a tabela é gerada da **receita calibrada** (mistura de canais e curva medidas na C1, Shadow −1, Highlight −1), por `pesquisa/motor/exportar.py` (`ReceitaLindbergh`). Grão e nitidez são os controles analógicos do app.
+- **Seção "Retrato"** em Ajustes, só neste filme: **Marcar o rosto** (toque na foto), **Separação do rosto** (0 = v3, 50 = v6 padrão, 100 = v5) e **Tamanho do rosto**. No shader: contraste centrado no rosto (1,0 → 1,12 → 1,25), pele exposta para o alvo (v6 155, v5 135), entorno escurecido por máscara suave (0 → 0,55 → 1,5 parada).
+- **Conferência** (retrato IMG_7110 no app):
+
+| Separação | Pele (app) | Pele (teste) | Rosto − foto (app) | Rosto − foto (teste) |
+|---|---|---|---|---|
+| 0 (v3) | 170 | 174–188 | +29 | +20 |
+| 50 (v6) | 158 | 156–157 | +52 | +44 a +46 |
+| 100 (v5) | 132 | 133–137 | +75 | +77/+78 |
+
+- **Próximo passo:** marcar o rosto sozinho, com detecção de rosto no próprio aparelho (fase 7 do panorama). Por enquanto, o toque.

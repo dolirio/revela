@@ -22,6 +22,40 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from motor import FILTROS_PB, LABS, Motor, MotorCromo, MotorPB, srgb_encode  # noqa: E402
 import vencido  # noqa: E402
 
+# Receita P&B do usuário (pesquisa em referencias/lindbergh/): mistura de canais e curva medidas na C1 dele
+# (X-T50, X RAW Studio), Shadow −1 e Highlight −1 como na v6. O retrato (rosto) é feito no app, com o rosto marcado.
+LB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'referencias', 'lindbergh')
+
+
+class ReceitaLindbergh:
+    nome = 'Receita PB Peter Lindbergh (C1 do usuário, v6)'
+
+    def __init__(self):
+        c = np.load(os.path.join(LB_DIR, 'curve_v1.npz'))
+        self.W = c['w'].astype(float); e = c['edges']; mu = c['mu']; ok = ~np.isnan(mu)
+        self.XC = ((e[:-1] + e[1:]) / 2)[ok]; self.MU = mu[ok]
+        self.X0 = float(np.interp(0.46, self.MU, self.XC))     # cinza médio 0,18 -> cinza médio da curva (≈0,46)
+
+    @staticmethod
+    def _tom(L, H=-1, S0=-1, passo=0.035, offset=1.8 / 255):
+        bump = lambda x, c, w: np.exp(-0.5 * ((x - c) / w) ** 2)
+        L = L + offset
+        L = L - (S0 + 1) * passo * bump(L, 0.22, 0.10) * (1 - L)
+        return L + H * passo * bump(L, 0.80, 0.10) * L
+
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, **kw):
+        y = np.maximum(rgb_lin @ self.W, 1e-7) * 2.0 ** paradas
+        L = self._tom(np.interp(np.log2(y) + (self.X0 - np.log2(0.18)), self.XC, self.MU))
+        v = np.clip(L, 0, 1)
+        lin = np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4)   # a tabela guarda luz linear
+        return np.repeat(lin[..., None], 3, -1)
+
+    def entrada_para(self, alvo):
+        # luz de entrada (cinza) que sai com o valor alvo (0–1, codificado): usado para expor a pele
+        t = np.linspace(-9, 7, 3201); x = 0.18 * 2.0 ** t
+        v = srgb_encode(self.escaneia(np.repeat(x[:, None], 3, 1))[:, 0])
+        return float(np.interp(alvo, v, x))
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 DESTINO = os.path.join(AQUI, '..', '..', 'novo', 'filmes')
 N, MIN, MAX = 33, -9.0, 7.0
@@ -57,6 +91,9 @@ FILMES = [
     # Preto e branco: Tri-X 400 em D-76 (8 min). Uma tabela por filtro de cor na lente (ficha F-4017).
     F('kx400', 'trix400', 'KX 400', 'Kodak Tri-X 400', 'preto e branco · ISO 400 · contraste firme, vermelhos e pele mais escuros', 40, 1.1, 0.0,
       halacao=0.0, nit=[1.0, 1.0, 1.0], cat='pb'),
+    # Receita do usuário: retrato P&B à maneira de Peter Lindbergh (referencias/lindbergh/README.md)
+    F('lb', 'lindbergh', 'Lindbergh', 'receita PB Peter Lindbergh (C1 do usuário)', 'retrato P&B · filtro verde · pele no cinza médio, rosto destacado · marque o rosto em Ajustes',
+      30, 1.0, 0.0, halacao=0.0, nit=[0.85, 0.85, 0.85], cat='pb'),
     # Cromo: Ektachrome E100 (ficha E-4000). O slide é a imagem final: contraste alto, pouca margem nas luzes.
     F('ka100', 'ektachrome_e100', 'KA 100', 'Kodak Ektachrome E100', 'cromo (slide) · ISO 100 · cor limpa, sombras profundas, luzes estouram cedo', 18, 0.8, 0.0,
       halacao=0.0, cat='cromo'),
@@ -94,12 +131,16 @@ def exporta(f):
         out = np.clip(srgb_encode(motor.escaneia(x, 0.0, f['dir'], **kw)), 0, 1)
         (np.round(out * 65535).astype('<u2')).tofile(os.path.join(DESTINO, f['id'] + sufixo + '.bin'))
     extra = {}
-    if f['cat'] == 'pb':
+    if f['cat'] == 'pb' and f['motor']['filme'] != 'lindbergh':
         # uma tabela por filtro: <id>.bin (sem filtro) e <id>.<filtro>.bin
         for filtro in FILTROS_PB:
             m = MotorPB(f['motor']['filme'], filtro=filtro)
             grava(m, '' if filtro == 'nenhum' else '.' + filtro)
         extra['filtros'] = list(FILTROS_PB); extra['labs'] = ['neutro']
+    elif f['motor']['filme'] == 'lindbergh':
+        m = ReceitaLindbergh(); grava(m, ''); extra['labs'] = ['neutro']
+        # retrato (v6 padrão; v3 e v5 nos extremos do controle "separação do rosto"): pele alvo de cada ponta
+        extra['retrato'] = {'pele_v6': round(m.entrada_para(155 / 255), 5), 'pele_v5': round(m.entrada_para(135 / 255), 5)}
     elif f['cat'] == 'cromo':
         m = MotorCromo(f['motor']['filme'])
         grava(m, ''); extra['labs'] = ['neutro']
@@ -113,7 +154,7 @@ def exporta(f):
         for lab in LABS:
             grava(m, '' if lab == 'neutro' else '.' + lab, lab=lab)
         extra['labs'] = list(LABS)
-    nit = nitidez_da_ficha(f['motor']['filme'])
+    nit = None if f['motor']['filme'] == 'lindbergh' else nitidez_da_ficha(f['motor']['filme'])
     if nit:
         f['analogico']['nitidez_canal'] = nit
     meta = {k: f[k] for k in ('id', 'nome', 'inspirado', 'cat', 'nota', 'analogico')}

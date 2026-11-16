@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (em construção) | 2026-11-16 | **Receita Lindbergh no app novo** (P&B): tabela gerada da receita calibrada do usuário e seção **Retrato** com rosto marcado por toque e **Separação do rosto** (0 = v3, 50 = v6 padrão, 100 = v5). Pele e destaque do rosto conferem com os testes. Detalhes em `referencias/lindbergh/README.md`. |
 | v48 (em construção) | 2026-11-16 | **Novas categorias no app novo**: P&B com o **Tri-X 400** (ficha F-4017) e escolha de **filtro na lente** (amarelo, laranja, vermelho, verde; fatores conferidos com a ficha); **Cromo** com o **Ektachrome E100** (motor de slide); **Vencido** com três filmes (Gold 10 anos, UltraMax 20 anos, Portra no calor). Detalhes em `pesquisa/pb_cromo.md`. |
 | v48 (em construção) | 2026-11-16 | **Sombras mais densas** na curva do laboratório: a 2 paradas abaixo do cinza o Revela caía −26 L\* e as referências (Labbet, RNI, câmeras) −32 a −36; agora −32,5. Cinza médio e luzes altas mantidos (decisão do usuário). Detalhes em `pesquisa/hald_labbet.md`. |
 | v48 (em construção) | 2026-11-16 | **Escolha de laboratório no app novo** (Ajustes › No laboratório): Neutro ou Frontier. O Frontier vem de pares do mesmo negativo escaneado no Frontier e no Noritsu: o canal vermelho tem ~25 % mais contraste, o que dá sombras ciano, verde mais ciano (+8° a +11°) e luzes douradas. Cor do scanner e cópia em papel foram testadas e não explicam o visual. Detalhes em `pesquisa/laboratorios.md`. |

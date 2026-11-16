@@ -28,10 +28,11 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
+let marcando = false;   // esperando o toque no rosto (retrato)
 let foto = null;          // { bitmap, nome }
 let filmes = [];          // pacotes carregados { meta, data }
 let catAtual = 'negativo';
@@ -130,6 +131,8 @@ const CTL = {
   grao: { n: 'Grão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   graoTamanho: { n: 'Tamanho do grão', min: 0.5, max: 2.5, passo: 0.05, fmt: (v) => v.toFixed(2) },
   halacao: { n: 'Halação', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  separacao: { n: 'Separação do rosto', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) + (v < 0.2 ? ' · suave' : v > 0.8 ? ' · forte' : '') },
+  rostoTam: { n: 'Tamanho do rosto', min: 0.5, max: 2, passo: 0.05, fmt: (v) => v.toFixed(2) },
   caraterFilme: { n: 'Nitidez do filme', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
 };
 function sinal(v) { const x = Math.round(v * 100); return (x > 0 ? '+' : '') + x; }
@@ -168,6 +171,12 @@ controle('intensidade', $('cIntensidade'));
 secao($('p-ajustes'), 'Na câmera', 'Antes do filme: a luz que chega ao negativo');
 controle('exposicao', $('p-ajustes'));
 escolha('filtro', FILTROS, $('p-ajustes'), 'Filtro na lente');
+// retrato: só nos filmes com receita de retrato (Lindbergh)
+const retrato = document.createElement('div'); retrato.id = 'g_retrato'; $('p-ajustes').append(retrato);
+secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara');
+{ const w = document.createElement('div'); w.className = 'escolha';
+  w.innerHTML = '<div><button id="bRosto">Marcar o rosto</button></div><small id="nRosto"></small>'; retrato.append(w); }
+controle('separacao', retrato); controle('rostoTam', retrato);
 controle('cenaTemp', $('p-ajustes')); controle('cenaMatiz', $('p-ajustes'));
 secao($('p-ajustes'), 'No laboratório', 'Depois do filme: o equilíbrio feito no scan');
 escolha('lab', LABS, $('p-ajustes'));
@@ -187,6 +196,10 @@ function sincroniza() {
   }
   // o filtro só existe no P&B; o laboratório (Frontier) só nos coloridos que têm a tabela
   const f = filmeAtual();
+  $('g_retrato').style.display = f?.meta.retrato ? '' : 'none';
+  $('nRosto').textContent = marcando ? 'Toque no rosto na foto' : s.rosto ? 'Rosto marcado. 0 = suave (v3), 50 = padrão (v6), 100 = forte (v5)' : 'Toque em "Marcar o rosto" e depois no rosto da pessoa';
+  $('bRosto').classList.toggle('on', marcando);
+  anel();
   if ($('e_filtro')) $('e_filtro').style.display = f?.meta.filtros ? '' : 'none';
   if ($('e_lab')) $('e_lab').style.display = !f || (f.meta.labs || []).length > 1 ? '' : 'none';
 }
@@ -224,13 +237,33 @@ function desenha() {
     const w = Math.max(1, Math.round(R.w * px)), h = Math.max(1, Math.round(R.h * px));
     R.draw(s, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
     tela.style.width = Math.floor(R.w * k) + 'px'; tela.style.height = Math.floor(R.h * k) + 'px';
+    anel();
   });
 }
 new ResizeObserver(desenha).observe($('palco'));
 
+// marcar o rosto: o próximo toque na foto define o centro do rosto (até a detecção automática chegar)
+$('bRosto').onclick = () => { marcando = !marcando; sincroniza(); };
+tela.addEventListener('pointerdown', (e) => {
+  if (!marcando) return;
+  const r = tela.getBoundingClientRect();
+  s.rosto = { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
+  marcando = false; sincroniza(); desenha(); memoriza();
+});
+function anel() {
+  let a = $('anel');
+  if (!a) { a = document.createElement('div'); a.id = 'anel'; $('palco').append(a); }
+  const f = filmeAtual();
+  if (!foto || !f?.meta.retrato || !s.rosto || original) { a.style.display = 'none'; return; }
+  const r = tela.getBoundingClientRect(), p = $('palco').getBoundingClientRect();
+  const raio = 0.16 * s.rostoTam * Math.min(r.width, r.height);
+  Object.assign(a.style, { display: 'block', left: (r.left - p.left + s.rosto.x * r.width - raio) + 'px', top: (r.top - p.top + s.rosto.y * r.height - raio * 1.25) + 'px',
+    width: 2 * raio + 'px', height: 2.5 * raio + 'px' });
+}
+
 // comparar: segurar o botão (ou a foto) mostra a original
 const segura = (el) => {
-  const on = (e) => { if (!foto) return; e.preventDefault(); original = true; $('selo').style.display = 'block'; desenha(); };
+  const on = (e) => { if (!foto || marcando) return; e.preventDefault(); original = true; $('selo').style.display = 'block'; desenha(); };
   const off = () => { if (!original) return; original = false; $('selo').style.display = 'none'; desenha(); };
   el.addEventListener('pointerdown', on); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, off);
 };
@@ -258,7 +291,7 @@ async function abre(file) {
     foto = { bitmap, nome: file.name.replace(/\.[^.]+$/, '') };
     R.setImage(reduz(bitmap, Math.min(R.maxTex, 2400)));
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
-    s.semente = Math.random();
+    s.semente = Math.random(); s.rosto = null; marcando = false;
     tela.style.display = 'block'; $('vazio').style.display = 'none';
     for (const id of ['bComparar', 'bExportar']) $(id).disabled = false;
     montaFaixa(); desenha(); hist = []; hi = -1; memoriza();
