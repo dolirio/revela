@@ -246,6 +246,19 @@ class Papel:
 
 # Inclinação média do Portra 400 no scanner (gama efetivo, média de R, G, B), medida no próprio motor.
 # É a referência de contraste: um filme com inclinação maior sai mais contrastado que o Portra 400.
+# Laboratórios (a máquina que escaneia o negativo). A inversão "neutra" estica cada canal pela inclinação do próprio
+# filme: o cinza fica cinza em qualquer exposição. Os scanners reais usam ajustes de fábrica por tipo de filme que não
+# casam exatamente com cada filme; a diferença de contraste entre os canais vira cor que muda com a luz (sombra de uma
+# cor, luz alta de outra). Medido em pares do MESMO negativo escaneado no Frontier SP-3000 e no Noritsu HS-1800
+# (pesquisa/laboratorios.md): no Frontier o canal vermelho tem ~25 % mais contraste que o verde e o azul ~8 % menos,
+# e o contraste geral é um pouco maior. Isso explica as sombras ciano-azuladas, o verde puxando para o ciano e as
+# luzes altas (onde fica um rosto bem exposto) mais douradas.
+LABS = {
+    'neutro': {'canais': (1.0, 1.0, 1.0)},
+    'frontier': {'canais': (1.25 * 1.1, 1.0 * 1.1, 0.92 * 1.1)},
+}
+
+
 GAMA_REF = 0.587
 
 
@@ -405,13 +418,14 @@ class Motor:
         y = branco * x ** n / (x ** n + s ** n)
         return preto + (branco - preto) * y / branco
 
-    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15):
+    def escaneia(self, rgb_lin, paradas=0.0, dir_=0.0, contraste=1.15, lab='neutro'):
         """sRGB linear de entrada -> sRGB linear de saída, pelo caminho negativo -> scanner -> inversão -> curva."""
         if not hasattr(self, 'inv'):
             self._prepara_scanner()
         Ds = self._densidade_scan(self.negativo(self.exposicao(rgb_lin, paradas), dir_))
         Lhat = self._lhat(Ds)
         Lhat = Lhat + (Lhat - self.f.ref) @ self.D_lab.T   # calibração do laboratório para o filme
+        Lhat = self.f.ref + (Lhat - self.f.ref) * np.array(LABS[lab]['canais'])   # a máquina do laboratório
         x = 0.18 * 10 ** (Lhat - self.f.ref)          # exposição recuperada de cada canal (cinza médio = 0,18)
         return self.curva_lab(x, contraste)
 

@@ -6,6 +6,12 @@ import { icon } from '../icons.js';
 const $ = (id) => document.getElementById(id);
 const tela = $('tela');
 
+// laboratório: a máquina que escaneia o negativo (pesquisa/laboratorios.md). Cada filme traz uma tabela por laboratório.
+const LABS = [
+  { id: 'neutro', n: 'Neutro', nota: 'Inversão ideal: o cinza fica cinza em qualquer luz' },
+  { id: 'frontier', n: 'Frontier', nota: 'Inspirado no Fuji Frontier: sombras ciano, verdes frios, luzes douradas, mais contraste' },
+];
+
 const CATS = [
   { id: 'negativo', n: 'Negativo' }, { id: 'cromo', n: 'Cromo' }, { id: 'pb', n: 'P&B' },
   { id: 'instantaneo', n: 'Instantâneo' }, { id: 'vencido', n: 'Vencido' },
@@ -13,7 +19,7 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, labAuto: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', labAuto: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
@@ -38,8 +44,13 @@ for (const [id, n] of [['bAbrir', 'open'], ['bDesfazer', 'undo'], ['bRefazer', '
 async function carregaFilmes() {
   const ids = await (await fetch('filmes/indice.json')).json();
   filmes = await Promise.all(ids.map(async (id) => {
-    const [meta, buf] = await Promise.all([fetch(`filmes/${id}.json`).then((r) => r.json()), fetch(`filmes/${id}.bin`).then((r) => r.arrayBuffer())]);
-    return { meta, data: new Uint16Array(buf) };
+    const meta = await fetch(`filmes/${id}.json`).then((r) => r.json());
+    const labs = {};
+    await Promise.all((meta.labs || ['neutro']).map(async (l) => {
+      labs[l] = new Uint16Array(await fetch(`filmes/${id}${l === 'neutro' ? '' : '.' + l}.bin`).then((r) => r.arrayBuffer()));
+    }));
+    // data: a tabela do laboratório escolhido agora
+    return { meta, labs, get data() { return labs[s.lab] || labs.neutro; } };
   }));
 }
 const filmeAtual = () => filmes.find((f) => f.meta.id === s.filme) || null;
@@ -127,6 +138,17 @@ function chave(k, nome, nota, pai) {
   pai.append(w);
   w.querySelector('input').addEventListener('change', (e) => { s[k] = e.target.checked ? 1 : 0; desenha(); memoriza(); });
 }
+// escolha entre opções (botões lado a lado)
+function escolha(k, ops, pai) {
+  const w = document.createElement('div'); w.className = 'escolha'; w.id = 'e_' + k;
+  w.innerHTML = '<div></div><small></small>'; pai.append(w);
+  for (const o of ops) {
+    const b = document.createElement('button'); b.textContent = o.n; b.dataset.v = o.id;
+    b.onclick = () => { if (s[k] === o.id) return; s[k] = o.id; aoMudar(k); sincroniza(); desenha(); memoriza(); };
+    w.firstChild.append(b);
+  }
+}
+function aoMudar(k) { if (k === 'lab') { R.setFilm(filmeAtual()); montaFaixa(); } }
 function secao(pai, t, nota) { const e = document.createElement('div'); e.className = 'sec'; e.textContent = t; if (nota) e.title = nota; pai.append(e); }
 
 $('cIntensidade').className = '';
@@ -135,6 +157,7 @@ secao($('p-ajustes'), 'Na câmera', 'Antes do filme: a luz que chega ao negativo
 controle('exposicao', $('p-ajustes'));
 controle('cenaTemp', $('p-ajustes')); controle('cenaMatiz', $('p-ajustes'));
 secao($('p-ajustes'), 'No laboratório', 'Depois do filme: o equilíbrio feito no scan');
+escolha('lab', LABS, $('p-ajustes'));
 chave('labAuto', 'Equilíbrio automático', 'Como o scanner do laboratório: o cinza fica neutro em qualquer exposição', $('p-ajustes'));
 controle('labTemp', $('p-ajustes')); controle('labMatiz', $('p-ajustes'));
 secao($('p-analogico'), 'Do filme');
@@ -144,6 +167,8 @@ controle('halacao', $('p-analogico')); controle('caraterFilme', $('p-analogico')
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
+  const e = $('e_lab');
+  if (e) { e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s.lab)); e.querySelector('small').textContent = LABS.find((l) => l.id === s.lab)?.nota || ''; }
 }
 
 document.querySelectorAll('.abas button').forEach((b) => b.onclick = () => {
@@ -160,8 +185,8 @@ function memoriza() {
 }
 function volta(n) {
   if (hi + n < 0 || hi + n >= hist.length) return;
-  hi += n; const ant = s.filme; s = JSON.parse(hist[hi]);
-  if (s.filme !== ant) { R.setFilm(filmeAtual()); montaFaixa(); }
+  hi += n; const ant = s.filme, antLab = s.lab; s = { ...PADRAO, ...JSON.parse(hist[hi]) };
+  if (s.filme !== ant || s.lab !== antLab) { R.setFilm(filmeAtual()); montaFaixa(); }
   sincroniza(); atualizaNota(); desenha(); botoes();
 }
 function botoes() { $('bDesfazer').disabled = hi <= 0; $('bRefazer').disabled = hi >= hist.length - 1; }

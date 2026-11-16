@@ -19,7 +19,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from motor import Motor, srgb_encode  # noqa: E402
+from motor import LABS, Motor, srgb_encode  # noqa: E402
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 DESTINO = os.path.join(AQUI, '..', '..', 'novo', 'filmes')
@@ -78,10 +78,14 @@ def exporta(f):
     b, gg, r = np.meshgrid(g, g, g, indexing='ij')
     t = np.stack([r, gg, b], -1).reshape(-1, 3)
     x = 0.18 * 2.0 ** (MIN + t * (MAX - MIN))
-    out = np.clip(srgb_encode(m.escaneia(x, 0.0, f['dir'])), 0, 1)
     os.makedirs(DESTINO, exist_ok=True)
-    (np.round(out * 65535).astype('<u2')).tofile(os.path.join(DESTINO, f['id'] + '.bin'))
+    # uma tabela por laboratório: <id>.bin (neutro) e <id>.<lab>.bin
+    for lab in LABS:
+        out = np.clip(srgb_encode(m.escaneia(x, 0.0, f['dir'], lab=lab)), 0, 1)
+        nome = f['id'] + ('' if lab == 'neutro' else '.' + lab) + '.bin'
+        (np.round(out * 65535).astype('<u2')).tofile(os.path.join(DESTINO, nome))
     meta = {k: f[k] for k in ('id', 'nome', 'inspirado', 'cat', 'nota', 'analogico')}
+    meta['labs'] = list(LABS)
     meta['ficha'] = m.f.nome
     meta['tabela'] = {'n': N, 'min': MIN, 'max': MAX, 'formato': 'uint16le rgb, r mais rápido', 'motor': 'pesquisa/motor (espectral, caminho escaneado)'}
     # cinza médio na saída: o app usa para alinhar o modo "digital" (intensidade 0) ao mesmo meio-tom
