@@ -45,3 +45,24 @@ Inclinação medida no motor (gama efetivo no scanner, R/G/B):
 | Vision3 500T | 0,487 | 0,547 | 0,518 | 0,517 |
 
 **Proposta:** dividir pela inclinação de um filme de referência comum (ex.: Portra 400), mantendo a correção por canal de cada filme para o cinza continuar neutro. O Ektar ficaria ~7 % mais contrastado que o Portra 400, e o Vision3 ~12 % mais suave, como nas fichas.
+
+## Correções aplicadas (16/11/2026)
+1. **Contraste por filme** (`motor.py`, `GAMA_REF = 0,587`, Portra 400): o scanner continua invertendo cada canal pela inclinação dele, mas o contraste final segue a inclinação média do filme em relação ao Portra 400.
+2. **Pele dos Portra 160/400** (`exportar.py`, `lab=0.9`): a correção do laboratório a 70 % deixava a mistura dos corantes puxar a pele 8° para o rosado. Sem correção a pele vai a −37°; a 100 % fica neutra (+3°), mas a saturação do Portra 400 sobe acima da do Gold. 90 % deixa a pele neutra (−1°).
+
+Depois das correções:
+
+| Filme | Contraste | Saturação | Pele | Céu | Folhagem |
+|---|---|---|---|---|---|
+| KE 100 | **34,3** | 1,29 | −8° | −14° | +3° |
+| KP 160 | 31,1 | 1,04 | **−1°** | −6° | +1° |
+| KG 200 | 32,1 | 1,17 | +3° | −8° | −1° |
+| KP 400 | 32,1 | 1,18 | **−1°** | −4° | +2° |
+| KU 400 | 30,3 | 1,22 | −1° | −1° | 0° |
+| KP 800 | 30,9 | 1,08 | +2° | −1° | −1° |
+| C 800T | **28,6** | 1,02 | +4° | 0° | −2° |
+
+## O que fica em aberto
+- **Pele "dourada":** a física modelada leva a pele ao neutro, não ao âmbar. O dourado que as câmeras imitam (+20°) deve vir do "jeito" do scanner do laboratório (Frontier/Noritsu), não do filme. Entra como etapa própria, calibrada com scans reais.
+- **Saturação do Portra 400 ≈ Gold:** depende do DIR (interação entre camadas), que a ficha não publica e está provisório. Calibrar com as fotos da cartela em filme real.
+- **Ektar com pele −8°:** mesma causa provável (sobra da mistura dos corantes); conferir junto com o Portra na prova com filme real.

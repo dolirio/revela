@@ -208,6 +208,11 @@ class Papel:
         return np.interp(L, x[ok], y[ok])
 
 
+# Inclinação média do Portra 400 no scanner (gama efetivo, média de R, G, B), medida no próprio motor.
+# É a referência de contraste: um filme com inclinação maior sai mais contrastado que o Portra 400.
+GAMA_REF = 0.587
+
+
 def planck(T, x=NM):
     x = x * 1e-9
     return 1 / (x ** 5 * (np.exp(1.4388e-2 / (x * T)) - 1))
@@ -314,6 +319,10 @@ class Motor:
         L = self.f.ref + np.linspace(-2, 2, 17) * np.log10(2)
         Ds = self._densidade_scan(self.negativo(np.repeat(L[:, None], 3, 1)))
         self.inv = [np.polyfit(L, Ds[:, i], 1) for i in range(3)]   # (gama, base) por canal
+        # O laboratório inverte cada canal pela inclinação dele (o cinza fica neutro), mas o CONTRASTE do filme
+        # continua: a inclinação média do filme é comparada com a de um filme de referência (Portra 400). Sem isso
+        # todos os filmes saíam com o mesmo contraste (conferência de 16/11/2026, pesquisa/conferencia_assinatura.md).
+        self.fator_contraste = float(np.mean([p[0] for p in self.inv])) / GAMA_REF
         self.D_lab = np.zeros((3, 3)); self.equilibrio = np.zeros(3)
         # equilíbrio do laboratório: o cinza médio bem fotometrado sai exatamente cinza e no meio-tom
         cinza = self._lhat(self._densidade_scan(self.negativo(self.exposicao(np.array([0.18, 0.18, 0.18])), self.dir_cal)))
@@ -337,7 +346,8 @@ class Motor:
         return B @ P
 
     def _lhat(self, Ds):
-        return np.stack([(Ds[..., i] - self.inv[i][1]) / self.inv[i][0] for i in range(3)], -1) + self.equilibrio
+        L = np.stack([(Ds[..., i] - self.inv[i][1]) / self.inv[i][0] for i in range(3)], -1)
+        return self.f.ref + (L - self.f.ref) * getattr(self, 'fator_contraste', 1.0) + self.equilibrio
 
     def _densidade_scan(self, Dneg):
         return -np.log10(np.maximum((10 ** (-Dneg)) @ self.sensor.T, 1e-12))

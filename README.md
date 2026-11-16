@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (em construção) | 2026-11-16 | **Filmes do app novo conferidos contra as câmeras medidas** (Ricoh e Fuji): cada filme volta a ter o próprio contraste (Ektar 34, Portra 400 32, 800T 29; antes todos iguais) e a pele dos Portra 160/400 deixa de puxar para o rosado (−8° → −1°). Detalhes em `pesquisa/conferencia_assinatura.md`. |
 | v48 (em construção) | 2026-11-15 | **Equilíbrio automático do laboratório** no app novo: como o scanner faz foto a foto, o cinza volta a ser neutro em qualquer exposição do negativo (no Gold 200 a +1 parada, de b\* +4,9 para 0), sem tocar na temperatura "na câmera". Pode ser desligado em Ajustes. Ideia confirmada pelo relato da VSCO sobre o Film X. |
 | — | 2026-11-14 | Leitor da cartela (`referencias/medir.py`): acha a cartela pelas marcas dos cantos, revela o RAW de forma neutra e mede os 72 quadros; compara cada simulação com o RAW. Testado em foto sintética. |
 | v48 (em construção) | 2026-11-14 | **Sete filmes Kodak** no app novo (KE 100, KP 160, KG 200, KP 400, KU 400, KP 800, C 800T), extraídos de 7 fichas técnicas (25 gráficos conferidos), com forma real dos corantes, calibração do laboratório e caráter próprio de cada filme. Correção do layout no celular. |
