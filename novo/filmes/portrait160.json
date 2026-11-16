@@ -1,0 +1,36 @@
+{
+ "id": "portrait160",
+ "nome": "Portrait 160",
+ "inspirado": "Kodak Portra 160 e na cor de Peter Lindbergh",
+ "cat": "cor",
+ "nota": "retrato íntimo: cor macia, pele natural, luzes cremosas",
+ "analogico": {
+  "grao": 0.18,
+  "grao_tamanho": 0.9,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.561,
+   1.0,
+   0.818
+  ]
+ },
+ "labs": [
+  "neutro"
+ ],
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4918,
+  0.4752,
+  0.461
+ ],
+ "retrato": {
+  "pele_v6": 0.31483,
+  "pele_v5": 0.22352
+ }
+}
