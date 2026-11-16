@@ -1,0 +1,36 @@
+{
+ "id": "chrome64",
+ "nome": "Chrome 64",
+ "inspirado": "Kodak Kodachrome 64 e na fotografia de rua em cor",
+ "cat": "cor",
+ "nota": "rua em cor: vermelhos quentes, sombras densas, luz que conta história",
+ "analogico": {
+  "grao": 0.2,
+  "grao_tamanho": 1.0,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.665,
+   1.0,
+   1.0
+  ]
+ },
+ "labs": [
+  "neutro"
+ ],
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.5074,
+  0.4733,
+  0.4365
+ ],
+ "retrato": {
+  "pele_v6": 0.25989,
+  "pele_v5": 0.20684
+ }
+}

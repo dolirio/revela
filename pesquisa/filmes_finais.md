@@ -26,3 +26,13 @@
 - Laboratório (Frontier) e filtros de lente saíram da tela: agora vêm embutidos em cada filme.
 
 As tabelas antigas continuam em `novo/filmes/`, mas fora do índice.
+
+## Ampliação (17/11/2026): 9 filmes, por família
+Três filmes novos, a partir de referências de retrato e de rua em cor:
+- **Portrait 160** (base KP 160): retrato íntimo, inspirado na cor de Peter Lindbergh.
+- **Editorial 100** (base: cromo E100): retrato de revista, inspirado em Steven Meisel e Mario Testino.
+- **Chrome 64** (base KP 400): rua em cor no espírito do Kodachrome (Alex Webb, Saul Leiter, McCurry).
+
+Ajustes pedidos pelo usuário: mais contraste no Editorial 100 e mais calor no Chrome 64. No Chrome 64 os vermelhos são contidos e a pele fica protegida (a primeira versão deixava a pele vermelha).
+
+A separação do rosto vale para todos os filmes, cada um com o seu alvo de pele.

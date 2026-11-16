@@ -1,0 +1,36 @@
+{
+ "id": "editorial100",
+ "nome": "Editorial 100",
+ "inspirado": "Kodak Ektachrome E100 e na cor de Steven Meisel",
+ "cat": "cor",
+ "nota": "retrato de revista: pele luminosa, pretos profundos, cor controlada",
+ "analogico": {
+  "grao": 0.12,
+  "grao_tamanho": 0.8,
+  "halacao": 0.0,
+  "nitidez_canal": [
+   0.562,
+   0.84,
+   1.0
+  ]
+ },
+ "labs": [
+  "neutro"
+ ],
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4819,
+  0.4743,
+  0.4702
+ ],
+ "retrato": {
+  "pele_v6": 0.26357,
+  "pele_v5": 0.20902
+ }
+}
