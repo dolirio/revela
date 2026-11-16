@@ -91,11 +91,11 @@ vec2 hairs(vec2 q, float sc, float p, float off){
   float aa = (1.0 - smoothstep(w, w + px * 1.2, abs(dv.y - y))) * (1.0 - smoothstep(len * 0.75, len, abs(dv.x)));
   return vec2(aa, hash(cell + 9.1));
 }
-vec2 dustOf(vec2 q){   // a mistura de um negativo escaneado de verdade: pó fino, grãos alongados, fiapos e manchas macias
-  vec2 a = specks(q, 18.0, 0.25, 0.02, 0.07, 3.0, 0.0, 0.0), b;
-  b = hairs(q, 5.0, 0.3, 3.0); if (b.x > a.x) a = b;
-  b = specks(q, 80.0, 0.2, 0.05, 0.12, 1.5, 0.0, 41.0); if (b.x > a.x) a = b;
-  b = specks(q, 7.0, 0.15, 0.05, 0.12, 1.6, 0.4, 61.0); b.x *= 0.6; if (b.x > a.x) a = b;
+vec2 dustOf(vec2 q){   // sutil, como no negativo bem cuidado: pó fino, alguns grãos alongados pequenos e raros fiapos.
+  // (sem as manchas grandes e macias do app publicado: pareciam sujeira na imagem, não no filme)
+  vec2 a = specks(q, 90.0, 0.16, 0.05, 0.11, 1.5, 0.0, 41.0), b;
+  b = specks(q, 34.0, 0.10, 0.025, 0.06, 2.5, 0.0, 0.0); b.x *= 0.8; if (b.x > a.x) a = b;
+  b = hairs(q, 4.0, 0.12, 3.0); b.x *= 0.7; if (b.x > a.x) a = b;
   return a;
 }
 float lineAA(float d, float w, float px){ float ww = max(w, px); return (1.0 - smoothstep(ww * 0.5, ww * 0.5 + px, d)) * min(1.0, w / max(px, 1e-4)); }
@@ -106,10 +106,10 @@ float scratchOf(vec2 iu){
   float pxB = max(fwidth(B), 1e-3), a = 0.0;
   for (int i = 0; i < 6; i++) {
     float fi = float(i);
-    if (hash(vec2(fi, sd + 9.0)) > 0.72) continue;
+    if (hash(vec2(fi, sd + 9.0)) > 0.5) continue;   // poucos riscos
     float pos = LB * (0.06 + 0.88 * hash(vec2(fi, sd + 1.0)));
     float wob = (gnoise(vec2(A / LA * 1.7 + fi * 7.0, sd)) - 0.5) * sh * 0.008;
-    float wd = (0.7 + 2.0 * hash(vec2(fi, sd + 2.0))) * (0.6 + 0.8 * gnoise(vec2(A / LA * 9.0, fi + sd))) * max(1.0, sh / 1500.0);
+    float wd = (0.35 + 0.8 * hash(vec2(fi, sd + 2.0))) * (0.6 + 0.8 * gnoise(vec2(A / LA * 9.0, fi + sd))) * max(1.0, sh / 1500.0);   // finos como fio de cabelo
     float seg = smoothstep(0.22, 0.42, gnoise(vec2(A / LA * 3.5 + fi * 3.3, sd + 5.0)));
     float st = LA * hash(vec2(fi, sd + 3.0)) * 0.6 * step(0.55, hash(vec2(fi, sd + 4.0)));
     float l = lineAA(abs(B - pos - wob), wd, pxB) * seg * step(st, A);
@@ -228,11 +228,12 @@ void main(){
   }
   if (uDust > 0.0) {   // poeira na base do negativo: no escaneado sai CLARA
     vec2 d = dustOf(uv * vec2(uRes.x / uRes.y, 1.0));
-    if (d.x > 0.0) col = mix(col, mix(vec3(0.975, 0.97, 0.955), vec3(0.7), d.y * 0.85), d.x * min(1.0, uDust) * 0.95);
+    // não é branco chapado: o pó clareia o que está embaixo (luz do scanner contornando a partícula)
+    if (d.x > 0.0) col = mix(col, 1.0 - (1.0 - col) * 0.25, d.x * min(1.0, uDust) * mix(0.45, 0.8, d.y));
   }
   if (uScratch > 0.0) {
     float sa = scratchOf(uv);
-    if (sa > 0.0) col = mix(col, vec3(0.95, 0.94, 0.92), clamp(sa * uScratch, 0.0, 1.0));
+    if (sa > 0.0) col = mix(col, 1.0 - (1.0 - col) * 0.35, clamp(sa * uScratch * 0.6, 0.0, 1.0));   // risco na base: clareia, não pinta
   }
   // grão: o tamanho segue a foto inteira (igual na prévia e na exportação)
   if (uGrain > 0.0) {
