@@ -18,24 +18,31 @@ mkdir -p proj && cd proj
 npm i -s @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
 cp "$RAIZ/novo/android/capacitor.config.json" .
 # o app: novo/ + os módulos que ele importa da raiz
-rm -rf www && mkdir www && cp -r "$RAIZ/novo" www/novo && rm -rf www/novo/android
+rm -rf www && mkdir www && cp -r "$RAIZ/novo" www/novo && rm -rf www/novo/android www/novo/sw.js
+# só os filmes do índice (as tabelas antigas ficam no repositório, mas não vão no APK)
+python3 - www/novo/filmes <<'PY'
+import json, os, sys
+d = sys.argv[1]; ids = json.load(open(os.path.join(d, 'indice.json')))
+for f in os.listdir(d):
+    if f != 'indice.json' and f.split('.')[0] not in ids: os.remove(os.path.join(d, f))
+PY
 cp "$RAIZ/core.js" "$RAIZ/icons.js" www/ && cp -r "$RAIZ/vendor" www/vendor
 echo '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=novo/index.html"><title>Revela</title>' > www/index.html
 [ -d android ] || npx cap add android
 M=android/app/src/main/AndroidManifest.xml
 grep -q WRITE_EXTERNAL "$M" || sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />#' "$M"
-python3 - "$RAIZ/icon-512.png" <<'PY'
+python3 - "$RAIZ/novo/icone-desenho-512.png" "$RAIZ/novo/icone-512.png" <<'PY'
 import sys, glob
 from PIL import Image
-src = Image.open(sys.argv[1]).convert('RGBA')
+desenho = Image.open(sys.argv[1]).convert('RGBA'); cheio = Image.open(sys.argv[2]).convert('RGBA')
 for f in glob.glob('android/app/src/main/res/mipmap-*/*.png'):
     w, h = Image.open(f).size
-    if 'foreground' in f:
-        c = Image.new('RGBA', (w, h), (0, 0, 0, 0)); k = int(w * 0.66); c.paste(src.resize((k, k), Image.LANCZOS), ((w - k) // 2, (h - k) // 2)); c.save(f)
+    if 'foreground' in f:   # ícone adaptativo: o desenho ocupa ~57 % (dentro da zona segura do círculo), o fundo vem da cor
+        c = Image.new('RGBA', (w, h), (0, 0, 0, 0)); k = int(w * 0.86); c.paste(desenho.resize((k, k), Image.LANCZOS), ((w - k) // 2, (h - k) // 2)); c.save(f)
     else:
-        src.resize((w, h), Image.LANCZOS).save(f)
+        cheio.resize((w, h), Image.LANCZOS).save(f)
 PY
-sed -i 's/#FFFFFF/#28252A/' android/app/src/main/res/values/ic_launcher_background.xml
+sed -i 's/#FFFFFF/#141210/; s/#28252A/#141210/' android/app/src/main/res/values/ic_launcher_background.xml
 npx cap sync android
 cd android && echo "sdk.dir=$ANDROID_HOME" > local.properties && ./gradlew assembleDebug -q --no-daemon
 cp app/build/outputs/apk/debug/app-debug.apk "$W/Revela-teste.apk" && echo "APK: $W/Revela-teste.apk"
