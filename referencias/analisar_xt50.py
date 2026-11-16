@@ -135,18 +135,25 @@ def main(pasta_raf, pasta_sims, saida, extras):
         M.update(dict(pool.map(_mede_jpg, raw_tarefas)))
 
     # 3) por cartela: papel e referência de luz
+    # Fotos com duas cartelas: esquerda = fotográfico, direita = comum. Fotos com uma só: o papel é decidido
+    # comparando a saturação do Provia com a das fotos de duas cartelas de exposição mais próxima
+    # (no começo da sessão as duas cartelas foram fotografadas uma de cada vez, alternando).
+    sat = lambda f, c: float(np.mean(lch(lab(M[f['sims']['Provia']][c][CORES]))[:, 1]))
+    duplas = [f for f in fotos if f['n_cartelas'] == 2]
     linhas = []   # (foto, papel, cartela)
     for f in fotos:
-        if f['n_cartelas'] == 0:
-            continue
-        papeis = ['fotográfico', 'comum'] if f['n_cartelas'] == 2 else ['fotográfico']
-        for c, papel in enumerate(papeis):
-            linhas.append((f, papel, c))
-    ref = {}
-    for f, papel, c in sorted(linhas, key=lambda t: abs(t[0]['comp'])):
-        if papel not in ref:
-            ref[papel] = (float(M[f['raf']][c][CINZA_REF] @ medir.SRGB_XYZ[1]) / 2 ** f['comp'], f['nome'])
-    rel = {'fotos': [{'nome': f['nome'], 'comp': f['comp'], 'cartelas': f['n_cartelas'], 'simulacoes': sorted(f['sims'])} for f in fotos],
+        if f['n_cartelas'] == 2:
+            linhas += [(f, 'fotográfico', 0), (f, 'comum', 1)]
+        elif f['n_cartelas'] == 1:
+            viz = min(duplas, key=lambda d: abs(d['comp'] - f['comp']))
+            s0 = sat(f, 0)
+            f['papel_deduzido'] = 'fotográfico' if abs(s0 - sat(viz, 0)) < abs(s0 - sat(viz, 1)) else 'comum'
+            linhas.append((f, f['papel_deduzido'], 0))
+    # referência de luz: o cinza médio do RAW numa foto com as duas cartelas na exposição 0 (mesma luz para os dois papéis)
+    f_ref = min(duplas, key=lambda d: abs(d['comp']))
+    ref = {p: (float(M[f_ref['raf']][c][CINZA_REF] @ medir.SRGB_XYZ[1]) / 2 ** f_ref['comp'], f_ref['nome'])
+           for p, c in (('fotográfico', 0), ('comum', 1))}
+    rel = {'fotos': [{'nome': f['nome'], 'comp': f['comp'], 'cartelas': f['n_cartelas'], 'papel_uma_cartela': f.get('papel_deduzido'), 'simulacoes': sorted(f['sims'])} for f in fotos],
            'referencia_cinza_medio': {p: {'Y_raw_comp0': round(v, 5), 'foto': n} for p, (v, n) in ref.items()}}
     sims = [s for s in ORDEM if any(s in f['sims'] for f in fotos)] + sorted({s for f in fotos for s in f['sims']} - set(ORDEM))
 
@@ -229,8 +236,10 @@ def main(pasta_raf, pasta_sims, saida, extras):
 
 
 if __name__ == '__main__':
+    import multiprocessing as mp
+    mp.set_start_method('forkserver')   # o rawpy pode travar com 'fork'
     extras = [tuple(a.split(':', 1)) for a in sys.argv[4:]]
     r = main(sys.argv[1], sys.argv[2], sys.argv[3], extras)
     for f in r['fotos']:
-        print(f"{f['nome']}  comp {f['comp']:+.2f}  cartelas {f['cartelas']}  simulações {len(f['simulacoes'])}")
+        print(f"{f['nome']}  comp {f['comp']:+.2f}  cartelas {f['cartelas']}  {f['papel_uma_cartela'] or ''}  simulações {len(f['simulacoes'])}")
     print('referência:', r['referencia_cinza_medio'])
