@@ -24,3 +24,16 @@ Revela o RAW da X-T50 e reproduz a receita do usuário (v1, C1 da câmera), cali
 
 ## Teste no iPhone (16/11/2026)
 4 retratos em HEIC (iPhone, ISO 1000, luz de janela, sem ProRAW). A receita funcionou sem ajuste específico. Limitações: a foto já vem com o tom e a redução de ruído do iPhone, que não são desfeitos; a exposição é ancorada no cinza médio (0,18 → cinza médio da curva v1). Com ProRAW (DNG), o ponto de partida seria a luz da cena, como na X-T50.
+
+## v5 retrato (16/11/2026)
+Medido em 4 fotos de referência do fotógrafo (rua, praia, sol, retrato), comparadas com os retratos v3:
+
+| | Pele (mediana) | Faixa dentro do rosto (p10–p90) | Rosto − mediana da foto | Textura fina da pele |
+|---|---|---|---|---|
+| Referências | 95–157 | larga (ex.: 21–145, 55–201) | +54 a +118 | 10–15 |
+| v3 | 174–188 | estreita (127–197) | +20 | 11–27 |
+| **v5** | **133–137** | **16–169 a 75–169** | **+77/+78** (perfil contraluz: +35) | sem nitidez extra |
+
+Conclusões: a pele fica no cinza médio (não clara); a separação vem do rosto acima da foto inteira, não do fundo imediato (nas fotos de praia o fundo é mais claro que o rosto); há luz e sombra dentro do rosto; a textura vem do grão, não da nitidez.
+
+`v5_retrato.py`: exposição ajustada até a pele cair em 135; contraste ×1,25 em paradas centrado no rosto; entorno escurecido por máscara suave (adaptativo, até 2,5 paradas) até o rosto ficar ≥ +60 acima da mediana; Shadow +1, Highlight −1, Clarity 0, sem nitidez, leve suavização da nitidez do iPhone; grão orgânico. **O rosto foi marcado à mão neste teste**; no app, viria de detecção de rosto.
