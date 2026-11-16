@@ -184,7 +184,8 @@ def main(pasta_raf, pasta_sims, saida, extras):
     rel['curvas_tons'] = curvas
 
     # 5) cor na foto de exposição mais perto de 0, papel fotográfico (cartela 0): cada simulação x RAW e x Provia
-    f0, _, c0 = min((t for t in linhas if t[1] == 'fotográfico' and len(t[0]['sims']) >= 12), key=lambda t: abs(t[0]['comp']))
+    f0, _, c0 = min((t for t in linhas if t[1] == 'fotográfico' and len(t[0]['sims']) >= 12),
+                     key=lambda t: (abs(t[0]['comp']), t[0]['n_cartelas'] != 2))   # prefere a foto nítida com as duas cartelas
     raw = M[f0['raf']][c0] * (0.18 / (M[f0['raf']][c0][CINZA_REF] @ medir.SRGB_XYZ[1]))
     c_raw = lch(lab(raw)); c_prov = lch(lab(M[f0['sims']['Provia']][c0]))
     cor = {'foto': f0['nome'], 'comp': f0['comp']}

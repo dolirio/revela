@@ -7,4 +7,4 @@
 - Pouca luz: velocidades de 1/1,4 s a 3,2 s. As primeiras fotos saíram tremidas; depois a câmera ficou **apoiada**.
 - Compensação de exposição em passos de 1/3 (cerca de −2⅔ a +2), lida dos dados de cada arquivo.
 - A partir de ~0669: **duas cartelas na mesma foto**. **Esquerda = papel fotográfico. Direita = papel A4 comum.**
-- Falta: simulações pelo X RAW Studio e envio para `Revela/FujiXT50`.
+- Simulações convertidas no X RAW Studio (12 + PB Lindbergh) e analisadas: [`../resultados/xt50_sessao1/`](../resultados/xt50_sessao1/README.md).
