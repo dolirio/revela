@@ -1,5 +1,5 @@
 // Revela novo: filmes com a física do filme. Interface enxuta: Filmes, Ajustes, Analógico.
-import { Render } from './render.js';
+import { Render, quadro } from './render.js';
 import { decodeFile, isImageFile } from '../core.js';
 import { icon } from '../icons.js';
 
@@ -28,7 +28,7 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, sorte: 7, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
@@ -108,7 +108,7 @@ let miniFonte = null;
 function miniatura(c, f) {
   if (!miniFonte) return;
   Rmini.setFilm(f);
-  const st = { ...s, filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, exposicao: 0 };
+  const st = { ...s, filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, exposicao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0 };
   Rmini.draw(st, miniFonte.width, miniFonte.height, 600);
   const g = c.getContext('2d'), k = Math.min(miniFonte.width, miniFonte.height);
   g.drawImage(Rmini.canvas, (miniFonte.width - k) / 2, (miniFonte.height - k) / 2, k, k, 0, 0, c.width, c.height);
@@ -140,6 +140,9 @@ const CTL = {
   grao: { n: 'Grão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   graoTamanho: { n: 'Tamanho do grão', min: 0.5, max: 2.5, passo: 0.05, fmt: (v) => v.toFixed(2) },
   halacao: { n: 'Halação', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  poeira: { n: 'Poeira', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  riscos: { n: 'Riscos', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  luzVazada: { n: 'Luz vazada', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   separacao: { n: 'Separação do rosto', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) + (v < 0.2 ? ' · suave' : v > 0.8 ? ' · forte' : '') },
   rostoTam: { n: 'Tamanho do rosto', min: 0.5, max: 2, passo: 0.05, fmt: (v) => v.toFixed(2) },
   caraterFilme: { n: 'Nitidez do filme', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
@@ -187,10 +190,18 @@ secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara')
 controle('separacao', retrato); controle('rostoTam', retrato);
 controle('grao', $('p-analogico')); controle('graoTamanho', $('p-analogico'));
 controle('halacao', $('p-analogico'));
+// tempo: o que acontece com o filme na câmera e no scanner (do app publicado, com um controle só para cada coisa)
+secao($('p-analogico'), 'Tempo');
+controle('luzVazada', $('p-analogico')); controle('poeira', $('p-analogico')); controle('riscos', $('p-analogico'));
+chave('moldura', 'Moldura do filme', 'A borda preta e os furos do negativo, como num escaneamento completo', $('p-analogico'));
+{ const w = document.createElement('div'); w.className = 'escolha';
+  w.innerHTML = '<div><button id="bSorte">Sortear de novo</button></div><small>Outra posição para a poeira, os riscos e a luz vazada</small>'; $('p-analogico').append(w);
+  $('bSorte').onclick = () => { s.sorte = Math.floor(Math.random() * 1000) + 1; desenha(); memoriza(); }; }
 
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
+  if ($('c_moldura')) $('c_moldura').checked = !!s.moldura;
   for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS]]) {
     const e = $('e_' + k); if (!e) continue;
     e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s[k]));
@@ -237,11 +248,12 @@ function desenha() {
   pedido = requestAnimationFrame(() => {
     pedido = 0;
     const box = $('palco').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
-    const k = Math.min((box.width - 28) / R.w, (box.height - 18) / R.h);   // tamanho na tela (CSS)
+    const Q = quadro(original ? {} : s, R.w, R.h);                            // com a moldura, o quadro é maior que a foto
+    const k = Math.min((box.width - 28) / Q.W, (box.height - 18) / Q.H);   // tamanho na tela (CSS)
     const px = Math.min(k * dpr, 1);                                         // pixels de verdade: nunca acima da foto carregada
     const w = Math.max(1, Math.round(R.w * px)), h = Math.max(1, Math.round(R.h * px));
-    R.draw(s, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
-    tela.style.width = Math.floor(R.w * k) + 'px'; tela.style.height = Math.floor(R.h * k) + 'px';
+    R.draw(original ? { ...s, moldura: 0 } : s, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
+    tela.style.width = Math.floor(Q.W * k) + 'px'; tela.style.height = Math.floor(Q.H * k) + 'px';
     anel();
   });
 }
@@ -251,16 +263,21 @@ new ResizeObserver(desenha).observe($('palco'));
 $('bRosto').onclick = () => { marcando = !marcando; sincroniza(); };
 tela.addEventListener('pointerdown', (e) => {
   if (!marcando) return;
-  const r = tela.getBoundingClientRect();
+  const r = fotoRect();
   s.rosto = { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
   marcando = false; sincroniza(); desenha(); memoriza();
 });
+// retângulo da FOTO na tela (sem a moldura do filme)
+function fotoRect() {
+  const t = tela.getBoundingClientRect(), j = R.janela || [0, 0, 1, 1];
+  return { left: t.left + j[0] * t.width, top: t.top + j[1] * t.height, width: j[2] * t.width, height: j[3] * t.height };
+}
 function anel() {
   let a = $('anel');
   if (!a) { a = document.createElement('div'); a.id = 'anel'; $('palco').append(a); }
   const f = filmeAtual();
   if (!foto || !f?.meta.retrato || !s.rosto || original) { a.style.display = 'none'; return; }
-  const r = tela.getBoundingClientRect(), p = $('palco').getBoundingClientRect();
+  const r = fotoRect(), p = $('palco').getBoundingClientRect();
   const raio = 0.16 * s.rostoTam * Math.min(r.width, r.height);
   Object.assign(a.style, { display: 'block', left: (r.left - p.left + s.rosto.x * r.width - raio) + 'px', top: (r.top - p.top + s.rosto.y * r.height - raio * 1.25) + 'px',
     width: 2 * raio + 'px', height: 2.5 * raio + 'px' });
@@ -338,7 +355,7 @@ $('bExportar').onclick = async () => {
     }
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    aviso(`Foto exportada (${src.width}×${src.height})`);
+    aviso(`Foto exportada (${c.width}×${c.height})`);
   } catch (err) { console.error(err); aviso('Falha ao exportar: ' + err.message); }
 };
 
