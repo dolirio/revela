@@ -33,3 +33,14 @@ Mesma cartela (ColorChecker de projeto, cinza médio = 0,18 linear) nos dois. De
 - **Folhagem → ciano** passa a ser o achado mais forte (cinco fontes independentes). O motor não produz isso nem sem correção do laboratório. Hipótese a conferir: o espectro de refletância da folhagem no motor não tem a subida forte depois de 690 nm (a "borda vermelha" das plantas), que a camada vermelha do filme ainda enxerga.
 - **Saturação do Revela provavelmente alta demais** (20–30 % acima das referências). Conferir depois da folhagem, porque as duas coisas mexem na cor.
 - **Brilho e preto por filme** e **tom do cinza** são escolhas de "laboratório". Candidatos a uma opção de laboratório no Revela (ex.: "Frontier", "Noritsu", "neutro"), em vez de ficarem presos no filme.
+
+## Teste do "Analog Feel" (Portra 400)
+Três exportações do mesmo filme com o Analog Feel em níveis diferentes, comparadas com a exportação normal do Portra 400:
+
+| Exportação | Diferença da normal | Desfoque (em luz linear) | Exposição | Textura fina restante |
+|---|---|---|---|---|
+| quantidade 0 | **idêntica, bit a bit** | — | — | — |
+| intermediária | grande | σ ≈ 2,5 px | +10 % (~+⅛ parada) | 40 % da original |
+| quantidade 100, escala 100 | grande | σ ≈ 3,5 px | +10 % | 25 % da original |
+
+**Leitura:** o Analog Feel **não mexe na cor**. Ele é um efeito **espacial**: amacia a imagem (como a nitidez limitada do filme e da lente), clareia um pouco e deixa um resíduo leve para o verde, provavelmente de brilho/halo em volta das áreas claras. Por isso, exportações com Analog Feel **não servem como mapa de cor** (o desfoque mistura cores vizinhas do Hald). Para o Revela, confirma a separação certa: **cor = tabela de cor do filme; maciez/halo = camada à parte**, com controle próprio, como o grão.
