@@ -21,6 +21,16 @@ const FILTROS = [
   { id: 'verde', n: 'Verde', nota: 'Pele e lábios mais escuros, folhagem clara (o da receita Lindbergh)' },
 ];
 
+// luz vazada: de onde a luz entrou na câmera (do app publicado, core.js LEAKS)
+const LUZES = [
+  { id: '0', n: 'Tampa', nota: 'Luz pela vedação da tampa: faixa laranja entrando pela borda do filme' },
+  { id: '1', n: 'Dobradiça', nota: 'Mancha forte numa lateral, com o centro queimado' },
+  { id: '2', n: 'Início', nota: 'A primeira foto do rolo: parte da imagem queimada' },
+  { id: '3', n: 'Entre fotos', nota: 'Faixa estreita perto da divisa entre duas fotos' },
+  { id: '4', n: 'Frontal', nota: 'Luz pela frente da câmera: véu frio e macio' },
+  { id: '5', n: 'Raios', nota: 'Furinho na vedação: feixes saindo de um ponto da borda' },
+];
+
 const CATS = [
   { id: 'negativo', n: 'Negativo' }, { id: 'cromo', n: 'Cromo' }, { id: 'pb', n: 'P&B' },
   { id: 'instantaneo', n: 'Instantâneo' }, { id: 'vencido', n: 'Vencido' },
@@ -28,7 +38,7 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, sorte: 7, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
@@ -190,22 +200,29 @@ secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara')
 controle('separacao', retrato); controle('rostoTam', retrato);
 controle('grao', $('p-analogico')); controle('graoTamanho', $('p-analogico'));
 controle('halacao', $('p-analogico'));
-// tempo: poeira do filme (pontinhos brancos e traços finos, sutis como no RNI) com o dado ao lado, e a moldura
-// (luz vazada e riscos longos saíram a pedido do usuário: pareciam artificiais)
+// tempo: cada efeito com a sua intensidade e o seu dado (sortear outra variação só daquele efeito)
+const DADO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor"/><circle cx="15" cy="15" r="1.1" fill="currentColor"/><circle cx="15" cy="9" r="1.1" fill="currentColor"/><circle cx="9" cy="15" r="1.1" fill="currentColor"/></svg>';
+function dado(k, nome, sorteia) {
+  const c = $('r_' + k).parentElement, b = document.createElement('button');
+  b.className = 'dado'; b.id = 'd_' + k; b.title = `Sortear outra ${nome}`; b.setAttribute('aria-label', `Sortear outra ${nome}`); b.innerHTML = DADO;
+  c.style.gridTemplateColumns = '1fr auto auto'; c.insertBefore(b, $('o_' + k));
+  b.onclick = () => { sorteia(); sincroniza(); desenha(); memoriza(); };
+}
+const novo = () => Math.floor(Math.random() * 1000) + 1;
+dado('grao', 'textura de grão', () => { s.semente = Math.random(); if (!s.grao) s.grao = filmeAtual()?.meta.analogico?.grao || 0.3; });
 secao($('p-analogico'), 'Tempo');
+controle('luzVazada', $('p-analogico'));
+dado('luzVazada', 'luz vazada', () => { s.sorteLuz = novo(); if (!s.luzVazada) s.luzVazada = 0.5; });
+escolha('luzTipo', LUZES, $('p-analogico'));
 controle('poeira', $('p-analogico'));
-{ const c = $('r_poeira').parentElement, b = document.createElement('button');
-  b.className = 'dado'; b.id = 'bSorte'; b.title = 'Sortear outra poeira'; b.setAttribute('aria-label', 'Sortear outra poeira');
-  b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor"/><circle cx="15" cy="15" r="1.1" fill="currentColor"/><circle cx="15" cy="9" r="1.1" fill="currentColor"/><circle cx="9" cy="15" r="1.1" fill="currentColor"/></svg>';
-  c.style.gridTemplateColumns = '1fr auto auto'; c.insertBefore(b, $('o_poeira'));
-  b.onclick = () => { s.sorte = Math.floor(Math.random() * 1000) + 1; if (!s.poeira) s.poeira = 0.5; sincroniza(); desenha(); memoriza(); }; }
-chave('moldura', 'Moldura do filme', 'A borda preta e os furos do negativo, como num escaneamento completo', $('p-analogico'));
+dado('poeira', 'poeira', () => { s.sorte = novo(); if (!s.poeira) s.poeira = 0.5; });
+// (moldura do filme saiu a pedido do usuário: o trabalho é sobre a imagem; quadro() continua no render.js)
 
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
   if ($('c_moldura')) $('c_moldura').checked = !!s.moldura;
-  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS]]) {
+  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS], ['luzTipo', LUZES]]) {
     const e = $('e_' + k); if (!e) continue;
     e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s[k]));
     e.querySelector('small').textContent = ops.find((l) => l.id === s[k])?.nota || '';

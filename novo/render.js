@@ -115,22 +115,25 @@ float scratchOf(vec2 iu){
   return clamp(a, 0.0, 1.0);
 }
 // luz vazada: fraca = vermelha, média = laranja, forte = amarela, queimada = quase branca
-vec3 leakRamp(float x, float warm){
+vec3 leakRamp(float x, float warm, float cool){
   vec3 r = mix(vec3(0.72, 0.05, 0.04), vec3(0.92, 0.22, 0.05), warm), o = mix(vec3(1.0, 0.36, 0.07), vec3(1.0, 0.56, 0.12), warm);
+  vec3 y = vec3(1.0, 0.86, 0.52), w = vec3(1.0, 0.97, 0.9);
+  if (cool > 0.5) { r = vec3(0.2, 0.08, 0.42); o = vec3(0.3, 0.42, 0.95); y = vec3(0.78, 0.72, 1.0); w = vec3(0.95, 0.95, 1.0); }
   vec3 col = r * smoothstep(0.0, 0.45, x);
   col = mix(col, o, smoothstep(0.25, 0.75, x));
-  col = mix(col, vec3(1.0, 0.86, 0.52), smoothstep(0.55, 1.05, x));
-  return mix(col, vec3(1.0, 0.97, 0.9), smoothstep(0.9, 1.35, x));
+  col = mix(col, y, smoothstep(0.55, 1.05, x));
+  return mix(col, w, smoothstep(0.9, 1.35, x));
 }
-// de onde a luz entrou: 0 tampa (faixa pela borda do filme), 1 dobradiça (mancha lateral), 2 ponta do rolo, 5 raios
-float leakField(vec2 iu){
+// de onde a luz entrou: 0 tampa, 1 dobradiça, 2 ponta do rolo, 3 entre fotos, 4 frontal, 5 raios
+float leakField(vec2 iu, out float cool){
+  cool = 0.0;
   int t = int(uLeakType + 0.5); float sd = uLeakSeed, bit = uLeakP.x; bool land = uRes.x >= uRes.y;
-  bool longEdge = t == 0 || t == 5;
+  bool longEdge = t == 0 || t == 5 || (t == 4 && hash(vec2(sd, 4.0)) > 0.5);
   int side = longEdge ? (land ? (bit > 0.5 ? 2 : 3) : (bit > 0.5 ? 0 : 1)) : (land ? (bit > 0.5 ? 0 : 1) : (bit > 0.5 ? 2 : 3));
   float d, s;
   if (side == 0) { d = iu.x; s = iu.y; } else if (side == 1) { d = 1.0 - iu.x; s = iu.y; } else if (side == 2) { d = iu.y; s = iu.x; } else { d = 1.0 - iu.y; s = iu.x; }
   float sh = min(uRes.x, uRes.y), lenD = side < 2 ? uRes.x : uRes.y, lenS = side < 2 ? uRes.y : uRes.x;
-  float dn = d * lenD / sh, sn = s * lenS / sh, tp = uLeakP.y * lenS / sh, w = uLeakP.z;
+  float dn = d * lenD / sh, sn = s * lenS / sh, tp = uLeakP.y * lenS / sh, w = uLeakP.z, v = uLeakP.w;
   if (t == 0) {
     float along = exp(-pow((sn - tp) / (0.5 + 0.9 * w), 2.0)), plume = 0.5 + 0.5 * fbm2(vec2(sn * 7.0 + sd, dn * 1.3));
     float depth = (0.1 + 0.22 * w) * (0.55 + 0.9 * fbm2(vec2(sn * 2.2 + sd * 3.0, 0.5)));
@@ -141,6 +144,14 @@ float leakField(vec2 iu){
   } else if (t == 2) {
     float bnd = 0.2 + 0.35 * w + (fbm2(vec2(sn * 1.8 + sd, 1.0)) - 0.5) * 0.3;
     return 1.4 * (1.0 - smoothstep(bnd - 0.4, bnd + 0.06, dn)) * (0.8 + 0.3 * fbm2(vec2(sn * 3.0, dn * 3.0) + sd));
+  } else if (t == 3) {
+    float d0 = 0.03 + 0.12 * v, bw = 0.025 + 0.06 * w, wob = (gnoise(vec2(sn * 1.5 + sd, 0.5)) - 0.5) * 0.04;
+    float band = exp(-pow((dn - d0 - wob) / bw, 2.0)) * (0.45 + 0.75 * fbm2(vec2(sn * 2.5 + sd, 2.0)));
+    return 1.25 * band + 0.4 * exp(-dn / 0.06) * fbm2(vec2(sn * 4.0, sd));
+  } else if (t == 4) {
+    cool = 1.0;
+    vec2 q = vec2(dn - (0.1 + 0.35 * v), sn - tp) / (0.45 + 0.45 * w);
+    return 0.55 * exp(-dot(q, q)) * (0.8 + 0.3 * fbm2(vec2(sn, dn) * 2.0 + sd));
   }
   vec2 rel = vec2(dn, sn - tp); float ang = atan(rel.y, rel.x + 1e-4), dist = length(rel);
   float rays = smoothstep(0.42, 0.9, gnoise(vec2(ang * 2.6 + sd, sd * 0.37))), soft = 0.35 + 0.65 * gnoise(vec2(dist * 3.0 + sd, ang * 1.5));
@@ -217,8 +228,8 @@ void main(){
   vec3 col = mix(dig, f, uMix);
   // ---------- tempo: luz vazada (exposta no filme), poeira e riscos (na hora de escanear)
   if (uLeak > 0.0) {
-    float x = leakField(uv) * uLeak * 1.15;
-    vec3 lk = leakRamp(min(x, 1.25), hash(vec2(uLeakSeed, 7.0)));
+    float cool, x = leakField(uv, cool) * uLeak * 1.15;
+    vec3 lk = leakRamp(min(x, 1.25), hash(vec2(uLeakSeed, 7.0)), cool);
     col = mix(col, col * 0.88 + 0.1, clamp(x, 0.0, 1.0) * 0.25);
     col = 1.0 - (1.0 - col) * (1.0 - lk);
   }
@@ -299,10 +310,10 @@ export class Render {
     gl.viewport(0, 0, CW, CH);
     this.janela = [Q.x / CW, Q.y / CH, outW / CW, outH / CH];   // onde a foto fica dentro do quadro (para tocar no rosto)
     gl.uniform1f(u.uFr, Q.moldura && !bypass ? 1 : 0); gl.uniform2f(u.uCan, CW, CH); gl.uniform4f(u.uFrm, Q.x, Q.y, outW, outH);
-    const sorte = s.sorte ?? 7, lp = leakParams(sorte);
+    const sorte = s.sorte ?? 7, sl = s.sorteLuz ?? 3, lp = leakParams(sl);
     gl.uniform1f(u.uDust, bypass ? 0 : s.poeira || 0); gl.uniform1f(u.uScratch, bypass ? 0 : s.riscos || 0); gl.uniform1f(u.uLeak, bypass ? 0 : s.luzVazada || 0);
-    gl.uniform1f(u.uDustSeed, sorte % 97); gl.uniform1f(u.uScrSeed, (sorte * 1.7) % 89); gl.uniform1f(u.uLeakSeed, (sorte * 2.3) % 83);
-    gl.uniform1f(u.uLeakType, lp[4]); gl.uniform4f(u.uLeakP, lp[0], lp[1], lp[2], lp[3]); gl.useProgram(this.p);
+    gl.uniform1f(u.uDustSeed, sorte % 97); gl.uniform1f(u.uScrSeed, (sorte * 1.7) % 89); gl.uniform1f(u.uLeakSeed, (sl * 2.3) % 83);
+    gl.uniform1f(u.uLeakType, +(s.luzTipo ?? 0)); gl.uniform4f(u.uLeakP, lp[0], lp[1], lp[2], lp[3]); gl.useProgram(this.p);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.img);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lut);
     const m = this.film?.meta, a = m?.analogico || {};
