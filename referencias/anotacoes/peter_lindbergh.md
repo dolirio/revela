@@ -76,6 +76,25 @@ Outros pontos do catálogo: ensaios para Vogue Italia, Harper's Bazaar, W, Vanit
 2. No X RAW Studio, ajustar esses mesmos valores em um RAW, **salvar o User Profile "PB Lindbergh"**, selecionar as 31 fotos, clicar no perfil (o ✓ precisa ficar nele) e converter. *(Não sabemos se o X RAW Studio lê o C1 direto da câmera; se a lista de perfis mostrar C1–C7, usar direto.)*
 3. Os arquivos vão para a pasta `FujiFilmXT50/PB_PeterLindbergh` no Drive.
 
+### Receita v1 — "DV PB PETER LINDBERGH" (C1 do usuário, convertida em 16/11/2026)
+Pasta no Drive: `FujiFilmXT50/PB_PeterLindbergh` (31 JPG + 31 FP3; o FP3 tem 1945 bytes; os JPG têm cerca de 26 MB por causa do grão).
+
+| Item | v1 (usuário) | v2 proposta | Por quê |
+|---|---|---|---|
+| Film Simulation | ACROS+G | **ACROS+G** (manter) | O filtro verde escurece vermelho e pele, como o Tri-X, menos sensível ao vermelho. Dá volume ao rosto. Acerto da v1. |
+| Dynamic Range | DR100 (travado) | DR100 | Na conversão não dá para mudar: depende do ISO do RAW. Para fotos novas, DR200 em ISO ≥ 250 protege as camisas brancas. |
+| Highlight Tone | 0 | **−1** | Altas luzes contidas e com textura (ombro suave do Tri-X e da cópia). Quase nunca branco puro. |
+| Shadow Tone | −1 | **0** | O −1 abre as sombras. Nele, o preto é denso e com detalhe; o 0 mantém a densidade sem empastar. *(Testar +1 se o v2 ainda ficar lavado.)* |
+| Grain | Strong / Small | **Strong / Large** | Tri-X 400 em 35 mm tem grão grande e irregular. O Small lembra o 120 (Pentax 67). Os dois são legítimos; o Large é mais "Lindbergh anos 90". |
+| Clarity | −1 | **+1** | Contraste local é a textura de pele, rugas e cabelo, central na visão dele (contra o retoque). O −1 alisa a pele, que é o oposto. |
+| Sharpness | +1 | **0** | Com Clarity +1 e grão Large, o +1 tende a ficar "digital". |
+| High ISO NR | −4 | −4 (manter) | Correto: não apagar o grão nem a textura. |
+| Color Chrome Effect | Weak | Weak (manter) | No PB, separa um pouco os tons de cores saturadas. Efeito pequeno. |
+| Color Chrome FX Blue | Off | Off | — |
+| Monochromatic Color | WC 0 / MG 0 | WC 0 / MG 0 | Neutro, como a maioria das cópias dele. *(Opcional: WC +1 para imitar papel de fibra levemente quente.)* |
+| Smooth Skin | Off | Off | Coerente com "não retoque". |
+| WB / Shift | Auto / 0:0 | Auto / 0:0 | No PB, o WB muda a mistura de canais. Manter igual para a comparação v1 × v2 ser limpa. |
+
 ### Passo B: medir (Claude)
 - Mesmo método das outras simulações: com as cartelas (papel fotográfico à esquerda, A4 comum à direita), medir a **curva de tons** (entrada linear do RAW × saída do JPG), a **mistura de canais** (patches coloridos → cinza resultante) e o **grão** (espectro do ruído em patches uniformes).
 - Comparar com o ACROS puro (pasta ACROS), para isolar o que a receita muda: filtro, tom e grão.
