@@ -64,10 +64,16 @@ void main(){
   }
   // halação: a luz forte atravessa o filme, reflete na base e volta expondo de novo a camada vermelha
   if (uHalo > 0.0) {
-    float lod = clamp(log2(uTex / 1500.0) + 4.0, 0.0, 9.0);
-    vec3 h = dec(textureLod(uImg, vUv, lod).rgb) * 0.5 + dec(textureLod(uImg, vUv, lod + 1.5).rgb) * 0.5;
-    float hi = max(luma(h) - 0.55, 0.0) * 2.2;
-    lin += uHalo * hi * vec3(1.0, 0.22, 0.04);
+    // pontos de luz forte (abajur, janela, neon, sol) em três raios: perto, médio e longe. Cada nível já é a média
+    // da vizinhança, então a luz que "vaza" forma um brilho vermelho-alaranjado em volta, como no filme sem anti-halo.
+    float b = log2(uTex / 1500.0);
+    float hs = 0.0;
+    for (int i = 0; i < 3; i++) {
+      float lod = clamp(b + 2.0 + 1.6 * float(i), 0.0, 10.0);
+      float y = luma(dec(textureLod(uImg, vUv, lod).rgb));
+      hs += max(y - 0.28, 0.0) * (i == 0 ? 0.5 : i == 1 ? 0.35 : 0.25);
+    }
+    lin += uHalo * 2.6 * hs * vec3(1.0, 0.28, 0.06);
   }
   vec3 x = lin * uPre * exp2(uExp);                 // luz que chega ao filme
   vec3 dig = enc(clamp(x * uPost, 0.0, 1.0));       // a mesma foto sem filme (intensidade 0)

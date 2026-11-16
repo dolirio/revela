@@ -79,6 +79,15 @@ function montaCats() {
   }
 }
 
+// rolar a faixa de filmes com o mouse (roda e arrastar), além do dedo
+{
+  const fx = $('faixa'); let x0 = null, s0 = 0, moveu = false;
+  fx.addEventListener('wheel', (e) => { if (fx.scrollWidth > fx.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { fx.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  fx.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') { x0 = e.clientX; s0 = fx.scrollLeft; moveu = false; } });
+  addEventListener('pointermove', (e) => { if (x0 !== null) { const d = e.clientX - x0; if (Math.abs(d) > 4) moveu = true; fx.scrollLeft = s0 - d; } });
+  addEventListener('pointerup', () => { x0 = null; });
+  fx.addEventListener('click', (e) => { if (moveu) { e.stopPropagation(); e.preventDefault(); moveu = false; } }, true);   // arrastar não escolhe filme
+}
 function montaFaixa() {
   const fx = $('faixa'); fx.innerHTML = '';
   const item = (id, nome, desenha) => {
