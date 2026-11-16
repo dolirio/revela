@@ -38,14 +38,14 @@ def grao(L,sigma,rng):
         n*=1.5*vis_small/vis_large
     A=np.interp(L,GT,GA).astype(np.float32)
     return L+A*n
-def grao_organico(L,forca,rng):
+def grao_organico(L,forca,rng,escala=1.0):
     """Grão com aspecto de filme: aglomerados de 3 tamanhos somados + caudas pesadas (alguns grãos bem marcados).
     'forca' só muda a quantidade; o caráter (tamanhos, irregularidade) fica igual. 1,0 = mesma visibilidade da v2."""
-    oct_=[(0.6,0.45),(1.2,0.40),(2.4,0.15)]
+    oct_=[(0.6*escala,0.45),(1.2*escala,0.40),(2.4*escala,0.15)]
     n=sum(w*(lambda x:x/x.std())(cv2.GaussianBlur(rng.standard_normal(L.shape,dtype=np.float32),(0,0),s)) for s,w in oct_)
     n=np.sign(n)*np.abs(n)**1.35; n/=n.std()
     vis_small=1/(2*np.sqrt(np.pi)*1.5); alvo=1.5*vis_small
-    n*=alvo/cv2.GaussianBlur(n,(0,0),1.5).std()
+    n*=alvo/cv2.GaussianBlur(n,(0,0),1.5*escala).std()
     A=np.interp(L,GT,GA).astype(np.float32)
     return L+forca*A*n
 def revelar(raf,rec,seed=0):
