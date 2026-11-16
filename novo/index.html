@@ -39,6 +39,10 @@
   #anel { position: absolute; display: none; border: 1.5px dashed #fff9; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 1px #0006; }
   #selo { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #000a; color: #fff; font-size: 12px;
     padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .06em; }
+  #pergunta { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: none; align-items: center; gap: 14px;
+    background: var(--raise); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 16px; font-size: 13px; width: max-content; max-width: calc(100% - 32px); box-shadow: 0 8px 30px #0008; }
+  #pergunta div { display: flex; gap: 6px; } #pergunta button { padding: 9px 14px; border-radius: 10px; color: var(--muted); font-size: 13px; }
+  #pergunta button.on { background: var(--text); color: var(--bg, #111); font-weight: 600; }
   #aviso { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px;
     border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%; text-align: center; }
 
@@ -105,6 +109,7 @@
     <button class="ib" id="bDesfazer" title="Desfazer" aria-label="Desfazer" disabled></button>
     <button class="ib" id="bRefazer" title="Refazer" aria-label="Refazer" disabled></button>
     <button class="ib" id="bComparar" title="Segure para ver a foto original" aria-label="Comparar com a original" disabled></button>
+    <button class="ib" id="bLote" title="Aplicar esta edição a várias fotos" aria-label="Aplicar esta edição a várias fotos" disabled></button>
     <button class="exportar" id="bExportar" disabled>Exportar</button>
   </div>
 </header>
@@ -118,6 +123,7 @@
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
+  <div id="pergunta" role="dialog" aria-live="polite"><span>Usar a mesma edição da foto anterior?</span><div><button id="pNao">Não</button><button id="pSim" class="on">Usar</button></div></div>
 </main>
 
 <section id="painel">
@@ -139,6 +145,7 @@
 </section>
 
 <input type="file" id="arquivo" accept="image/*,.heic,.heif,.dng,.raf,.cr2,.cr3,.nef,.arw,.orf,.rw2" hidden>
+<input type="file" id="lote" accept="image/*,.heic,.heif,.dng,.raf,.cr2,.cr3,.nef,.arw,.orf,.rw2" multiple hidden>
 <script type="module" src="app.js"></script>
 </body>
 </html>

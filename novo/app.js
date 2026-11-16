@@ -59,6 +59,8 @@ try {
 
 // ------------------------------------------------------------ ícones
 for (const [id, n] of [['bAbrir', 'open'], ['bDesfazer', 'undo'], ['bRefazer', 'redo'], ['bComparar', 'compare']]) $(id).innerHTML = icon(n);
+// várias fotos: duas fotos empilhadas
+$('bLote').innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="14" height="14" rx="2"/><path d="M17 21H5a2 2 0 0 1-2-2V7"/></svg>';
 
 // ------------------------------------------------------------ filmes
 async function carregaFilmes() {
@@ -326,17 +328,37 @@ $('arquivo').addEventListener('change', async (e) => {
 addEventListener('dragover', (e) => e.preventDefault());
 addEventListener('drop', (e) => { e.preventDefault(); const f = [...e.dataTransfer.files].find(isImageFile); if (f) abre(f); });
 
+// a edição tem algo além do padrão? (filme, ajustes, efeitos)
+function editada() {
+  const ign = new Set(['semente', 'sorte', 'sorteLuz', 'rosto']);
+  return Object.keys(PADRAO).some((k) => !ign.has(k) && JSON.stringify(s[k]) !== JSON.stringify(PADRAO[k]));
+}
+function perguntaRepetir(anterior) {
+  const q = $('pergunta');
+  if (!anterior) { q.style.display = 'none'; return; }
+  q.style.display = 'flex';
+  $('pNao').onclick = () => { q.style.display = 'none'; };
+  $('pSim').onclick = () => {
+    q.style.display = 'none';
+    s = { ...anterior, semente: s.semente, rosto: null };   // o rosto é de outra foto: marcar de novo
+    R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); desenha(); memoriza();
+  };
+}
 async function abre(file) {
   aviso('Abrindo…');
   try {
     const { bitmap, note } = await decodeFile(file);
+    const tinhaFoto = !!foto;   // na primeira foto não há edição anterior para repetir
     foto = { bitmap, nome: file.name.replace(/\.[^.]+$/, '') };
     R.setImage(reduz(bitmap, Math.min(R.maxTex, 2400)));
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
-    s.semente = Math.random(); s.rosto = null; marcando = false;
+    // a foto nova começa limpa; se a anterior foi editada, pergunta se quer repetir (nunca aplica sozinho)
+    const anterior = tinhaFoto && editada() ? { ...s } : null;
+    s = { ...PADRAO, semente: Math.random() }; marcando = false; R.setFilm(null);
+    perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none';
-    for (const id of ['bComparar', 'bExportar']) $(id).disabled = false;
-    montaFaixa(); desenha(); hist = []; hi = -1; memoriza();
+    for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
+    montaFaixa(); sincroniza(); atualizaNota(); desenha(); hist = []; hi = -1; memoriza();
     aviso(note || '');
   } catch (err) { console.error(err); aviso(err.message || 'Não consegui abrir essa foto.'); }
 }
@@ -357,27 +379,57 @@ async function salvaNoAparelho(arq) {
   }
 }
 
+// revela uma foto em tamanho real com a edição st e devolve o arquivo JPEG
+async function revela(E, bitmap, st, nome) {
+  const src = reduz(bitmap, Math.min(E.maxTex, 8192));
+  E.setImage(src); E.setFilm(filmeAtual());
+  E.draw(st, src.width, src.height, Math.max(bitmap.width, bitmap.height));
+  const blob = await new Promise((r) => E.canvas.toBlob(r, 'image/jpeg', 0.95));
+  return new File([blob], `${nome}_revela${st.filme ? '_' + st.filme : ''}.jpg`, { type: 'image/jpeg' });
+}
+// entrega os arquivos: app Android grava em Imagens › Revela; celular abre o compartilhar; computador baixa
+async function entrega(arqs) {
+  if (window.Capacitor?.isNativePlatform?.()) { for (const a of arqs) await salvaNoAparelho(a); return; }
+  if (navigator.canShare?.({ files: arqs }) && matchMedia('(pointer: coarse)').matches) {
+    try { await navigator.share({ files: arqs }); return; } catch { /* cancelado: baixa */ }
+  }
+  for (const a of arqs) {
+    const l = document.createElement('a'); l.href = URL.createObjectURL(a); l.download = a.name; l.click();
+    setTimeout(() => URL.revokeObjectURL(l.href), 4000); await new Promise((r) => setTimeout(r, 350));
+  }
+}
 $('bExportar').onclick = async () => {
   if (!foto) return;
   aviso('Revelando em tamanho real…');
   try {
     const c = document.createElement('canvas'), E = new Render(c, { preserve: true });
-    const src = reduz(foto.bitmap, Math.min(E.maxTex, 8192));
-    E.setImage(src); E.setFilm(filmeAtual());
-    E.draw(s, src.width, src.height, Math.max(foto.bitmap.width, foto.bitmap.height));
-    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.95));
+    const arq = await revela(E, foto.bitmap, s, foto.nome);
+    const W = c.width, H = c.height;
     E.gl.getExtension('WEBGL_lose_context')?.loseContext();
-    const nome = `${foto.nome}_revela${s.filme ? '_' + s.filme : ''}.jpg`;
-    const arq = new File([blob], nome, { type: 'image/jpeg' });
-    if (window.Capacitor?.isNativePlatform?.()) { await salvaNoAparelho(arq); return; }
-    if (navigator.canShare?.({ files: [arq] }) && matchMedia('(pointer: coarse)').matches) {
-      try { await navigator.share({ files: [arq] }); aviso(''); return; } catch { /* cancelado: baixa */ }
-    }
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    aviso(`Foto exportada (${c.width}×${c.height})`);
+    await entrega([arq]);
+    aviso(`Foto exportada (${W}×${H})`);
   } catch (err) { console.error(err); aviso('Falha ao exportar: ' + err.message); }
 };
+
+// ------------------------------------------------------------ várias fotos (como no Lightroom: a mesma edição numa série)
+$('bLote').onclick = () => $('lote').click();
+$('lote').addEventListener('change', async (e) => {
+  const fs = [...e.target.files].filter(isImageFile); e.target.value = '';
+  if (!fs.length) return;
+  const st = { ...s, rosto: null };   // o rosto marcado é desta foto; nas outras o retrato fica sem máscara
+  const c = document.createElement('canvas'), E = new Render(c, { preserve: true }), arqs = [];
+  try {
+    for (let i = 0; i < fs.length; i++) {
+      aviso(`Revelando ${i + 1} de ${fs.length}…`);
+      const { bitmap } = await decodeFile(fs[i]);
+      arqs.push(await revela(E, bitmap, { ...st, semente: Math.random() }, fs[i].name.replace(/\.[^.]+$/, '')));   // grão próprio em cada foto
+      bitmap.close?.();
+    }
+    E.gl.getExtension('WEBGL_lose_context')?.loseContext();
+    await entrega(arqs);
+    aviso(`${arqs.length} fotos reveladas com esta edição`);
+  } catch (err) { console.error(err); aviso('Falha ao revelar as fotos: ' + err.message); }
+});
 
 // ------------------------------------------------------------ aviso
 let tAviso = 0;
