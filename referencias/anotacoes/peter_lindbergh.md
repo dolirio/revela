@@ -95,6 +95,13 @@ Pasta no Drive: `FujiFilmXT50/PB_PeterLindbergh` (31 JPG + 31 FP3; o FP3 tem 194
 | Smooth Skin | Off | Off | Coerente com "não retoque". |
 | WB / Shift | Auto / 0:0 | Auto / 0:0 | No PB, o WB muda a mistura de canais. Manter igual para a comparação v1 × v2 ser limpa. |
 
+### Receita v3 — escolha do usuário (16/11/2026)
+Depois de ver v1 × v2 e um teste de três grãos (fino, grande, orgânico) a 100%:
+- **Grão: orgânico (C)**, aglomerados de 3 tamanhos mais alguns grãos marcados, com a força visual da v2.
+- **Força:** igual à v2.
+- **Sombras: como a v1** (Shadow −1, mais abertas). Os demais ajustes seguem a v2: Highlight −1, Clarity +1, Sharpness 0.
+- Na emulação: `RECEITAS['v3']` em `referencias/lindbergh/lindbergh.py`.
+
 ### Passo B: medir (Claude)
 - Mesmo método das outras simulações: com as cartelas (papel fotográfico à esquerda, A4 comum à direita), medir a **curva de tons** (entrada linear do RAW × saída do JPG), a **mistura de canais** (patches coloridos → cinza resultante) e o **grão** (espectro do ruído em patches uniformes).
 - Comparar com o ACROS puro (pasta ACROS), para isolar o que a receita muda: filtro, tom e grão.

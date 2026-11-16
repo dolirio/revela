@@ -24,6 +24,7 @@ O Revela passa a se concentrar nos **filmes**: reproduzir cada um com a fidelida
 
 - **Fica e ganha profundidade:** os filmes, os ajustes básicos e o analógico essencial (grão, halação, difusão, poeira e riscos).
 - **Guardado para depois** (continua no histórico, a partir da v47): papéis e cópia, Tempo, Climas, Gráfico, molduras, preparar para imprimir, folha de contato e exportar para Instagram.
+- **Grão:** a quantidade é sempre do usuário (mais ou menos, conforme a foto e a intenção), mas o **caráter é sempre de filme real**: aglomerados irregulares de vários tamanhos, mais fortes nos tons médios. Aumentar ou diminuir muda a quantidade, nunca transforma o grão em ruído digital. O primeiro modelo está em `referencias/lindbergh/lindbergh.py` (`grao_organico`).
 - A pesquisa que sustenta os filmes novos está em [`pesquisa/`](pesquisa/README.md).
 - **O Revela novo está sendo construído em [`novo/`](novo/)**, sem mexer no app publicado. Cada filme vem do motor espectral (`pesquisa/motor/exportar.py`) com a física do filme dentro: a exposição e a temperatura agem **antes** do filme, o equilíbrio do laboratório **depois**. Ele substitui o app atual quando o primeiro conjunto de filmes estiver pronto.
 - A v47 fica guardada no histórico no commit `d057ed9`.

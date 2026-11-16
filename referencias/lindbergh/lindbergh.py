@@ -16,6 +16,8 @@ TONE_STEP=0.035          # estimado: deslocamento máx. por passo de H/S (0-1)
 RECEITAS={
  'v1':dict(H=0,S=-1,clar=-1,grain_sigma=0.0,sharp=1),
  'v2':dict(H=-1,S=0,clar=+1,grain_sigma=1.1,sharp=0),
+ # v3 (escolha do usuário em 16/11): grão orgânico C com a força da v2; sombras como a v1 (S −1)
+ 'v3':dict(H=-1,S=-1,clar=+1,grain='organico',forca=1.0,sharp=0),
 }
 def bump(x,c,wd): return np.exp(-0.5*((x-c)/wd)**2)
 def tom(L,H,S0):
@@ -36,6 +38,16 @@ def grao(L,sigma,rng):
         n*=1.5*vis_small/vis_large
     A=np.interp(L,GT,GA).astype(np.float32)
     return L+A*n
+def grao_organico(L,forca,rng):
+    """Grão com aspecto de filme: aglomerados de 3 tamanhos somados + caudas pesadas (alguns grãos bem marcados).
+    'forca' só muda a quantidade; o caráter (tamanhos, irregularidade) fica igual. 1,0 = mesma visibilidade da v2."""
+    oct_=[(0.6,0.45),(1.2,0.40),(2.4,0.15)]
+    n=sum(w*(lambda x:x/x.std())(cv2.GaussianBlur(rng.standard_normal(L.shape,dtype=np.float32),(0,0),s)) for s,w in oct_)
+    n=np.sign(n)*np.abs(n)**1.35; n/=n.std()
+    vis_small=1/(2*np.sqrt(np.pi)*1.5); alvo=1.5*vis_small
+    n*=alvo/cv2.GaussianBlur(n,(0,0),1.5).std()
+    A=np.interp(L,GT,GA).astype(np.float32)
+    return L+forca*A*n
 def revelar(raf,rec,seed=0):
     with rawpy.imread(raf) as R:
         lin=R.postprocess(gamma=(1,1),no_auto_bright=True,output_bps=16,use_camera_wb=True).astype(np.float32)/65535
@@ -51,7 +63,9 @@ def revelar(raf,rec,seed=0):
     # nitidez (estimada): USM raio 1 px
     amt={-1:0.15,0:0.35,1:0.6}[rec['sharp']]
     L=L+amt*(L-cv2.GaussianBlur(L,(0,0),1.0))
-    L=grao(np.clip(L,0,1),rec['grain_sigma'],np.random.default_rng(seed))
+    rng=np.random.default_rng(seed)
+    if rec.get('grain')=='organico': L=grao_organico(np.clip(L,0,1),rec.get('forca',1.0),rng)
+    else: L=grao(np.clip(L,0,1),rec['grain_sigma'],rng)
     return (np.clip(L,0,1)*255+0.5).astype(np.uint8)
 if __name__=='__main__':
     rec=sys.argv[1]; out=sys.argv[2]
