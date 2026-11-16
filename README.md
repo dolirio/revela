@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (teste fechado) | 2026-11-17 | **Versão de teste fechada** (`novo/TESTE.md`): revisão completa sem erros (celular e computador); **ícone novo** monocromático e geométrico (sol nascente ou diafragma, herdeiro da meia-lua); o app novo **instala na tela e funciona sem internet** (manifesto e cache próprios); rótulo da versão na tela inicial; APK só com os 9 filmes do índice e o ícone novo. |
 | v48 (em construção) | 2026-11-17 | **Três filmes novos, por família**: **Portrait 160** (retrato íntimo, a cor de Peter Lindbergh), **Editorial 100** (retrato de revista, Steven Meisel; mais contraste) e **Chrome 64** (rua em cor, Kodachrome; mais quente). Agora são 9: Portrait 400/160, Editorial 100, Chrome 100/64, Pro 400, Tungsten 800, Silver 400/Portrait. |
 | v48 (em construção) | 2026-11-17 | **Retrato em todos os filmes** (separação do rosto com a pele no alvo de cada filme). **Marcar o rosto desenhando** em volta dele (o oval segue o arrasto; um toque marca o centro com o tamanho padrão). **Zoom** com pinça (até 4×, nítido), um dedo arrasta, toque duplo volta; no computador, roda do mouse. |
 | v48 (em construção) | 2026-11-17 | **Foto nova começa limpa** e o app **pergunta** se quer usar a mesma edição da anterior (nunca aplica sozinho). **Aplicar a várias fotos** (botão ao lado de Exportar): escolhe uma série e o app revela todas com a edição atual, cada uma com grão próprio, e entrega juntas (Android: Imagens › Revela; celular: compartilhar; computador: download). |

@@ -7,8 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Revela</title>
-<link rel="icon" href="../icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#141210">
 <style>
   :root {
     --bg: #0b0b0a; --panel: #121211; --raise: #1c1b19; --line: #262522; --text: #f1ece3; --muted: #8d877d; --faint: #5d5850;
@@ -39,6 +41,7 @@
   #anel { position: absolute; display: none; border: 1.5px dashed #fff9; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 1px #0006; }
   #selo { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #000a; color: #fff; font-size: 12px;
     padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .06em; }
+  .versao { display: block; margin-top: 18px; color: var(--faint); font-size: 11px; letter-spacing: .06em; }
   #pergunta { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: none; align-items: center; gap: 14px;
     background: var(--raise); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 16px; font-size: 13px; width: max-content; max-width: calc(100% - 32px); box-shadow: 0 8px 30px #0008; }
   #pergunta div { display: flex; gap: 6px; } #pergunta button { padding: 9px 14px; border-radius: 10px; color: var(--muted); font-size: 13px; }
@@ -120,6 +123,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
+    <small class="versao">versão de teste 48 · 17/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

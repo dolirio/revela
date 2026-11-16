@@ -57,6 +57,9 @@ try {
   throw e;
 }
 
+// funciona sem internet e instala na tela do celular (no APK o próprio app já guarda tudo)
+if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform?.()) navigator.serviceWorker.register('sw.js').catch(() => {});
+
 // ------------------------------------------------------------ ícones
 for (const [id, n] of [['bAbrir', 'open'], ['bDesfazer', 'undo'], ['bRefazer', 'redo'], ['bComparar', 'compare']]) $(id).innerHTML = icon(n);
 // várias fotos: duas fotos empilhadas
