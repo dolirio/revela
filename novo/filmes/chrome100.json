@@ -1,0 +1,32 @@
+{
+ "id": "chrome100",
+ "nome": "Chrome 100",
+ "inspirado": "Kodak Ektar 100",
+ "cat": "cor",
+ "nota": "cor densa, azul profundo, contraste firme",
+ "analogico": {
+  "grao": 0.12,
+  "grao_tamanho": 0.85,
+  "halacao": 0.04,
+  "nitidez_canal": [
+   0.637,
+   1.0,
+   0.937
+  ]
+ },
+ "labs": [
+  "neutro"
+ ],
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4682,
+  0.4848,
+  0.5022
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "id": "silver400",
+ "nome": "Silver 400",
+ "inspirado": "Kodak Tri-X 400 com filtro laranja",
+ "cat": "pb",
+ "nota": "preto e branco épico: pretos profundos, céus dramáticos",
+ "analogico": {
+  "grao": 0.4,
+  "grao_tamanho": 1.1,
+  "halacao": 0.0,
+  "nitidez_canal": [
+   1.0,
+   1.0,
+   1.0
+  ]
+ },
+ "labs": [
+  "neutro"
+ ],
+ "tabela": {
+  "n": 33,
+  "min": -9.0,
+  "max": 7.0,
+  "formato": "uint16le rgb, r mais rápido",
+  "motor": "pesquisa/motor (espectral, caminho escaneado)"
+ },
+ "cinza_medio_saida": [
+  0.4856,
+  0.4856,
+  0.4856
+ ]
+}

@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (em construção) | 2026-11-17 | **Seis filmes com identidade** no app novo: Portrait 400, Chrome 100, Pro 400, Tungsten 800, Silver 400, Silver Portrait. Física do motor + identidade própria, testados nas fotos do usuário. Tela enxuta: uma linha de filmes; Ajustes com Luz, Calor e Matiz; laboratório e filtros embutidos em cada filme. Detalhes em `pesquisa/filmes_finais.md`. |
 | v48 (em construção) | 2026-11-16 | **Correções do primeiro teste no iPhone**: P&B saía esverdeado com a temperatura do laboratório (agora o P&B ignora e esconde temperatura/matiz do laboratório); o grão na prévia aparecia ~5× maior que no arquivo exportado (o tamanho agora segue a imagem mostrada). |
 | v48 (em construção) | 2026-11-16 | **Versão de teste do app novo**: revisão completa no tamanho de celular (abrir, filmes, laboratório, filtro, rosto, exportar; sem erros), seção Retrato no topo de Ajustes, exportação no APK grava em Imagens › Revela. **APK de teste** separado ("Revela (teste)", `app.revela.teste`, não substitui o instalado), gerado por `novo/android/gerar_apk.sh`. Web de teste em `/novo/`. O app publicado (v47) não muda. |
 | v48 (em construção) | 2026-11-16 | **Receita Lindbergh no app novo** (P&B): tabela gerada da receita calibrada do usuário e seção **Retrato** com rosto marcado por toque e **Separação do rosto** (0 = v3, 50 = v6 padrão, 100 = v5). Pele e destaque do rosto conferem com os testes. Detalhes em `referencias/lindbergh/README.md`. |
