@@ -172,7 +172,7 @@ secao($('p-ajustes'), 'Na câmera', 'Antes do filme: a luz que chega ao negativo
 controle('exposicao', $('p-ajustes'));
 escolha('filtro', FILTROS, $('p-ajustes'), 'Filtro na lente');
 // retrato: só nos filmes com receita de retrato (Lindbergh)
-const retrato = document.createElement('div'); retrato.id = 'g_retrato'; $('p-ajustes').append(retrato);
+const retrato = document.createElement('div'); retrato.id = 'g_retrato'; $('p-ajustes').prepend(retrato);
 secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara');
 { const w = document.createElement('div'); w.className = 'escolha';
   w.innerHTML = '<div><button id="bRosto">Marcar o rosto</button></div><small id="nRosto"></small>'; retrato.append(w); }
@@ -300,6 +300,21 @@ async function abre(file) {
 }
 
 // ------------------------------------------------------------ exportar em tamanho real
+// app Android (APK, Capacitor): o WebView não baixa arquivos. Grava em Imagens/Revela (a Galeria encontra);
+// sem acesso, abre o compartilhar do Android. Mesmo caminho do app publicado (app.js, deliverNative).
+async function salvaNoAparelho(arq) {
+  const C = window.Capacitor, P = C.Plugins || {};
+  const Filesystem = P.Filesystem || C.registerPlugin('Filesystem'), Share = P.Share || C.registerPlugin('Share');
+  const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(arq); });
+  try {
+    await Filesystem.writeFile({ path: `Pictures/Revela/${arq.name}`, data, directory: 'EXTERNAL_STORAGE', recursive: true });
+    aviso('Salvo em Imagens › Revela');
+  } catch {
+    const w = await Filesystem.writeFile({ path: arq.name, data, directory: 'CACHE' });
+    try { await Share.share({ title: arq.name, files: [w.uri] }); aviso(''); } catch { aviso('Exportação cancelada'); }
+  }
+}
+
 $('bExportar').onclick = async () => {
   if (!foto) return;
   aviso('Revelando em tamanho real…');
@@ -312,6 +327,7 @@ $('bExportar').onclick = async () => {
     E.gl.getExtension('WEBGL_lose_context')?.loseContext();
     const nome = `${foto.nome}_revela${s.filme ? '_' + s.filme : ''}.jpg`;
     const arq = new File([blob], nome, { type: 'image/jpeg' });
+    if (window.Capacitor?.isNativePlatform?.()) { await salvaNoAparelho(arq); return; }
     if (navigator.canShare?.({ files: [arq] }) && matchMedia('(pointer: coarse)').matches) {
       try { await navigator.share({ files: [arq] }); aviso(''); return; } catch { /* cancelado: baixa */ }
     }
