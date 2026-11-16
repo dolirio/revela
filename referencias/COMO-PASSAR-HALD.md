@@ -22,8 +22,24 @@ Filmes, na ordem (os que existirem no app):
 
 Em cada filme: abra os ajustes do filme e zere grão, poeira/textura, vazamento de luz e vinheta. Intensidade 100 %.
 
-## 2. VSCO (comparação)
-Use os presets cuja descrição cita os mesmos filmes (Portra, Gold, Ektar, Ultramax, CineStill, Tri-X). Força do preset no máximo (+12). Nas ferramentas, deixe Grão, Esmaecer (Fade), Vinheta, Nitidez e Clareza em 0. **Anote o código do preset no nome do arquivo** (ex.: `VSCO_KP1_Portra.jpg`).
+## 2. VSCO (atualizado em 16/11/2026, app com "Film X")
+O VSCO agora tem 41 filmes ("Film X"), cada um com **três controles próprios**: Strength (força), Character (a exposição do filme: + é superexpor) e Warmth (a temperatura de cor do scanner). Grão, halação, brilho (Bloom) e Film FX (poeira, moldura, vazamento de luz) são **ferramentas separadas**.
+
+**Em cada filme:**
+1. Abra o Hald, toque em **Edit** e escolha o filme pelo código.
+2. **Strength no máximo (+12).**
+3. **Character em 0** e **Warmth em 0**. Isso é importante: são eles que mudam a exposição e a cor do scanner.
+4. Não use **Grain, Halation, Bloom, Vignette, Film FX nem Borders**. Se algum estiver ligado, zere.
+5. Exporte em **tamanho original**. Confira se o arquivo sai com 1728 × 1728 px.
+6. **Nomeie com o código** (ex.: `VSCO_KP4.jpg`). Se o app não deixar renomear, exporte **na ordem da lista abaixo** e me mande a ordem, porque o arquivo pode não trazer o nome do filme (o Labbet não trazia).
+
+**Filmes, por prioridade** (o código fica no próprio preset):
+- **Comparação direta com Revela, RNI e Labbet:** KP1 (Portra 160), KP4 (Portra 400), KP8 (Portra 800), KG2 (Gold 200), KE1 (Ektar 100), KU4 (UltraMax 400), FP4 (Fuji Pro 400H), FS4 (Superia 400).
+- **Para categorias que o Revela ainda não tem:** KX4 (Tri-X 400, para o P&B e o Lindbergh), FV5 (Velvia 50, para o Cromo), KA1 (Ektachrome E100G).
+- **Opcional:** FP8 (Pro 800Z), KC25 (Kodachrome 25), FR4X (Provia cruzado).
+- **Mais um arquivo sem filme** (`VSCO_original.jpg`): mostra se o app mexe na imagem mesmo sem preset.
+
+Os filmes são do plano pago (membership). Se só alguns estiverem liberados, comece pela primeira linha.
 
 ## 3. Labbet (comparação, se tiver os mesmos filmes)
 Mesmas regras. Exporte só os filmes equivalentes aos da lista do RNI.
