@@ -197,6 +197,9 @@ function sincroniza() {
   // o filtro só existe no P&B; o laboratório (Frontier) só nos coloridos que têm a tabela
   const f = filmeAtual();
   $('g_retrato').style.display = f?.meta.retrato ? '' : 'none';
+  // P&B: temperatura e matiz do laboratório não existem (o scan é cinza)
+  for (const k of ['labTemp', 'labMatiz']) { const r = $('r_' + k); if (r) r.parentElement.style.display = f?.meta.cat === 'pb' ? 'none' : ''; }
+  if ($('c_labAuto')) $('c_labAuto').closest('.chave').style.display = f?.meta.cat === 'pb' ? 'none' : '';
   $('nRosto').textContent = marcando ? 'Toque no rosto na foto' : s.rosto ? 'Rosto marcado. 0 = suave (v3), 50 = padrão (v6), 100 = forte (v5)' : 'Toque em "Marcar o rosto" e depois no rosto da pessoa';
   $('bRosto').classList.toggle('on', marcando);
   anel();
