@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48 (em construção) | 2026-11-17 | **Poeira e riscos sutis** (como no RNI): sem as manchas grandes e macias, partículas menores e mais raras, riscos finos como fio de cabelo; o pó e o risco clareiam o que está embaixo em vez de pintar de branco. |
 | v48 (em construção) | 2026-11-17 | **Tempo no app novo** (aba Analógico): **Luz vazada**, **Poeira** e **Riscos**, trazidos do app publicado (mesma física, um controle para cada), mais a **Moldura do filme** 35 mm com os furos e o botão **Sortear de novo**. A exportação inclui a moldura. |
 | v48 (em construção) | 2026-11-17 | **Correções no computador**: a faixa de filmes não rolava com o mouse (agora mostra todos os filmes no computador, com roda e arrastar onde não couber); a halação quase não aparecia (agora reage a lâmpadas, janelas e neon, com brilho vermelho-alaranjado em volta). |
 | v48 (em construção) | 2026-11-17 | **Seis filmes com identidade** no app novo: Portrait 400, Chrome 100, Pro 400, Tungsten 800, Silver 400, Silver Portrait. Física do motor + identidade própria, testados nas fotos do usuário. Tela enxuta: uma linha de filmes; Ajustes com Luz, Calor e Matiz; laboratório e filtros embutidos em cada filme. Detalhes em `pesquisa/filmes_finais.md`. |
