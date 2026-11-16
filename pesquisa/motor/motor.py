@@ -104,6 +104,42 @@ def base_espectral():
     return r * luz                                   # (3, n)
 
 
+class EspectroNatural:
+    """RGB -> espectro aprendido com objetos reais (pesquisa/dados/refletancias_reais.json, 190 refletâncias).
+    Para cada cor, faz a média dos espectros reais de cromaticidade parecida (núcleo gaussiano) e corrige o resultado
+    para a cor EXATA da entrada somando a base suave (a cor vista não muda; muda só a forma do espectro, que é o
+    que o filme enxerga diferente do olho). Vale nas cores do dia a dia (pele, folhagem, céu, terra), onde há muitos
+    dados; nas cores muito saturadas volta suavemente à base suave (lá os dados são poucos e a tabela ficava áspera).
+    Motivo e testes: pesquisa/espectros_naturais.md."""
+
+    def __init__(self, base_suave, luz, sigma=0.06, k=2.0, sat=(0.25, 0.45)):
+        d = _carrega('refletancias_reais')
+        tr = np.array([np.interp(NM, d['nm'], r) for r in d['treino']])
+        self.Bs, self.luz, self.sigma, self.k, self.sat = base_suave, luz, sigma, k, sat
+        self.M = np.linalg.inv(self.rgb_de(base_suave))
+        X = self.rgb_de(tr * luz); Y = X @ SRGB_XYZ[1]; ok = Y > 0.01
+        self.esp = (tr * luz)[ok] / Y[ok, None]
+        self.cro = X[ok] / X[ok].sum(1, keepdims=True)          # cromaticidade r+g+b = 1
+
+    def rgb_de(self, E):
+        return ((E @ CMF.T) / (self.luz @ CMF.T)[1]) @ XYZ_SRGB.T
+
+    def __call__(self, rgb):
+        rgb = np.asarray(rgb, float); Y = np.maximum(rgb @ SRGB_XYZ[1], 1e-12)
+        c = rgb / Y[..., None]; q = c / np.maximum(c.sum(-1, keepdims=True), 1e-12)
+        n = len(NM); out = np.empty(rgb.shape[:-1] + (n,))
+        cf, qf, of = c.reshape(-1, 3), q.reshape(-1, 3), out.reshape(-1, n)
+        r0, r1 = self.sat
+        for i in range(0, len(cf), 4096):                     # em blocos, para caber na memória
+            ci, qi = cf[i:i + 4096], qf[i:i + 4096]
+            w = np.exp(-0.5 * ((qi[:, None, :] - self.cro) ** 2).sum(-1) / self.sigma ** 2); W = w.sum(-1)
+            t = np.clip((r1 - np.linalg.norm(qi - 1 / 3, axis=1)) / (r1 - r0), 0, 1)
+            a = (W / (W + self.k) * t * t * (3 - 2 * t))[:, None]   # peso dos dados reais (0 = só base suave)
+            pri = a * (w @ self.esp) / np.maximum(W, 1e-12)[:, None] + (1 - a) * (ci @ self.Bs)
+            of[i:i + 4096] = pri + ((ci - self.rgb_de(pri)) @ self.M) @ self.Bs
+        return out * Y[..., None]
+
+
 # ------------------------------------------------------------------ o filme
 class Filme:
     def __init__(self, dados='portra400'):
@@ -239,14 +275,16 @@ class Motor:
     """
 
     def __init__(self, filme='portra400', papel='endura_premier', corantes='kodak', correcao_lab=1.0, dir_calibracao=0.1,
-                 paradas_base=0.0):
+                 paradas_base=0.0, espectros='natural'):
         self.f, self.p = Filme(filme), Papel(papel)
         self.correcao_lab, self.dir_cal = correcao_lab, dir_calibracao
         self.paradas_base = paradas_base      # fotometrar o filme fora da ISO nominal (ex.: CineStill 500T a 800)
         self.base_rgb = base_espectral()
         self.branco = self.base_rgb.sum(0)                     # luz da cena e da sala de visão (D65)
+        # como a cor RGB vira espectro: 'natural' (aprendido com objetos reais) ou 'suave' (a base mais lisa)
+        self.espectro = EspectroNatural(self.base_rgb, self.branco) if espectros == 'natural' else (lambda rgb: rgb @ self.base_rgb)
         # exposição de cada camada para a luz branca: normaliza para o cinza 18% cair no log H de referência
-        self.k_cam = 1.0 / (self.f.sens @ (self.branco * 0.18))
+        self.k_cam = 1.0 / (self.f.sens @ self.espectro(np.full(3, 0.18)))
         self.cor_neg, self.ajuste_corantes = (desmistura_corantes_kodak if corantes == 'kodak' else desmistura_corantes)(self.f)
         # quanto de cada corante corresponde a cada nível de densidade Status M, medido em cinzas
         self.M = status_m(); self.M = self.M / self.M.sum(1, keepdims=True)
@@ -261,7 +299,7 @@ class Motor:
 
     # --- negativo
     def exposicao(self, rgb_lin, paradas=0.0):
-        esp = rgb_lin @ self.base_rgb                           # (..., n) espectro da luz de cada ponto
+        esp = self.espectro(rgb_lin)                            # (..., n) espectro da luz de cada ponto
         H = (esp @ self.f.sens.T) * self.k_cam * 0.18          # exposição relativa de cada camada
         return self.f.ref + np.log10(np.maximum(H, 1e-9) / 0.18) + (paradas + self.paradas_base) * np.log10(2)
 
@@ -332,11 +370,16 @@ class Motor:
     def _calibra_lab(self, lam=0.02):
         """Calibração do scanner para o filme, como os laboratórios fazem (Frontier e Noritsu têm ajustes por tipo
         de filme): uma correção 3×3 em escala logarítmica que desfaz a mistura linear entre os corantes, aprendida
-        numa cartela de cores. Linhas somam zero, então o cinza não muda. O caráter do filme (o que cada camada
-        enxerga, as curvas, o DIR, o pé e o ombro) continua; sai só o "embaralhamento" de primeira ordem."""
+        numa cartela de cores. Linhas somam zero, então o cinza não muda.
+        O alvo é a EXPOSIÇÃO DE CADA CAMADA do filme (o que o filme viu), não a cor da cena: a correção desfaz só a
+        mistura dos corantes e do scanner. O que vem da sensibilidade espectral de cada camada (o filme enxergar a
+        cor diferente do olho) é caráter do filme e fica. (Antes o alvo era a cor da cena: a correção apagava junto
+        esse caráter e deixava a cor saturada demais; ver pesquisa/espectros_naturais.md.)"""
         rgb = srgb_decode(np.array(TREINO, float) / 255)
-        Lhat = self._lhat(self._densidade_scan(self.negativo(self.exposicao(rgb), self.dir_cal))) - self.f.ref
-        T = np.clip(np.log10(np.maximum(rgb, 1e-4) / 0.18), -2.2, 1.0)
+        Lexp = self.exposicao(rgb)
+        Lhat = self._lhat(self._densidade_scan(self.negativo(Lexp, self.dir_cal))) - self.f.ref
+        T = (Lexp - self.f.ref) * self.fator_contraste           # exposição de cada camada, no contraste final
+        T = T - T.mean(-1, keepdims=True) + Lhat.mean(-1, keepdims=True)   # só a parte cromática
         # D com linhas de soma zero: D = B @ P, P projeta fora do neutro
         P = np.eye(3) - 1 / 3
         X = Lhat @ P.T                      # parte cromática

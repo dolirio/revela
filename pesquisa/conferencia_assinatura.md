@@ -66,3 +66,6 @@ Depois das correções:
 - **Pele "dourada":** a física modelada leva a pele ao neutro, não ao âmbar. O dourado que as câmeras imitam (+20°) deve vir do "jeito" do scanner do laboratório (Frontier/Noritsu), não do filme. Entra como etapa própria, calibrada com scans reais.
 - **Saturação do Portra 400 ≈ Gold:** depende do DIR (interação entre camadas), que a ficha não publica e está provisório. Calibrar com as fotos da cartela em filme real.
 - **Ektar com pele −8°:** mesma causa provável (sobra da mistura dos corantes); conferir junto com o Portra na prova com filme real.
+
+
+> **Atualização (16/11/2026):** a correção do laboratório e a conversão RGB→espectro mudaram (ver `espectros_naturais.md`). Os valores de cor acima são da versão anterior; a força 0,7/0,9 por filme deixou de existir (agora 1 em todos).

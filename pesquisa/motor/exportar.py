@@ -37,7 +37,7 @@ def grao(pgi):
     return round(max(0.06, 0.30 * (pgi - 15) / (37 - 15)), 3)
 
 
-def F(id_, motor, nome, inspirado, nota, pgi, tam, dir_, halacao=0.04, nit=None, paradas=0.0, cat='negativo', lab=0.7):
+def F(id_, motor, nome, inspirado, nota, pgi, tam, dir_, halacao=0.04, nit=None, paradas=0.0, cat='negativo', lab=1.0):
     return {'id': id_, 'motor': {'filme': motor}, 'nome': nome, 'inspirado': inspirado, 'cat': cat, 'nota': nota,
             'paradas': paradas, 'dir': dir_, 'lab': lab,
             'analogico': {'grao': grao(pgi), 'grao_tamanho': tam, 'halacao': halacao, 'nitidez_canal': nit or P400_NIT}}
@@ -45,9 +45,9 @@ def F(id_, motor, nome, inspirado, nota, pgi, tam, dir_, halacao=0.04, nit=None,
 
 FILMES = [
     F('ke100', 'ektar100', 'KE 100', 'Kodak Ektar 100', 'negativo · ISO 100 · cor viva, grão finíssimo, céus profundos', 22, 0.85, 0.40),
-    F('kp160', 'portra160', 'KP 160', 'Kodak Portra 160', 'negativo de retrato · ISO 160 · suave, pele natural, contraste baixo', 28, 0.9, 0.06, lab=0.9),
+    F('kp160', 'portra160', 'KP 160', 'Kodak Portra 160', 'negativo de retrato · ISO 160 · suave, pele natural, contraste baixo', 28, 0.9, 0.06),
     F('kg200', 'gold200', 'KG 200', 'Kodak Gold 200', 'negativo de consumo · ISO 200 · quente e dourado', 44, 0.95, 0.28),
-    F('kp400', 'portra400', 'KP 400', 'Kodak Portra 400', 'negativo de retrato · ISO 400 · pele dourada, contraste baixo, latitude enorme', 37, 1.0, 0.18, lab=0.9),
+    F('kp400', 'portra400', 'KP 400', 'Kodak Portra 400', 'negativo de retrato · ISO 400 · pele dourada, contraste baixo, latitude enorme', 37, 1.0, 0.18),
     F('ku400', 'ultramax400', 'KU 400', 'Kodak UltraMax 400', 'negativo de consumo · ISO 400 · cor forte, grão aparente', 46, 1.05, 0.32),
     F('kp800', 'portra800', 'KP 800', 'Kodak Portra 800', 'negativo de retrato · ISO 800 · para pouca luz, mais grão', 48, 1.15, 0.16),
     # CineStill 800T: o Vision3 500T sem a camada anti-halo, fotometrado a ISO 800 (2/3 de parada a menos de luz)
@@ -67,8 +67,9 @@ def nitidez_da_ficha(fid):
         return None
 
 def exporta(f):
-    # correção do laboratório: 0,7 deixa parte da mistura dos corantes (caráter do negativo); nos Portra 160/400 a sobra
-    # puxava a pele 8° para o rosado, contra a própria descrição do filme -> correção completa (pesquisa/conferencia_assinatura.md)
+    # correção do laboratório: desfaz a mistura dos corantes por completo (lab=1). O caráter de cor do filme vem da
+    # sensibilidade de cada camada a espectros reais (pesquisa/espectros_naturais.md). Até 16/11/2026 era 0,7/0,9,
+    # porque a correção antiga apagava também esse caráter (pesquisa/conferencia_assinatura.md).
     m = Motor(**f['motor'], corantes='kodak', correcao_lab=f['lab'], dir_calibracao=0.0, paradas_base=f['paradas'])
     nit = nitidez_da_ficha(f['motor']['filme'])
     if nit:
