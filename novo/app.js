@@ -434,7 +434,7 @@ async function abre(file) {
     const anterior = tinhaFoto && editada() ? { ...s } : null;
     s = { ...PADRAO, semente: Math.random() }; marcando = false; R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
-    tela.style.display = 'block'; $('vazio').style.display = 'none';
+    tela.style.display = 'block'; $('vazio').style.display = 'none'; document.body.classList.add('com-foto');
     for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
     montaFaixa(); sincroniza(); atualizaNota(); desenha(); hist = []; hi = -1; memoriza();
     aviso(note || '');
@@ -518,6 +518,5 @@ function aviso(t) {
 
 // ------------------------------------------------------------ início
 carregaFilmes().then(() => {
-  montaCats(); montaFaixa(); sincroniza();
-  escolheFilme(filmes[0]?.meta.id ?? null);
+  montaCats(); montaFaixa(); sincroniza(); atualizaNota();   // começa sem filme: nada é aplicado antes de você escolher
 }).catch((e) => { console.error(e); aviso('Não consegui carregar os filmes.'); });
