@@ -1,4 +1,6 @@
-# Revela · versão de teste 48.1 (17/11/2026)
+# Revela · versão de teste 48.2 (17/11/2026)
+
+48.2: o topo cabe em celular estreito (o "Exportar" saía cortado no Moto Edge 50 Neo).
 
 48.1: tela inicial só com as boas-vindas; a foto abre em Digital, sem nada aplicado.
 
