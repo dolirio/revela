@@ -49,6 +49,7 @@
   #aviso { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px;
     border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%; text-align: center; }
 
+  body:not(.com-foto) #painel, body:not(.com-foto) header .grp:last-child { visibility: hidden; }   /* antes da foto: só as boas-vindas */
   #painel { background: var(--panel); padding-bottom: calc(6px + var(--safe-b)); border-top: 1px solid var(--line); }
   .abas { display: flex; justify-content: center; gap: 28px; padding: 10px 0 2px; }
   .abas button { color: var(--faint); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; padding: 6px 0; }
@@ -123,7 +124,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48 · 17/11/2026</small>
+    <small class="versao">versão de teste 48.1 · 17/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

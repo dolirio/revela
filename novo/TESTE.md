@@ -1,4 +1,6 @@
-# Revela · versão de teste 48 (17/11/2026)
+# Revela · versão de teste 48.1 (17/11/2026)
+
+48.1: tela inicial só com as boas-vindas; a foto abre em Digital, sem nada aplicado.
 
 **Web:** https://dolirio.github.io/revela/novo/ · **Android:** APK "Revela (teste)" (`novo/android/gerar_apk.sh`), instala ao lado do Revela publicado.
 
