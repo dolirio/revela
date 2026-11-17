@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48.3 (teste) | 2026-11-17 | Borda do filme escolhido não sai mais cortada em cima (a faixa ganhou espaço para ela). |
 | v48.2 (teste) | 2026-11-17 | **Topo cabe em celular estreito** (visto no Moto Edge 50 Neo: "Exportar" cortado): com a foto aberta, o nome sai do topo e os botões ficam mais próximos; conferido de 320 a 412 px. |
 | v48.1 (teste) | 2026-11-17 | **Tela inicial limpa**: antes de abrir uma foto aparecem só as boas-vindas (o painel de filmes com quadrados vazios e o Portrait 400 já escolhido confundiam); a foto abre em Digital, sem nada aplicado. |
 | v48 (teste fechado) | 2026-11-17 | **Versão de teste fechada** (`novo/TESTE.md`): revisão completa sem erros (celular e computador); **ícone novo** monocromático e geométrico (sol nascente ou diafragma, herdeiro da meia-lua); o app novo **instala na tela e funciona sem internet** (manifesto e cache próprios); rótulo da versão na tela inicial; APK só com os 9 filmes do índice e o ícone novo. |

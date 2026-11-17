@@ -68,7 +68,7 @@
   .cats::-webkit-scrollbar, .faixa::-webkit-scrollbar { display: none; }
   .cats button { color: var(--muted); font-size: 13px; white-space: nowrap; }
   .cats button.on { color: var(--text); }
-  .faixa { display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 8px; scrollbar-width: none; }
+  .faixa { display: flex; gap: 10px; overflow-x: auto; padding: 5px 16px 8px; scrollbar-width: none; }   /* 5 px em cima: a borda do filme escolhido fica 4 px para fora e não pode ser cortada */
   .film { flex: 0 0 auto; width: 74px; display: grid; gap: 6px; justify-items: center; color: var(--muted); font-size: 11.5px; }
   .film canvas, .film .ph { width: 74px; height: 74px; border-radius: 6px; object-fit: cover; background: var(--raise); display: block; outline: 2px solid transparent; outline-offset: 2px; }
   .film.on { color: var(--text); } .film.on canvas, .film.on .ph { outline-color: var(--accent); }
@@ -131,7 +131,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.2 · 17/11/2026</small>
+    <small class="versao">versão de teste 48.3 · 17/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
