@@ -1,4 +1,6 @@
-# Revela · versão de teste 48.2 (17/11/2026)
+# Revela · versão de teste 48.3 (17/11/2026)
+
+48.3: a borda do filme escolhido não sai mais cortada em cima.
 
 48.2: o topo cabe em celular estreito (o "Exportar" saía cortado no Moto Edge 50 Neo).
 
