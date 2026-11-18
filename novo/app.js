@@ -31,21 +31,46 @@ const LUZES = [
   { id: '5', n: 'Raios', nota: 'Furinho na vedação: feixes saindo de um ponto da borda' },
 ];
 
-const CATS = [
-  { id: 'negativo', n: 'Negativo' }, { id: 'cromo', n: 'Cromo' }, { id: 'pb', n: 'P&B' },
-  { id: 'instantaneo', n: 'Instantâneo' }, { id: 'vencido', n: 'Vencido' },
+const CATS = [{ id: 'filmes', n: 'Filmes' }, { id: 'receitas', n: 'Receitas' }];
+
+// receitas: um toque aplica filme + revelação + textura. Nomes clássicos (sem nomes de pessoas); a inspiração está
+// em pesquisa/receitas.md. Tudo continua ajustável depois.
+const RECEITAS = [
+  { id: 'r_silver_puxado', n: 'Silver 400 · Puxado', nota: 'P&B documental: puxado dois pontos, pretos densos, grão forte',
+    s: { filme: 'silver400', puxar: 2, grao: 0.55, graoTamanho: 1.3 } },
+  { id: 'r_silver_retrato', n: 'Silver Portrait · Grão', nota: 'Retrato P&B com grão aparente e contraste macio',
+    s: { filme: 'silverportrait', puxar: 0.8, grao: 0.5, graoTamanho: 1.15 } },
+  { id: 'r_chrome_rua', n: 'Chrome 64 · Rua', nota: 'Rua em cor: luz dura, vermelhos quentes, sombras que contam história',
+    s: { filme: 'chrome64', puxar: 0.5, grao: 0.28, poeira: 0.18 } },
+  { id: 'r_chrome_vencido', n: 'Chrome 64 · Vencido', nota: 'Cor de rua silenciosa: cromo vencido, cor contida e véu macio',
+    s: { filme: 'chrome64', vencido: 0.45, grao: 0.32, poeira: 0.22 } },
+  { id: 'r_portrait_puxado', n: 'Portrait 400 · Puxado', nota: 'Intimidade de flash e noite: cor quente, grão aparente',
+    s: { filme: 'portrait400', puxar: 1.5, grao: 0.45, cenaTemp: 0.1 } },
+  { id: 'r_portrait_claro', n: 'Portrait 160 · Claro', nota: 'Luz clara e etérea: superexposto, pastel, pele suave',
+    s: { filme: 'portrait160', exposicao: 0.5, puxar: -0.5, grao: 0.18 } },
+  { id: 'r_tungsten_noite', n: 'Tungsten 800 · Noite', nota: 'Noite de cinema puxada: halo forte nas luzes, grão de filme rápido',
+    s: { filme: 'tungsten800', puxar: 1, halacao: 0.6, grao: 0.45 } },
 ];
+// campos que uma receita controla (voltam ao padrão quando a receita não diz nada sobre eles)
+const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao'];
+function aplicaReceita(r) {
+  const f = filmes.find((x) => x.meta.id === r.s.filme), a = f?.meta.analogico || {};
+  for (const k of DA_RECEITA) s[k] = PADRAO[k];
+  s.grao = a.grao ?? 0; s.graoTamanho = a.grao_tamanho ?? 1; s.halacao = a.halacao ?? 0;
+  Object.assign(s, r.s); s.receita = r.id;
+  R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); desenha(); memoriza();
+}
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, puxar: 0, vencido: 0, sorteVenc: 5, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, receita: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, puxar: 0, vencido: 0, sorteVenc: 5, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
 let marcando = false;   // esperando o toque no rosto (retrato)
 let foto = null;          // { bitmap, nome }
 let filmes = [];          // pacotes carregados { meta, data }
-let catAtual = 'negativo';
+let catAtual = 'filmes';
 
 // ------------------------------------------------------------ renderizadores (tela e miniaturas)
 let R, Rmini;
@@ -84,8 +109,8 @@ async function carregaFilmes() {
 const filmeAtual = () => filmes.find((f) => f.meta.id === s.filme) || null;
 
 function montaCats() {
-  const cats = CATS.filter((c) => filmes.some((f) => f.meta.cat === c.id));
-  if (!cats.some((c) => c.id === catAtual)) catAtual = cats[0]?.id;
+  const cats = CATS;
+  if (!cats.some((c) => c.id === catAtual)) catAtual = 'filmes';
   $('cats').innerHTML = '';
   for (const c of cats) {
     const b = document.createElement('button'); b.textContent = c.n; b.className = c.id === catAtual ? 'on' : '';
@@ -113,17 +138,30 @@ function montaFaixa() {
     b.onclick = () => escolheFilme(id === 'none' ? null : id);
     fx.append(b);
   };
-  item('none', 'Digital', (c) => miniatura(c, null));
-  for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
+  if (catAtual === 'receitas') {
+    for (const r of RECEITAS) {
+      const f = filmes.find((x) => x.meta.id === r.s.filme);
+      const b = document.createElement('button'); b.className = 'film' + (s.receita === r.id ? ' on' : '');
+      const c = document.createElement('canvas'); c.width = c.height = 148;
+      if (foto) miniatura(c, f, r.s); else c.className = 'ph';
+      const n = document.createElement('span'); n.textContent = r.n; b.append(c, n);
+      b.onclick = () => aplicaReceita(r); fx.append(b);
+    }
+  } else {
+    item('none', 'Digital', (c) => miniatura(c, null));
+    for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
+  }
   atualizaNota();
 }
 
 // miniatura: a foto atual com cada filme (como no RNI, a escolha é vendo o resultado)
 let miniFonte = null;
-function miniatura(c, f) {
+function miniatura(c, f, extra = null) {
   if (!miniFonte) return;
   Rmini.setFilm(f);
-  const st = { ...s, filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, exposicao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0 };
+  // filme sozinho: sem os efeitos de agora; receita: com a revelação dela (o grão não aparece nesse tamanho)
+  const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0 }), ...(extra || {}),
+    filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, ...(extra ? {} : { exposicao: 0 }) };
   Rmini.draw(st, miniFonte.width, miniFonte.height, 600);
   const g = c.getContext('2d'), k = Math.min(miniFonte.width, miniFonte.height);
   g.drawImage(Rmini.canvas, (miniFonte.width - k) / 2, (miniFonte.height - k) / 2, k, k, 0, 0, c.width, c.height);
@@ -131,13 +169,15 @@ function miniatura(c, f) {
 
 function atualizaNota() {
   const f = filmeAtual();
+  const rc = RECEITAS.find((r) => r.id === s.receita);
+  if (rc && catAtual === 'receitas') { $('nota').textContent = rc.nota; $('cIntensidade').style.display = ''; return; }
   $('nota').textContent = f ? `${f.meta.nota} · inspirado no ${f.meta.inspirado}` : 'Sem filme: a foto como saiu da câmera.';
   $('cIntensidade').style.display = f ? '' : 'none';
 }
 
 function escolheFilme(id) {
-  if (s.filme === id) return;
-  s.filme = id;
+  if (s.filme === id && !s.receita) return;
+  s.filme = id; s.receita = null;
   const f = filmeAtual();
   const a = f?.meta.analogico || {};
   s.grao = a.grao ?? 0; s.graoTamanho = a.grao_tamanho ?? 1; s.halacao = a.halacao ?? 0;   // o caráter do filme vem junto
