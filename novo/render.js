@@ -19,6 +19,7 @@ uniform vec3 uPre, uPost, uSoftCh, uG0;
 uniform vec2 uRes;
 uniform float uDust, uScratch, uLeak, uDustSeed, uScrSeed, uLeakSeed, uLeakType, uFr;
 uniform vec4 uLeakP, uFrm; uniform vec2 uCan;
+uniform float uPush, uVenc, uGrainMul; uniform vec3 uVencCor;
 
 vec3 dec(vec3 c){ return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
 vec3 enc(vec3 c){ c = max(c, 0.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -215,6 +216,15 @@ void main(){
     float mask = exp(-0.5 * dot(d, d));
     x *= exp2((c - 1.0) * log2(max(luma(x), 1e-7) / fx) + ef - burn * (1.0 - mask));
   }
+  // ---------- revelação: puxar/segurar e filme vencido agem na LUZ que chega ao filme, e a curva do próprio filme
+  // faz o resto (o pé esmaga as sombras, o ombro segura as luzes)
+  if (uPush != 0.0) x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 + 0.18 * uPush));   // puxado: mais contraste no meio-tom
+  if (uVenc > 0.0) {
+    // vencido (pesquisa/vencido.md): perde sensibilidade, cada camada envelhece num ritmo (tom do rolo, do dado),
+    // a radiação vela o filme (luz extra igual em tudo, levanta o pé) e o contraste cai
+    x *= exp2(-0.6 * uVenc) * (1.0 + 0.35 * uVenc * uVencCor);
+    x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 - 0.18 * uVenc)) + 0.18 * exp2(-4.2) * uVenc;
+  }
   if (uHasFilm > 0.5) {
     vec3 fl = dec(filme(x));
     // equilíbrio automático do laboratório: como o scanner faz foto a foto, o cinza médio desta exposição volta a
@@ -223,6 +233,7 @@ void main(){
       vec3 g = max(dec(filme(vec3(0.18) * exp2(uExp))), vec3(1e-5));
       fl *= mix(vec3(1.0), (uG0 / luma(uG0)) * luma(g) / g, uAuto);   // volta ao cinza do PRÓPRIO filme (mantém o tom dele)
     }
+    if (uVenc > 0.0) fl = mix(fl, vec3(luma(fl)), 0.28 * uVenc);   // vencido: a cor desbota
     f = enc(fl * uPost);
   }
   vec3 col = mix(dig, f, uMix);
@@ -250,7 +261,7 @@ void main(){
     vec2 p = gl_FragCoord.xy / max(cellPx, 0.6);
     float l = luma(col);
     float n = grainLayer(p, clamp(1.0 - l, 0.02, 0.98), uSeed);
-    float amp = uGrain * 0.16 * (0.35 + 0.65 * vis) * (0.4 + 2.4 * l * (1.0 - l));
+    float amp = uGrain * uGrainMul * 0.16 * (0.35 + 0.65 * vis) * (0.4 + 2.4 * l * (1.0 - l));
     col += n * amp;
   }
   o = vec4(clamp(col, 0.0, 1.0), 1.0);
@@ -270,7 +281,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1);
     this.img = gl.createTexture(); this.lut = gl.createTexture();
@@ -313,7 +324,12 @@ export class Render {
     const sorte = s.sorte ?? 7, sl = s.sorteLuz ?? 3, lp = leakParams(sl);
     gl.uniform1f(u.uDust, bypass ? 0 : s.poeira || 0); gl.uniform1f(u.uScratch, bypass ? 0 : s.riscos || 0); gl.uniform1f(u.uLeak, bypass ? 0 : s.luzVazada || 0);
     gl.uniform1f(u.uDustSeed, sorte % 97); gl.uniform1f(u.uScrSeed, (sorte * 1.7) % 89); gl.uniform1f(u.uLeakSeed, (sl * 2.3) % 83);
-    gl.uniform1f(u.uLeakType, +(s.luzTipo ?? 0)); gl.uniform4f(u.uLeakP, lp[0], lp[1], lp[2], lp[3]); gl.useProgram(this.p);
+    gl.uniform1f(u.uLeakType, +(s.luzTipo ?? 0));
+    // revelação: puxar (−1 a +3 pontos) e vencido (0 a 1, tom do rolo sorteado)
+    const pu = bypass ? 0 : s.puxar || 0, ve = bypass ? 0 : s.vencido || 0, rv = rnd((s.sorteVenc ?? 5) + 0.5);
+    gl.uniform1f(u.uPush, pu); gl.uniform1f(u.uVenc, ve);
+    gl.uniform3f(u.uVencCor, rv() * 2 - 1, rv() * 2 - 1, rv() * 2 - 1);
+    gl.uniform1f(u.uGrainMul, Math.pow(1.45, pu) * (1 + 0.7 * ve));   // puxado e vencido: mais grão; segurado: menos gl.uniform4f(u.uLeakP, lp[0], lp[1], lp[2], lp[3]); gl.useProgram(this.p);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.img);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, this.lut);
     const m = this.film?.meta, a = m?.analogico || {};

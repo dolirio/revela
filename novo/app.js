@@ -38,7 +38,7 @@ const CATS = [
 
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
-  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
+  filme: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, puxar: 0, vencido: 0, sorteVenc: 5, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
 };
 let s = { ...PADRAO };
@@ -155,6 +155,8 @@ const CTL = {
   grao: { n: 'Grão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   graoTamanho: { n: 'Tamanho do grão', min: 0.5, max: 2.5, passo: 0.05, fmt: (v) => v.toFixed(2) },
   halacao: { n: 'Halação', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  puxar: { n: 'Puxar', min: -1, max: 3, passo: 0.1, fmt: (v) => (Math.abs(v) < 0.05 ? 'normal' : (v > 0 ? 'puxado +' : 'segurado ') + v.toFixed(1).replace('.', ',')) },
+  vencido: { n: 'Vencido', min: 0, max: 1, passo: 0.01, fmt: (v) => (v < 0.01 ? 'novo' : Math.round(v * 100)) },
   poeira: { n: 'Poeira', min: -1, max: 1, passo: 0.01, fmt: (v) => (v === 0 ? '0' : (v > 0 ? 'branca ' : 'preta ') + Math.round(Math.abs(v) * 100)) },   // como no RNI: meio = sem, direita = branca, esquerda = preta
   riscos: { n: 'Riscos', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   luzVazada: { n: 'Luz vazada', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
@@ -215,6 +217,11 @@ function dado(k, nome, sorteia) {
 }
 const novo = () => Math.floor(Math.random() * 1000) + 1;
 dado('grao', 'textura de grão', () => { s.semente = Math.random(); if (!s.grao) s.grao = filmeAtual()?.meta.analogico?.grao || 0.3; });
+// revelação: o que o laboratório e o tempo fazem com o filme (vale para qualquer filme)
+secao($('p-analogico'), 'Revelação');
+controle('puxar', $('p-analogico'));
+controle('vencido', $('p-analogico'));
+dado('vencido', 'tonalidade de rolo vencido', () => { s.sorteVenc = novo(); if (!s.vencido) s.vencido = 0.5; });
 secao($('p-analogico'), 'Tempo');
 controle('luzVazada', $('p-analogico'));
 dado('luzVazada', 'luz vazada', () => { s.sorteLuz = novo(); if (!s.luzVazada) s.luzVazada = 0.5; });
