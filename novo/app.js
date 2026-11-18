@@ -211,7 +211,7 @@ function controle(k, pai) {
   w.innerHTML = `<label for="r_${k}">${d.n}</label><output id="o_${k}"></output><input type="range" id="r_${k}" min="${d.min}" max="${d.max}" step="${d.passo}">`;
   pai.append(w);
   const r = w.querySelector('input');
-  r.addEventListener('input', () => { s[k] = +r.value; $('o_' + k).textContent = d.fmt(s[k]); desenha(); });
+  r.addEventListener('input', () => { s[k] = +r.value; $('o_' + k).textContent = d.fmt(s[k]); desenha(); if (typeof sincronizaFerramentas === 'function') sincronizaFerramentas(); });
   r.addEventListener('change', memoriza);
   r.addEventListener('dblclick', () => { s[k] = PADRAO[k] ?? 0; if (k === 'grao' || k === 'halacao') { const a = filmeAtual()?.meta.analogico || {}; s[k] = (k === 'grao' ? a.grao : a.halacao) ?? 0; } sincroniza(); desenha(); memoriza(); });
 }
@@ -270,6 +270,64 @@ controle('poeira', $('p-analogico'));
 dado('poeira', 'poeira', () => { s.sorte = novo(); if (!s.poeira) s.poeira = 0.5; });
 // (moldura do filme saiu a pedido do usuário: o trabalho é sobre a imagem; quadro() continua no render.js)
 
+// ------------------------------------------------------------ ferramentas (18/11/2026)
+// No celular cada aba mostra uma linha de ferramentas e só o controle da escolhida, como no VSCO e no RNI:
+// o painel fica baixo e sempre do mesmo tamanho, e a foto não encolhe. No computador (≥ 900 px) tudo fica à vista.
+const GRUPOS = {
+  'p-ajustes': [
+    { id: 'luz', n: 'Luz', el: ['exposicao'] },
+    { id: 'calor', n: 'Calor', el: ['cenaTemp'] },
+    { id: 'matiz', n: 'Matiz', el: ['cenaMatiz'] },
+    { id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto },
+  ],
+  'p-analogico': [
+    { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho'] },
+    { id: 'halacao', n: 'Halação', el: ['halacao'] },
+    { id: 'puxar', n: 'Puxar', el: ['puxar'], sec: 'Revelação' },
+    { id: 'vencido', n: 'Vencido', el: ['vencido'] },
+    { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'], sec: 'Tempo' },
+    { id: 'poeira', n: 'Poeira', el: ['poeira'] },
+  ],
+};
+const grupoAtivo = {};
+function padraoDe(k) {
+  const a = filmeAtual()?.meta.analogico || {};
+  if (k === 'grao') return a.grao ?? 0; if (k === 'halacao') return a.halacao ?? 0;
+  return PADRAO[k] ?? 0;
+}
+function mudou(g) { return g.muda ? g.muda() : g.el.some((k) => k[0] !== '#' && Math.abs((s[k] ?? 0) - padraoDe(k)) > 1e-6); }
+function mostraGrupo(pag, id) {
+  grupoAtivo[pag] = id;
+  const p = $(pag);
+  p.querySelectorAll('.grupo').forEach((g) => g.classList.toggle('on', g.dataset.g === id));
+  p.querySelectorAll('.ferramentas button').forEach((b) => b.classList.toggle('on', b.dataset.g === id));
+}
+for (const [pag, grupos] of Object.entries(GRUPOS)) {
+  const p = $(pag), bar = document.createElement('div'); bar.className = 'ferramentas'; bar.setAttribute('role', 'tablist');
+  p.querySelectorAll(':scope > .sec').forEach((e) => e.remove());   // os títulos de seção passam para dentro dos grupos
+  for (const g of grupos) {
+    const w = document.createElement('div'); w.className = 'grupo'; w.dataset.g = g.id;
+    if (g.sec) secao(w, g.sec);
+    for (const k of g.el) w.append(k[0] === '#' ? $(k.slice(1)) : $('r_' + k).parentElement);
+    p.append(w);
+    const b = document.createElement('button'); b.dataset.g = g.id; b.textContent = g.n; b.setAttribute('role', 'tab');
+    b.onclick = () => mostraGrupo(pag, g.id);
+    bar.append(b);
+  }
+  p.prepend(bar); mostraGrupo(pag, grupos[0].id);
+}
+function sincronizaFerramentas() {
+  const temRetrato = !!filmeAtual()?.meta.retrato;
+  for (const [pag, grupos] of Object.entries(GRUPOS)) {
+    for (const g of grupos) {
+      const b = $(pag).querySelector(`.ferramentas button[data-g="${g.id}"]`);
+      b.classList.toggle('mudou', mudou(g));
+      if (g.id === 'retrato') b.hidden = !temRetrato;
+    }
+    if (grupoAtivo[pag] === 'retrato' && !temRetrato) mostraGrupo(pag, grupos[0].id);
+  }
+}
+
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
@@ -285,12 +343,13 @@ function sincroniza() {
   // P&B: temperatura e matiz do laboratório não existem (o scan é cinza)
   for (const k of ['labTemp', 'labMatiz']) { const r = $('r_' + k); if (r) r.parentElement.style.display = f?.meta.cat === 'pb' ? 'none' : ''; }
   if ($('c_labAuto')) $('c_labAuto').closest('.chave').style.display = f?.meta.cat === 'pb' ? 'none' : '';
-  $('nRosto').textContent = marcando ? 'Desenhe em volta do rosto (ou toque no centro dele)' : s.rosto ? 'Rosto marcado. Separação: 0 = suave, 50 = padrão, 100 = forte' : 'Destaque o rosto como na ampliação com máscara: toque em "Marcar o rosto" e desenhe em volta dele';
+  $('nRosto').textContent = marcando ? 'Desenhe em volta do rosto' : s.rosto ? 'Rosto marcado' : 'Realça o rosto';
   $('bRosto').classList.toggle('on', marcando);
   $('bRosto').textContent = s.rosto && !marcando ? 'Marcar de novo' : 'Marcar o rosto';
   anel();
   if ($('e_filtro')) $('e_filtro').style.display = f?.meta.filtros ? '' : 'none';
   if ($('e_lab')) $('e_lab').style.display = !f || (f.meta.labs || []).length > 1 ? '' : 'none';
+  if (typeof sincronizaFerramentas === 'function') sincronizaFerramentas();
 }
 
 document.querySelectorAll('.abas button').forEach((b) => b.onclick = () => {
