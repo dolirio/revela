@@ -1,5 +1,5 @@
 // Revela novo: filmes com a física do filme. Interface enxuta: Filmes, Ajustes, Analógico.
-import { Render, quadro } from './render.js';
+import { Render, quadro, geometria, encaixa, dentro, quadroGirado, amostraCurva, curvaMexida, HSL0, CURVA0 } from './render.js';
 import { decodeFile, isImageFile } from '../core.js';
 import { icon } from '../icons.js';
 
@@ -65,7 +65,15 @@ function aplicaReceita(r) {
 const PADRAO = {
   filme: null, receita: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, puxar: 0, vencido: 0, sorteVenc: 5, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
   grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
+  // ajustes finos (depois do filme) e geometria
+  brilho: 0, contraste: 0, realces: 0, sombras: 0, brancos: 0, pretos: 0, esmaecer: 0, saturacao: 0, vibracao: 0, pele: 0,
+  clareza: 0, nitidez: 0, vinheta: 0, difusao: 0, hsl: HSL0, curvas: null,
+  giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre',
 };
+// Retrato (marcar o rosto) está guardado na gaveta (18/11/2026, a pedido): a função continua no código e no motor,
+// mas fica fora da tela até a ideia amadurecer. Para voltar, troque para true.
+const RETRATO = false;
+const GEO = ['giro', 'espelho', 'endireitar', 'corte', 'proporcao'];   // é desta foto: não vai para a próxima nem para o lote
 let s = { ...PADRAO };
 let marcando = false;   // esperando o toque no rosto (retrato)
 let foto = null;          // { bitmap, nome }
@@ -161,7 +169,7 @@ function miniatura(c, f, extra = null) {
   Rmini.setFilm(f);
   // filme sozinho: sem os efeitos de agora; receita: com a revelação dela (o grão não aparece nesse tamanho)
   const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0 }), ...(extra || {}),
-    filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, ...(extra ? {} : { exposicao: 0 }) };
+    filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, giro: 0, espelho: 0, endireitar: 0, corte: null, vinheta: 0, difusao: 0, ...(extra ? {} : { exposicao: 0 }) };
   Rmini.draw(st, miniFonte.width, miniFonte.height, 600);
   const g = c.getContext('2d'), k = Math.min(miniFonte.width, miniFonte.height);
   g.drawImage(Rmini.canvas, (miniFonte.width - k) / 2, (miniFonte.height - k) / 2, k, k, 0, 0, c.width, c.height);
@@ -187,8 +195,23 @@ function escolheFilme(id) {
 // ------------------------------------------------------------ controles
 const CTL = {
   intensidade: { n: 'Intensidade do filme', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
-  exposicao: { n: 'Luz', min: -3, max: 3, passo: 0.05, fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) },
+  exposicao: { n: 'Exposição', min: -3, max: 3, passo: 0.05, fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) },
   cenaTemp: { n: 'Calor', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  brilho: { n: 'Brilho', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  contraste: { n: 'Contraste', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  realces: { n: 'Realces', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  sombras: { n: 'Sombras', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  brancos: { n: 'Brancos', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  pretos: { n: 'Pretos', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  esmaecer: { n: 'Esmaecer', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  saturacao: { n: 'Saturação', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  vibracao: { n: 'Vibração', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  pele: { n: 'Tom de pele', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : (v < 0 ? 'rosado ' : 'dourado ') + Math.round(Math.abs(v) * 100)) },
+  clareza: { n: 'Clareza', min: -1, max: 1, passo: 0.01, fmt: sinal },
+  nitidez: { n: 'Nitidez', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  vinheta: { n: 'Vinheta', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : (v < 0 ? 'clara ' : 'escura ') + Math.round(Math.abs(v) * 100)) },
+  difusao: { n: 'Difusão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  endireitar: { n: 'Endireitar', min: -45, max: 45, passo: 0.1, fmt: (v) => (Math.abs(v) < 0.05 ? '0°' : v.toFixed(1).replace('.', ',') + '°') },
   cenaMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
   labTemp: { n: 'Temperatura', min: -1, max: 1, passo: 0.01, fmt: sinal },
   labMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
@@ -211,7 +234,7 @@ function controle(k, pai) {
   w.innerHTML = `<label for="r_${k}">${d.n}</label><output id="o_${k}"></output><input type="range" id="r_${k}" min="${d.min}" max="${d.max}" step="${d.passo}">`;
   pai.append(w);
   const r = w.querySelector('input');
-  r.addEventListener('input', () => { s[k] = +r.value; $('o_' + k).textContent = d.fmt(s[k]); desenha(); if (typeof sincronizaFerramentas === 'function') sincronizaFerramentas(); });
+  r.addEventListener('input', () => { s[k] = +r.value; if (k === 'endireitar') aoEndireitar(); $('o_' + k).textContent = d.fmt(s[k]); desenha(); if (typeof sincronizaFerramentas === 'function') sincronizaFerramentas(); });
   r.addEventListener('change', memoriza);
   r.addEventListener('dblclick', () => { s[k] = PADRAO[k] ?? 0; if (k === 'grao' || k === 'halacao') { const a = filmeAtual()?.meta.analogico || {}; s[k] = (k === 'grao' ? a.grao : a.halacao) ?? 0; } sincroniza(); desenha(); memoriza(); });
 }
@@ -269,20 +292,162 @@ escolha('luzTipo', LUZES, $('p-analogico'));
 controle('poeira', $('p-analogico'));
 dado('poeira', 'poeira', () => { s.sorte = novo(); if (!s.poeira) s.poeira = 0.5; });
 // (moldura do filme saiu a pedido do usuário: o trabalho é sobre a imagem; quadro() continua no render.js)
+for (const k of ['brilho', 'contraste', 'realces', 'sombras', 'brancos', 'pretos', 'esmaecer', 'saturacao', 'vibracao', 'pele', 'clareza', 'nitidez', 'vinheta']) controle(k, $('p-ajustes'));
+controle('difusao', $('p-analogico'));
+
+// ---- controle numa linha só (nome, barra, valor): para os grupos com três controles
+function linha(id, nome, min, max, passo, ler, gravar, fmt, pai) {
+  const w = document.createElement('div'); w.className = 'ctl linha';
+  w.innerHTML = `<label for="r_${id}">${nome}</label><input type="range" id="r_${id}" min="${min}" max="${max}" step="${passo}"><output id="o_${id}"></output>`;
+  pai.append(w);
+  const r = w.querySelector('input');
+  w.sync = () => { r.value = ler(); w.querySelector('output').textContent = fmt(+r.value); };
+  r.addEventListener('input', () => { gravar(+r.value); w.sync(); desenha(); sincronizaFerramentas(); });
+  r.addEventListener('change', memoriza);
+  r.addEventListener('dblclick', () => { gravar(0); w.sync(); desenha(); sincronizaFerramentas(); memoriza(); });
+  return w;
+}
+
+// ---- Cores (HSL): escolhe a cor e mexe no matiz, na saturação e na luminância só dela
+const CORES = [['Vermelhos', '#d9493f'], ['Laranjas', '#e58a3a'], ['Amarelos', '#e3c84a'], ['Verdes', '#5fae4f'], ['Cianos', '#4fb8c4'], ['Azuis', '#4a74d6'], ['Roxos', '#8a5ad0'], ['Magentas', '#cf4f9f']];
+let corHsl = 0;
+const gHsl = document.createElement('div'); gHsl.id = 'g_hsl'; $('p-ajustes').append(gHsl);
+{
+  const fila = document.createElement('div'); fila.className = 'cores'; gHsl.append(fila);
+  CORES.forEach(([n, c], i) => {
+    const b = document.createElement('button'); b.style.background = c; b.title = n; b.setAttribute('aria-label', n);
+    b.onclick = () => { corHsl = i; sincronizaHsl(); }; fila.append(b);
+  });
+  const muda = (j) => (v) => { s.hsl = s.hsl.map((c, i) => (i === corHsl ? c.map((x, jj) => (jj === j ? v : x)) : c)); };
+  const f = (v) => sinal(v);
+  gHsl.linhas = [
+    linha('hslH', 'Matiz', -1, 1, 0.01, () => s.hsl[corHsl][0], muda(0), f, gHsl),
+    linha('hslS', 'Saturação', -1, 1, 0.01, () => s.hsl[corHsl][1], muda(1), f, gHsl),
+    linha('hslL', 'Luminância', -1, 1, 0.01, () => s.hsl[corHsl][2], muda(2), f, gHsl),
+  ];
+}
+function sincronizaHsl() {
+  gHsl.querySelectorAll('.cores button').forEach((b, i) => { b.classList.toggle('on', i === corHsl); b.classList.toggle('mudou', s.hsl[i].some((x) => x)); });
+  gHsl.linhas.forEach((l) => l.sync());
+  const n = gHsl.querySelector('.qual'); if (n) n.textContent = CORES[corHsl][0];
+}
+
+// ---- Curvas: Luz (as três cores juntas) e cada canal. No celular o desenho fica sobre a foto; no computador, no painel.
+let canal = 'l';
+const gCurva = document.createElement('div'); gCurva.id = 'g_curvas'; $('p-ajustes').append(gCurva);
+gCurva.innerHTML = `<div class="canais"><button data-c="l">Luz</button><button data-c="r">Vermelho</button><button data-c="g">Verde</button><button data-c="b">Azul</button><button class="zerar">Zerar</button></div>
+  <small class="dica">Toque na curva para criar um ponto e arraste. Para tirar, arraste o ponto para fora.</small>`;
+const editorCurva = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); editorCurva.id = 'curva'; gCurva.append(editorCurva);
+gCurva.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { canal = b.dataset.c; desenhaCurva(); });
+gCurva.querySelector('.zerar').onclick = () => { if (!s.curvas) return; s.curvas = curvaMexida({ ...s.curvas, [canal]: CURVA0[canal] }) ? { ...s.curvas, [canal]: CURVA0[canal] } : null; desenhaCurva(); desenha(); sincronizaFerramentas(); memoriza(); };
+const COR_CANAL = { l: '#eee7dc', r: '#e06a5e', g: '#6cc06a', b: '#6f97ee' };
+function desenhaCurva() {
+  gCurva.querySelectorAll('[data-c]').forEach((b) => b.classList.toggle('on', b.dataset.c === canal));
+  const W = editorCurva.clientWidth, H = editorCurva.clientHeight;
+  if (!W || !H) return;
+  const c = s.curvas || CURVA0, pts = c[canal], a = amostraCurva(pts, 64), X = (x) => x * W, Y = (y) => (1 - y) * H;
+  let h = '';
+  for (let i = 1; i < 4; i++) h += `<line x1="${X(i / 4)}" y1="0" x2="${X(i / 4)}" y2="${H}"/><line x1="0" y1="${Y(i / 4)}" x2="${W}" y2="${Y(i / 4)}"/>`;
+  h = `<g class="grade">${h}<line x1="0" y1="${H}" x2="${W}" y2="0"/></g>`;
+  for (const k of ['l', 'r', 'g', 'b']) if (k !== canal && curvaMexida({ x: c[k] })) h += `<polyline class="outra" stroke="${COR_CANAL[k]}" points="${Array.from(amostraCurva(c[k], 64), (y, i) => `${X(i / 63)},${Y(y)}`).join(' ')}"/>`;
+  h += `<polyline stroke="${COR_CANAL[canal]}" points="${Array.from(a, (y, i) => `${X(i / 63)},${Y(y)}`).join(' ')}"/>`;
+  for (const [x, y] of pts) h += `<circle cx="${X(x)}" cy="${Y(y)}" r="6" stroke="${COR_CANAL[canal]}"/>`;
+  editorCurva.setAttribute('viewBox', `0 0 ${W} ${H}`); editorCurva.innerHTML = h;
+}
+{
+  let arrasto = null;
+  const pos = (e) => { const r = editorCurva.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, 1 - (e.clientY - r.top) / r.height, r]; };
+  editorCurva.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation(); editorCurva.setPointerCapture?.(e.pointerId);
+    const [x, y, r] = pos(e), c = s.curvas || CURVA0, pts = c[canal].map((p) => [...p]);
+    let i = pts.findIndex((p) => Math.hypot((p[0] - x) * r.width, (p[1] - y) * r.height) < 24);
+    if (i < 0) {   // ponto novo em cima da curva, na altura que ela já tem (não dá salto)
+      const yc = amostraCurva(pts, 256)[Math.round(Math.min(1, Math.max(0, x)) * 255)];
+      pts.push([Math.min(0.98, Math.max(0.02, x)), yc]); pts.sort((a, b) => a[0] - b[0]); i = pts.findIndex((p) => p[0] === Math.min(0.98, Math.max(0.02, x)));
+    }
+    arrasto = { i, pts }; s.curvas = { ...c, [canal]: pts }; desenhaCurva(); desenha();
+  });
+  editorCurva.addEventListener('pointermove', (e) => {
+    if (!arrasto) return; e.stopPropagation();
+    const [x, y] = pos(e), { pts } = arrasto; let i = arrasto.i;
+    const ponta = i === 0 || i === pts.length - 1;
+    if (!ponta && (y < -0.12 || y > 1.12 || x < -0.08 || x > 1.08)) { pts.splice(i, 1); arrasto = null; s.curvas = { ...s.curvas, [canal]: pts }; desenhaCurva(); desenha(); sincronizaFerramentas(); memoriza(); return; }
+    const lo = i === 0 ? 0 : pts[i - 1][0] + 0.02, hi = i === pts.length - 1 ? 1 : pts[i + 1][0] - 0.02;
+    pts[i] = [Math.min(hi, Math.max(lo, x)), Math.min(1, Math.max(0, y))];
+    s.curvas = { ...s.curvas, [canal]: pts.map((p) => [...p]) }; desenhaCurva(); desenha(); sincronizaFerramentas();
+  });
+  const fim = () => { if (!arrasto) return; arrasto = null; if (!curvaMexida(s.curvas)) s.curvas = null; sincronizaFerramentas(); memoriza(); };
+  editorCurva.addEventListener('pointerup', fim); editorCurva.addEventListener('pointercancel', fim);
+}
+
+// ---- Corte: proporções, girar, espelhar e endireitar. Enquanto corta, a foto aparece inteira com a moldura do corte.
+const PROPORCOES = [['livre', 'Livre', 0], ['original', 'Original', -1], ['1:1', '1:1', 1], ['4:5', '4:5', 4 / 5], ['2:3', '2:3', 2 / 3], ['9:16', '9:16', 9 / 16], ['3:2', '3:2', 3 / 2], ['16:9', '16:9', 16 / 9]];
+const gCorte = document.createElement('div'); gCorte.id = 'g_corte'; $('p-ajustes').append(gCorte);
+gCorte.innerHTML = `<div class="acoes"><button id="bGirar">Girar</button><button id="bEspelhar">Espelhar</button><button id="bZeraCorte">Desfazer o corte</button><button id="bModoCorte" class="so-pc">Cortar na foto</button></div>`;
+controle('endireitar', gCorte); $('r_endireitar').parentElement.classList.add('linha');
+{ const r = $('r_endireitar').parentElement; r.append($('o_endireitar')); }
+{
+  const w = document.createElement('div'); w.className = 'escolha props'; w.innerHTML = '<div></div>'; gCorte.append(w);
+  for (const [id, n] of PROPORCOES) {
+    const b = document.createElement('button'); b.textContent = n; b.dataset.v = id;
+    b.onclick = () => { s.proporcao = id; s.corte = cortePara(id); sincroniza(); desenha(); memoriza(); };
+    w.querySelector('div').append(b);
+  }
+}
+function razao(id) {   // largura/altura do corte em pixels; 0 = livre
+  if (id === 'original') { const [QW, QH] = quadroGirado(s, R.w, R.h); return QW / QH; }
+  return PROPORCOES.find((p) => p[0] === id)?.[2] || 0;
+}
+function cortePara(id) {   // o maior corte nessa proporção, em volta do centro do corte atual
+  const k = razao(id); if (!k) return s.corte;
+  const [QW, QH] = quadroGirado(s, R.w, R.h), c = s.corte || { x: 0, y: 0, w: 1, h: 1 };
+  let w = 1, h = (QW / k) / QH; if (h > 1) { h = 1; w = (QH * k) / QW; }
+  const cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+  const x = Math.min(1 - w, Math.max(0, cx - w / 2)), y = Math.min(1 - h, Math.max(0, cy - h / 2));
+  return encaixa(s, R.w, R.h, { x, y, w, h });
+}
+function aoEndireitar() { if (s.corte) s.corte = encaixa(s, R.w, R.h, s.corte); }
+$('bGirar').onclick = () => {   // 90° no sentido do relógio: o corte gira junto
+  const c = s.corte; s.giro = ((s.giro || 0) + 1) % 4;
+  if (c) s.corte = { x: 1 - c.y - c.h, y: c.x, w: c.h, h: c.w };
+  if (s.proporcao !== 'livre' && s.proporcao !== 'original') { const p = PROPORCOES.find((q) => q[0] === s.proporcao); const inv = PROPORCOES.find((q) => q[2] && Math.abs(q[2] - 1 / p[2]) < 1e-6); if (inv) s.proporcao = inv[0]; }
+  sincroniza(); desenha(); memoriza();
+};
+$('bEspelhar').onclick = () => { const c = s.corte; s.espelho = s.espelho ? 0 : 1; s.endireitar = -(s.endireitar || 0); if (c) s.corte = { ...c, x: 1 - c.x - c.w }; sincroniza(); desenha(); memoriza(); };
+$('bZeraCorte').onclick = () => { Object.assign(s, { giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre' }); sincroniza(); desenha(); memoriza(); };
+let corteBotao = false;
+$('bModoCorte').onclick = () => { corteBotao = !corteBotao; atualizaModos(); };
 
 // ------------------------------------------------------------ ferramentas (18/11/2026)
 // No celular cada aba mostra uma linha de ferramentas e só o controle da escolhida, como no VSCO e no RNI:
 // o painel fica baixo e sempre do mesmo tamanho, e a foto não encolhe. No computador (≥ 900 px) tudo fica à vista.
 const GRUPOS = {
-  'p-ajustes': [
-    { id: 'luz', n: 'Luz', el: ['exposicao'] },
-    { id: 'calor', n: 'Calor', el: ['cenaTemp'] },
+  'p-ajustes': [   // em famílias: luz, cor, detalhe, retrato e corte (no celular, uma linha que rola)
+    { id: 'luz', n: 'Exposição', el: ['exposicao'], sec: 'Luz' },
+    { id: 'brilho', n: 'Brilho', el: ['brilho'] },
+    { id: 'contraste', n: 'Contraste', el: ['contraste'] },
+    { id: 'realces', n: 'Realces', el: ['realces'] },
+    { id: 'sombras', n: 'Sombras', el: ['sombras'] },
+    { id: 'brancos', n: 'Brancos', el: ['brancos'] },
+    { id: 'pretos', n: 'Pretos', el: ['pretos'] },
+    { id: 'esmaecer', n: 'Esmaecer', el: ['esmaecer'] },
+    { id: 'curvas', n: 'Curvas', el: ['#g_curvas'], muda: () => curvaMexida(s.curvas) },
+    { id: 'calor', n: 'Calor', el: ['cenaTemp'], sec: 'Cor' },
     { id: 'matiz', n: 'Matiz', el: ['cenaMatiz'] },
-    { id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto },
+    { id: 'saturacao', n: 'Saturação', el: ['saturacao'] },
+    { id: 'vibracao', n: 'Vibração', el: ['vibracao'] },
+    { id: 'pele', n: 'Tom de pele', el: ['pele'] },
+    { id: 'hsl', n: 'Cores', el: ['#g_hsl'], muda: () => s.hsl.some((c) => c.some((x) => x)) },
+    { id: 'clareza', n: 'Clareza', el: ['clareza'], sec: 'Detalhe' },
+    { id: 'nitidez', n: 'Nitidez', el: ['nitidez'] },
+    { id: 'vinheta', n: 'Vinheta', el: ['vinheta'] },
+    ...(RETRATO ? [{ id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto, fam: true }] : []),
+    { id: 'corte', n: 'Cortar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte), sec: 'Corte' },
   ],
   'p-analogico': [
     { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho'] },
     { id: 'halacao', n: 'Halação', el: ['halacao'] },
+    { id: 'difusao', n: 'Difusão', el: ['difusao'] },
     { id: 'puxar', n: 'Puxar', el: ['puxar'], sec: 'Revelação' },
     { id: 'vencido', n: 'Vencido', el: ['vencido'] },
     { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'], sec: 'Tempo' },
@@ -301,6 +466,8 @@ function mostraGrupo(pag, id) {
   const p = $(pag);
   p.querySelectorAll('.grupo').forEach((g) => g.classList.toggle('on', g.dataset.g === id));
   p.querySelectorAll('.ferramentas button').forEach((b) => b.classList.toggle('on', b.dataset.g === id));
+  const b = p.querySelector(`.ferramentas button[data-g="${id}"]`); if (b && b.parentElement.scrollWidth > b.parentElement.clientWidth) b.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  if (typeof atualizaModos === 'function') atualizaModos();
 }
 for (const [pag, grupos] of Object.entries(GRUPOS)) {
   const p = $(pag), bar = document.createElement('div'); bar.className = 'ferramentas'; bar.setAttribute('role', 'tablist');
@@ -312,20 +479,22 @@ for (const [pag, grupos] of Object.entries(GRUPOS)) {
     p.append(w);
     const b = document.createElement('button'); b.dataset.g = g.id; b.textContent = g.n; b.setAttribute('role', 'tab');
     b.onclick = () => mostraGrupo(pag, g.id);
+    if ((g.sec || g.fam) && g !== grupos[0]) b.classList.add('fam');   // um respiro entre as famílias
     bar.append(b);
   }
   p.prepend(bar); mostraGrupo(pag, grupos[0].id);
 }
 function sincronizaFerramentas() {
-  const temRetrato = !!filmeAtual()?.meta.retrato;
+  const temRetrato = RETRATO && !!filmeAtual()?.meta.retrato;
   for (const [pag, grupos] of Object.entries(GRUPOS)) {
     for (const g of grupos) {
       const b = $(pag).querySelector(`.ferramentas button[data-g="${g.id}"]`);
       b.classList.toggle('mudou', mudou(g));
-      if (g.id === 'retrato') b.hidden = !temRetrato;
+      if (g.id === 'retrato' && b) b.hidden = !temRetrato;
     }
     if (grupoAtivo[pag] === 'retrato' && !temRetrato) mostraGrupo(pag, grupos[0].id);
   }
+  if (typeof sincronizaHsl === 'function') { sincronizaHsl(); }
 }
 
 function sincroniza() {
@@ -339,7 +508,7 @@ function sincroniza() {
   }
   // o filtro só existe no P&B; o laboratório (Frontier) só nos coloridos que têm a tabela
   const f = filmeAtual();
-  $('g_retrato').style.display = f?.meta.retrato ? '' : 'none';
+  $('g_retrato').style.display = RETRATO && f?.meta.retrato ? '' : 'none';
   // P&B: temperatura e matiz do laboratório não existem (o scan é cinza)
   for (const k of ['labTemp', 'labMatiz']) { const r = $('r_' + k); if (r) r.parentElement.style.display = f?.meta.cat === 'pb' ? 'none' : ''; }
   if ($('c_labAuto')) $('c_labAuto').closest('.chave').style.display = f?.meta.cat === 'pb' ? 'none' : '';
@@ -350,12 +519,33 @@ function sincroniza() {
   if ($('e_filtro')) $('e_filtro').style.display = f?.meta.filtros ? '' : 'none';
   if ($('e_lab')) $('e_lab').style.display = !f || (f.meta.labs || []).length > 1 ? '' : 'none';
   if (typeof sincronizaFerramentas === 'function') sincronizaFerramentas();
+  gCorte.querySelectorAll('.props button').forEach((b) => b.classList.toggle('on', b.dataset.v === (s.proporcao || 'livre')));
+  desenhaCurva();
 }
 
+var pronto = false;   // (as ferramentas são montadas antes de tudo existir)
+let aba = 'filmes';
 document.querySelectorAll('.abas button').forEach((b) => b.onclick = () => {
+  aba = b.dataset.p;
   document.querySelectorAll('.abas button').forEach((x) => x.classList.toggle('on', x === b));
   document.querySelectorAll('.pag').forEach((p) => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+  atualizaModos();
 });
+// modos sobre a foto: cortar (moldura com alças) e curvas (no celular, o desenho por cima da foto)
+const pc = matchMedia('(min-width: 900px)');
+let modoCorte = false, curvaNaFoto = false;
+function atualizaModos() {
+  if (!pronto) return;
+  const ajustes = aba === 'ajustes' && !!foto;
+  const corte = pc.matches ? corteBotao && !!foto : ajustes && grupoAtivo['p-ajustes'] === 'corte';
+  const curva = !pc.matches && ajustes && grupoAtivo['p-ajustes'] === 'curvas';
+  if (curva !== curvaNaFoto) { curvaNaFoto = curva; (curva ? $('palco') : gCurva).append(editorCurva); editorCurva.classList.toggle('na-foto', curva); }
+  if (corte !== modoCorte) { modoCorte = corte; if (modoCorte && zoom.z > 1) { zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom(); } }
+  $('bModoCorte').textContent = corteBotao ? 'Pronto' : 'Cortar na foto';
+  $('bModoCorte').classList.toggle('on', corteBotao);
+  desenha(); requestAnimationFrame(() => { posicionaSobreposicoes(); desenhaCurva(); });
+}
+pc.addEventListener?.('change', atualizaModos);
 
 // ------------------------------------------------------------ desfazer / refazer
 let hist = [], hi = -1;
@@ -380,13 +570,15 @@ function desenha() {
   pedido = requestAnimationFrame(() => {
     pedido = 0;
     const box = $('palco').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
-    const Q = quadro(original ? {} : s, R.w, R.h);                            // com a moldura, o quadro é maior que a foto
+    const st = modoCorte && !original ? { ...s, semCorte: 1 } : s;
+    const G = geometria(st, R.w, R.h, !!st.semCorte);                       // tamanho do corte (ou do quadro inteiro, enquanto corta)
+    const Q = quadro(original ? {} : s, G.w, G.h);                            // com a moldura, o quadro é maior que a foto
     const k = Math.min((box.width - 28) / Q.W, (box.height - 18) / Q.H);   // tamanho na tela (CSS)
     const px = Math.min(k * dpr * zoom.z, 1);                                // pixels de verdade (mais com zoom): nunca acima da foto carregada
-    const w = Math.max(1, Math.round(R.w * px)), h = Math.max(1, Math.round(R.h * px));
-    R.draw(original ? { ...s, moldura: 0 } : s, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
+    const w = Math.max(1, Math.round(G.w * px)), h = Math.max(1, Math.round(G.h * px));
+    R.draw(original ? { ...st, moldura: 0 } : st, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
     tela.style.width = Math.floor(Q.W * k) + 'px'; tela.style.height = Math.floor(Q.H * k) + 'px';
-    anel();
+    anel(); posicionaSobreposicoes();
   });
 }
 new ResizeObserver(desenha).observe($('palco'));
@@ -396,6 +588,17 @@ $('bRosto').onclick = () => { marcando = !marcando; sincroniza(); };
 // marcar o rosto: arrastar o dedo em volta do rosto desenha a área (oval); um toque só marca o centro com o tamanho padrão
 let risco = null;   // {x0, y0, x1, y1} em fração da foto, enquanto desenha
 const fr = (e) => { const r = fotoRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; };
+// saída (fração da foto na tela) <-> foto original (fração), pela geometria do último desenho
+const paraFoto = (x, y) => { const a = R.geo?.a || [1, 0, 0, 0, 1, 0]; return [a[0] * x + a[1] * y + a[2], a[3] * x + a[4] * y + a[5]]; };
+function daFoto(x, y) {
+  const a = R.geo?.a || [1, 0, 0, 0, 1, 0], d = a[0] * a[4] - a[1] * a[3], X = x - a[2], Y = y - a[5];
+  return [(a[4] * X - a[1] * Y) / d, (-a[3] * X + a[0] * Y) / d];
+}
+function escalaOval(a, b, ida) {   // meio-eixos do oval: da tela para a foto (ida) ou da foto para a tela
+  const m = R.geo?.a || [1, 0, 0, 0, 1, 0], d = m[0] * m[4] - m[1] * m[3];
+  const M = ida ? [m[0], m[1], m[3], m[4]] : [m[4] / d, -m[1] / d, -m[3] / d, m[0] / d];
+  return [Math.hypot(M[0] * a, M[1] * b), Math.hypot(M[2] * a, M[3] * b)];
+}
 tela.addEventListener('pointerdown', (e) => {
   if (!marcando) return;
   e.preventDefault(); tela.setPointerCapture?.(e.pointerId);
@@ -406,9 +609,11 @@ const fimRisco = () => {
   if (!risco) return;
   const r = fotoRect(), w = Math.abs(risco.x1 - risco.x0) * r.width, h = Math.abs(risco.y1 - risco.y0) * r.height;
   if (Math.max(w, h) < 14) {   // toque: centro no ponto, tamanho padrão
-    s.rosto = { x: risco.x0, y: risco.y0 };
-  } else {                     // desenho: oval que cabe no retângulo arrastado
-    s.rosto = { x: (risco.x0 + risco.x1) / 2, y: (risco.y0 + risco.y1) / 2, a: Math.abs(risco.x1 - risco.x0) / 2, b: Math.abs(risco.y1 - risco.y0) / 2 };
+    const [x, y] = paraFoto(risco.x0, risco.y0); s.rosto = { x, y };
+  } else {                     // desenho: oval que cabe no retângulo arrastado (guardado em fração da foto original)
+    const [x, y] = paraFoto((risco.x0 + risco.x1) / 2, (risco.y0 + risco.y1) / 2);
+    const [a, b] = escalaOval(Math.abs(risco.x1 - risco.x0) / 2, Math.abs(risco.y1 - risco.y0) / 2, true);
+    s.rosto = { x, y, a, b };
   }
   s.rostoTam = 1; risco = null; marcando = false; sincroniza(); desenha(); memoriza();
 };
@@ -430,10 +635,66 @@ function anel() {
   const r = fotoRect(), p = $('palco').getBoundingClientRect();
   let o = null;
   if (risco) o = { x: (risco.x0 + risco.x1) / 2, y: (risco.y0 + risco.y1) / 2, a: Math.abs(risco.x1 - risco.x0) / 2, b: Math.abs(risco.y1 - risco.y0) / 2 };
-  else if (foto && f?.meta.retrato && s.rosto && !original) o = { ...s.rosto, ...ovalRosto(s.rosto, r.width, r.height, s.rostoTam) };
+  else if (RETRATO && foto && f?.meta.retrato && s.rosto && !original && !modoCorte) {
+    const ov = ovalRosto(s.rosto, R.w, R.h, s.rostoTam), [x, y] = daFoto(s.rosto.x, s.rosto.y), [a, b] = escalaOval(ov.a, ov.b, false);
+    o = { x, y, a, b };
+  }
   if (!o) { a.style.display = 'none'; return; }
   Object.assign(a.style, { display: 'block', left: (r.left - p.left + (o.x - o.a) * r.width) + 'px', top: (r.top - p.top + (o.y - o.b) * r.height) + 'px',
     width: 2 * o.a * r.width + 'px', height: 2 * o.b * r.height + 'px' });
+}
+
+// ------------------------------------------------------------ moldura do corte sobre a foto (alças nos cantos e lados; arrastar dentro move)
+const moldCorte = document.createElement('div'); moldCorte.id = 'moldCorte';
+moldCorte.innerHTML = '<div class="caixa"><i class="t1"></i><i class="t2"></i><i class="t3"></i><i class="t4"></i>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((h) => `<b data-h="${h}"></b>`).join('') + '</div>';
+$('palco').append(moldCorte);
+function posicionaSobreposicoes() {
+  const p = $('palco').getBoundingClientRect(), r = fotoRect();
+  moldCorte.style.display = modoCorte && foto ? 'block' : 'none';
+  if (modoCorte && foto) {
+    Object.assign(moldCorte.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    const c = encaixa(s, R.w, R.h, s.corte || { x: 0, y: 0, w: 1, h: 1 });
+    Object.assign(moldCorte.firstChild.style, { left: c.x * 100 + '%', top: c.y * 100 + '%', width: c.w * 100 + '%', height: c.h * 100 + '%' });
+  }
+  if (curvaNaFoto) {
+    Object.assign(editorCurva.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  } else Object.assign(editorCurva.style, { left: '', top: '', width: '', height: '' });
+}
+{
+  let arr = null;
+  moldCorte.addEventListener('pointerdown', (e) => {
+    if (!modoCorte) return;
+    e.preventDefault(); e.stopPropagation(); moldCorte.setPointerCapture?.(e.pointerId);
+    const h = e.target.dataset?.h || (e.target.closest('.caixa') ? 'm' : null); if (!h) return;
+    arr = { h, x: e.clientX, y: e.clientY, c: encaixa(s, R.w, R.h, s.corte || { x: 0, y: 0, w: 1, h: 1 }) };
+  });
+  moldCorte.addEventListener('pointermove', (e) => {
+    if (!arr) return; e.stopPropagation();
+    const r = moldCorte.getBoundingClientRect(), dx = (e.clientX - arr.x) / r.width, dy = (e.clientY - arr.y) / r.height, c0 = arr.c, h = arr.h;
+    const k = razao(s.proporcao || 'livre'), [QW, QH] = quadroGirado(s, R.w, R.h), kf = k ? k * QH / QW : 0;   // proporção em fração do quadro
+    let { x, y, w, h: hh } = c0; const MIN = 0.06;
+    if (h === 'm') { x = Math.min(1 - w, Math.max(0, x + dx)); y = Math.min(1 - hh, Math.max(0, y + dy)); }
+    else {
+      let x1 = x + w, y1 = y + hh;
+      if (h.includes('w')) x = Math.min(x1 - MIN, Math.max(0, x + dx));
+      if (h.includes('e')) x1 = Math.max(x + MIN, Math.min(1, x1 + dx));
+      if (h.includes('n')) y = Math.min(y1 - MIN, Math.max(0, y + dy));
+      if (h.includes('s')) y1 = Math.max(y + MIN, Math.min(1, y1 + dy));
+      w = x1 - x; hh = y1 - y;
+      if (kf) {   // proporção travada: o lado que você puxa manda, o outro acompanha
+        if (h === 'n' || h === 's') { const nw = hh * kf, cx = c0.x + c0.w / 2; w = nw; x = cx - nw / 2; }
+        else if (h === 'e' || h === 'w') { const nh = w / kf, cy = c0.y + c0.h / 2; hh = nh; y = cy - nh / 2; }
+        else { hh = w / kf; if (h.includes('n')) y = y1 - hh; }
+        if (x < 0 || y < 0 || x + w > 1 || y + hh > 1) return;
+      }
+    }
+    const nc = { x, y, w, h: hh };
+    if (!dentro(s, R.w, R.h, nc)) return;   // não sai da foto endireitada
+    s.corte = nc; if (h !== 'm' && !kf && s.proporcao !== 'livre') s.proporcao = 'livre';
+    posicionaSobreposicoes();
+  });
+  const fim = () => { if (!arr) return; arr = null; sincroniza(); desenha(); memoriza(); };
+  moldCorte.addEventListener('pointerup', fim); moldCorte.addEventListener('pointercancel', fim);
 }
 
 // ------------------------------------------------------------ zoom: pinça com dois dedos (até 4×), um dedo arrasta, toque duplo volta
@@ -453,6 +714,7 @@ const centro = () => { const r = tela.getBoundingClientRect(); return [r.left + 
 $('palco').addEventListener('pointerdown', (e) => {
   if (!foto || e.pointerType === 'mouse' && e.button !== 0) return;
   dedos.set(e.pointerId, [e.clientX, e.clientY]);
+  if (modoCorte) return;
   if (dedos.size === 2 && !risco) {
     const [a, b] = [...dedos.values()];
     pinca = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: zoom.z, m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], tx: zoom.tx, ty: zoom.ty, c: centro() };
@@ -482,7 +744,7 @@ const soltaDedo = (e) => {
 };
 addEventListener('pointerup', soltaDedo); addEventListener('pointercancel', soltaDedo);
 $('palco').addEventListener('wheel', (e) => {   // computador: roda do mouse (ou pinça do trackpad) também dá zoom
-  if (!foto) return; e.preventDefault();
+  if (!foto || modoCorte) return; e.preventDefault();
   const c = centro(), z0 = zoom.z, z = Math.min(4, Math.max(1, z0 * Math.exp(-e.deltaY * 0.0015))), k = z / z0;
   zoom.tx = e.clientX - (c[0] - zoom.tx) - (e.clientX - c[0]) * k; zoom.ty = e.clientY - (c[1] - zoom.ty) - (e.clientY - c[1]) * k;
   zoom.z = z; aplicaZoom(); clearTimeout(zoom.t); zoom.t = setTimeout(desenha, 120);
@@ -491,7 +753,7 @@ $('palco').addEventListener('dblclick', () => { if (zoom.z > 1) zeraZoom(); });
 
 // comparar: segurar o botão (ou a foto) mostra a original
 const segura = (el) => {
-  const on = (e) => { if (!foto || marcando || (el === tela && (zoom.z > 1 || dedos.size > 1))) return; e.preventDefault(); original = true; $('selo').style.display = 'block'; desenha(); };
+  const on = (e) => { if (!foto || marcando || modoCorte || (el === tela && (zoom.z > 1 || dedos.size > 1))) return; e.preventDefault(); original = true; $('selo').style.display = 'block'; desenha(); };
   const off = () => { if (!original) return; original = false; $('selo').style.display = 'none'; desenha(); };
   el.addEventListener('pointerdown', on); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, off);
 };
@@ -524,7 +786,7 @@ function perguntaRepetir(anterior) {
   $('pNao').onclick = () => { q.style.display = 'none'; };
   $('pSim').onclick = () => {
     q.style.display = 'none';
-    s = { ...anterior, semente: s.semente, rosto: null };   // o rosto é de outra foto: marcar de novo
+    s = { ...anterior, semente: s.semente, rosto: null, ...Object.fromEntries(GEO.map((k) => [k, PADRAO[k]])) };   // o rosto e o corte são de outra foto
     R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); desenha(); memoriza();
   };
 }
@@ -538,11 +800,11 @@ async function abre(file) {
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
     // a foto nova começa limpa; se a anterior foi editada, pergunta se quer repetir (nunca aplica sozinho)
     const anterior = tinhaFoto && editada() ? { ...s } : null;
-    s = { ...PADRAO, semente: Math.random() }; marcando = false; R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
+    s = { ...PADRAO, semente: Math.random() }; marcando = false; corteBotao = false; R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none'; document.body.classList.add('com-foto');
     for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
-    montaFaixa(); sincroniza(); atualizaNota(); desenha(); hist = []; hi = -1; memoriza();
+    montaFaixa(); sincroniza(); atualizaNota(); atualizaModos(); desenha(); hist = []; hi = -1; memoriza();
     aviso(note || '');
   } catch (err) { console.error(err); aviso(err.message || 'Não consegui abrir essa foto.'); }
 }
@@ -567,7 +829,8 @@ async function salvaNoAparelho(arq) {
 async function revela(E, bitmap, st, nome) {
   const src = reduz(bitmap, Math.min(E.maxTex, 8192));
   E.setImage(src); E.setFilm(filmeAtual());
-  E.draw(st, src.width, src.height, Math.max(bitmap.width, bitmap.height));
+  const G = geometria(st, src.width, src.height);
+  E.draw(st, Math.max(1, Math.round(G.w)), Math.max(1, Math.round(G.h)), Math.max(bitmap.width, bitmap.height));
   const blob = await new Promise((r) => E.canvas.toBlob(r, 'image/jpeg', 0.95));
   return new File([blob], `${nome}_revela${st.filme ? '_' + st.filme : ''}.jpg`, { type: 'image/jpeg' });
 }
@@ -600,7 +863,7 @@ $('bLote').onclick = () => $('lote').click();
 $('lote').addEventListener('change', async (e) => {
   const fs = [...e.target.files].filter(isImageFile); e.target.value = '';
   if (!fs.length) return;
-  const st = { ...s, rosto: null };   // o rosto marcado é desta foto; nas outras o retrato fica sem máscara
+  const st = { ...s, rosto: null, ...Object.fromEntries(GEO.map((k) => [k, PADRAO[k]])) };   // o rosto e o corte são desta foto
   const c = document.createElement('canvas'), E = new Render(c, { preserve: true }), arqs = [];
   try {
     for (let i = 0; i < fs.length; i++) {
@@ -623,6 +886,7 @@ function aviso(t) {
 }
 
 // ------------------------------------------------------------ início
+pronto = true;
 carregaFilmes().then(() => {
   montaCats(); montaFaixa(); sincroniza(); atualizaNota();   // começa sem filme: nada é aplicado antes de você escolher
 }).catch((e) => { console.error(e); aviso('Não consegui carregar os filmes.'); });

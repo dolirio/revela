@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.6 (18/11/2026)
+# Revela · versão de teste 48.7 (18/11/2026)
 
+48.7: ajustes clássicos de estação de trabalho. Ajustes › Luz: Exposição, Brilho, Contraste, Realces, Sombras, Brancos, Pretos, Esmaecer, Curvas (Luz e cada cor). Cor: Calor, Matiz, Saturação, Vibração, Tom de pele, Cores (matiz, saturação e luminância por cor). Detalhe: Clareza, Nitidez, Vinheta. Corte: proporções, girar, espelhar, endireitar. Analógico ganhou Difusão (brilho suave nas luzes). Os ajustes agem depois do filme, na foto como você vê. O corte e o rosto não passam para a próxima foto nem para o lote. A marcação do rosto saiu da tela (guardada para amadurecer).
 48.6: tela mais limpa. No celular, Ajustes e Analógico mostram uma linha de ferramentas (Luz, Calor, Matiz, Retrato / Grão, Halação, Puxar, Vencido, Luz vazada, Poeira) e só o controle escolhido; um ponto marca o que foi mexido. O painel tem sempre a mesma altura, e a foto não encolhe ao trocar de aba. No computador tudo continua à vista.
 48.5: Receitas (Filmes › Receitas), 7 combinações de filme + revelação + textura.
 
@@ -17,7 +18,7 @@
 - **9 filmes, por família:** Portrait 400, Portrait 160, Editorial 100 · Chrome 100, Chrome 64 · Pro 400 · Tungsten 800 · Silver 400, Silver Portrait.
 - **Ajustes:**
   - Luz, Calor, Matiz.
-  - **Retrato** em qualquer filme: marcar o rosto desenhando em volta dele e escolher a separação.
+  - **Retrato** (marcar o rosto): guardado na gaveta desde a 48.7, fora da tela até a ideia amadurecer (o código continua no app, desligado).
 - **Analógico:**
   - Grão (com dado), Tamanho do grão, Halação.
   - **Luz vazada** (com dado), com 6 tipos pela região onde a luz entra.
