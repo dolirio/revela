@@ -1,4 +1,6 @@
-# Revela · versão de teste 48.3 (17/11/2026)
+# Revela · versão de teste 48.4 (18/11/2026)
+
+48.4: luzes mais claras nos filmes coloridos e Pro 400 mais macio (comparação com o VSCO); Revelação com Puxar e Vencido (com dado).
 
 48.3: a borda do filme escolhido não sai mais cortada em cima.
 

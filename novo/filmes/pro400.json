@@ -25,12 +25,12 @@
   "motor": "pesquisa/motor (espectral, caminho escaneado)"
  },
  "cinza_medio_saida": [
-  0.4799,
-  0.5063,
-  0.5096
+  0.4625,
+  0.4881,
+  0.4904
  ],
  "retrato": {
-  "pele_v6": 0.26999,
-  "pele_v5": 0.19967
+  "pele_v6": 0.29473,
+  "pele_v5": 0.21981
  }
 }

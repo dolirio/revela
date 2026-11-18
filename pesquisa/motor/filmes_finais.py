@@ -43,6 +43,11 @@ def identidade(x, A):
         x = np.repeat((x @ [0.2126, 0.7152, 0.0722])[..., None], 3, -1)
     x = x * np.array(A.get('calor', [1, 1, 1]))
     v = enc(np.clip(x, 0, 1)); v = np.stack([curva(v[..., i], A) for i in range(3)], -1)
+    # luzes: clareia só a parte de cima da curva (os médios e as sombras ficam). Comparação com as curvas do VSCO
+    # (pesquisa/vsco_curvas.md): os brancos do Revela saíam acinzentados.
+    hl = A.get('luzes', 0.0)
+    if hl:
+        t = np.clip((v - 0.5) / 0.5, 0, 1); v = v + hl * t * t * (3 - 2 * t) * (1 - v)
     L = lab(dec(v)); C = np.hypot(L[..., 1], L[..., 2]); h = np.degrees(np.arctan2(L[..., 2], L[..., 1])) % 360
     sat = A.get('sat', 1.0) * np.ones_like(C)
     for hc, dh, ds, w in A.get('faixas', []):      # (matiz central, giro em graus, ganho de croma, largura); luzes altas protegidas
@@ -57,25 +62,25 @@ def identidade(x, A):
 
 FILMES = [
     dict(id='portrait400', nome='Portrait 400', inspirado='Kodak Portra 400', base='kp400', grao=0.22,
-         nota='luz dourada, pele que brilha, verdes quentes', calor=[1.08, 1.0, 0.88], contraste=1.16, preto=0.02, branco=0.985, sat=1.10,
+         nota='luz dourada, pele que brilha, verdes quentes', luzes=0.4, calor=[1.08, 1.0, 0.88], contraste=1.16, preto=0.02, branco=0.985, sat=1.10,
          faixas=[(55, 6, 1.18, 22), (115, -12, 0.95, 30), (250, -6, 0.95, 30)], sombra=(1, -1), luz=(3, 14)),
     dict(id='portrait160', nome='Portrait 160', inspirado='Kodak Portra 160 e na cor de Peter Lindbergh', base='kp160', grao=0.18,
-         nota='retrato íntimo: cor macia, pele natural, luzes cremosas', calor=[1.03, 1.0, 0.96], contraste=0.92, preto=0.035, branco=0.97, sat=0.82,
+         nota='retrato íntimo: cor macia, pele natural, luzes cremosas', luzes=0.2, calor=[1.03, 1.0, 0.96], contraste=0.92, preto=0.035, branco=0.97, sat=0.82,
          faixas=[(45, 4, 1.05, 22), (130, -6, 0.8, 30), (250, -4, 0.8, 30)], sombra=(1, 0), luz=(2, 6)),
     dict(id='editorial100', nome='Editorial 100', inspirado='Kodak Ektachrome E100 e na cor de Steven Meisel', base='ka100', grao=0.12,
-         nota='retrato de revista: pele luminosa, pretos profundos, cor controlada', calor=[1.0, 1.0, 1.0], contraste=1.34, preto=0.0, branco=0.99, sat=1.05,
+         nota='retrato de revista: pele luminosa, pretos profundos, cor controlada', luzes=0.4, calor=[1.0, 1.0, 1.0], contraste=1.34, preto=0.0, branco=0.99, sat=1.05,
          faixas=[(45, 3, 0.92, 20), (15, -3, 1.2, 18), (250, -6, 1.15, 30), (130, -4, 0.9, 30)], sombra=(0, -3), luz=(2, 6)),
     dict(id='chrome100', nome='Chrome 100', inspirado='Kodak Ektar 100', base='ke100', grao=0.12,
-         nota='cor densa, azul profundo, contraste firme', calor=[0.98, 1.0, 1.03], contraste=1.35, preto=0.0, branco=1.0, sat=1.15,
+         nota='cor densa, azul profundo, contraste firme', luzes=0.3, calor=[0.98, 1.0, 1.03], contraste=1.35, preto=0.0, branco=1.0, sat=1.15,
          faixas=[(270, -8, 1.35, 30), (35, 0, 0.82, 18), (60, 0, 0.9, 20)], sombra=(-1, -5), luz=(0, 1)),
     dict(id='chrome64', nome='Chrome 64', inspirado='Kodak Kodachrome 64 e na fotografia de rua em cor', base='kp400', grao=0.2,
-         nota='rua em cor: vermelhos quentes, sombras densas, luz que conta história', calor=[1.06, 1.0, 0.9], contraste=1.38, preto=0.0, branco=0.985, sat=0.98,
+         nota='rua em cor: vermelhos quentes, sombras densas, luz que conta história', luzes=0.35, calor=[1.06, 1.0, 0.9], contraste=1.38, preto=0.0, branco=0.985, sat=0.98,
          faixas=[(22, 0, 1.15, 10), (50, 4, 0.82, 16), (65, -4, 0.9, 18), (130, -14, 0.75, 30), (250, 6, 1.05, 30)], sombra=(1, -3), luz=(3, 11)),
     dict(id='pro400', nome='Pro 400', inspirado='Fuji Pro 400H', base='kp160', grao=0.18,
-         nota='verdes para o ciano, ar leve, brancos limpos', calor=[0.97, 1.0, 1.03], contraste=1.04, preto=0.05, branco=1.0, sat=1.0,
+         nota='verdes para o ciano, ar leve, brancos limpos', luzes=0.45, calor=[0.97, 1.0, 1.03], contraste=0.82, preto=0.025, branco=1.0, sat=1.0,
          faixas=[(135, 30, 1.2, 26), (230, -10, 1.15, 30), (40, -6, 0.9, 20)], sombra=(-6, -2), luz=(-2, 1)),
     dict(id='tungsten800', nome='Tungsten 800', inspirado='CineStill 800T', base='cs800t', grao=0.32,
-         nota='noite de cinema: sombras azul-petróleo, luzes laranja com halo', contraste=1.3, preto=0.015, branco=0.99, sat=1.12,
+         nota='noite de cinema: sombras azul-petróleo, luzes laranja com halo', luzes=0.3, contraste=1.3, preto=0.015, branco=0.99, sat=1.12,
          faixas=[(60, -10, 1.2, 25), (250, -14, 1.2, 35), (130, 25, 0.8, 35)], sombra=(-13, -15), luz=(9, 15)),
     dict(id='silver400', nome='Silver 400', inspirado='Kodak Tri-X 400 com filtro laranja', base='kx400.laranja', grao=0.40,
          nota='preto e branco épico: pretos profundos, céus dramáticos', pb=True, contraste=1.45, preto=0.0, branco=1.0, piv=0.42),

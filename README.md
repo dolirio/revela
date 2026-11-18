@@ -69,6 +69,7 @@ A cada versão nova:
 
 | Versão | Data | O que mudou |
 |---|---|---|
+| v48.4 (teste) | 2026-11-18 | **Filmes mais fiéis** (comparação com as curvas do VSCO, `pesquisa/vsco_curvas.md`): luzes mais claras nos filmes coloridos (brancos não ficam acinzentados) e Pro 400 mais macio e arejado, como o 400H. **Revelação** (aba Analógico, qualquer filme): **Puxar** (−1 a +3 pontos: mais contraste e grão) e **Vencido** (véu, cor desbotada, menos sensibilidade e o tom de cada rolo, com dado). |
 | v48.3 (teste) | 2026-11-17 | Borda do filme escolhido não sai mais cortada em cima (a faixa ganhou espaço para ela). |
 | v48.2 (teste) | 2026-11-17 | **Topo cabe em celular estreito** (visto no Moto Edge 50 Neo: "Exportar" cortado): com a foto aberta, o nome sai do topo e os botões ficam mais próximos; conferido de 320 a 412 px. |
 | v48.1 (teste) | 2026-11-17 | **Tela inicial limpa**: antes de abrir uma foto aparecem só as boas-vindas (o painel de filmes com quadrados vazios e o Portrait 400 já escolhido confundiam); a foto abre em Digital, sem nada aplicado. |
