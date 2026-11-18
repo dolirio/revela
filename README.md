@@ -70,6 +70,7 @@ A cada versão nova:
 | Versão | Data | O que mudou |
 |---|---|---|
 | v48.5 (teste) | 2026-11-18 | **Receitas** (aba Filmes › Receitas): 7 combinações de filme + revelação + textura num toque, com nomes clássicos e tudo ajustável depois (Silver 400 · Puxado, Silver Portrait · Grão, Chrome 64 · Rua, Chrome 64 · Vencido, Portrait 400 · Puxado, Portrait 160 · Claro, Tungsten 800 · Noite). Inspiração em `pesquisa/receitas.md`. |
+| v48.6 (teste) | 2026-11-18 | **Tela mais limpa**: no celular, Ajustes e Analógico viram uma linha de ferramentas com um controle por vez (como no VSCO e no RNI) e um ponto nas ferramentas mexidas. Painel com altura fixa (228 px no Pixel 7, antes até 367): a foto não encolhe ao trocar de aba ou de ferramenta. No computador, tudo à vista na coluna. |
 | v48.4 (teste) | 2026-11-18 | **Filmes mais fiéis** (comparação com as curvas do VSCO, `pesquisa/vsco_curvas.md`): luzes mais claras nos filmes coloridos (brancos não ficam acinzentados) e Pro 400 mais macio e arejado, como o 400H. **Revelação** (aba Analógico, qualquer filme): **Puxar** (−1 a +3 pontos: mais contraste e grão) e **Vencido** (véu, cor desbotada, menos sensibilidade e o tom de cada rolo, com dado). |
 | v48.3 (teste) | 2026-11-17 | Borda do filme escolhido não sai mais cortada em cima (a faixa ganhou espaço para ela). |
 | v48.2 (teste) | 2026-11-17 | **Topo cabe em celular estreito** (visto no Moto Edge 50 Neo: "Exportar" cortado): com a foto aberta, o nome sai do topo e os botões ficam mais próximos; conferido de 320 a 412 px. |

@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.5 (18/11/2026)
+# Revela · versão de teste 48.6 (18/11/2026)
 
+48.6: tela mais limpa. No celular, Ajustes e Analógico mostram uma linha de ferramentas (Luz, Calor, Matiz, Retrato / Grão, Halação, Puxar, Vencido, Luz vazada, Poeira) e só o controle escolhido; um ponto marca o que foi mexido. O painel tem sempre a mesma altura, e a foto não encolhe ao trocar de aba. No computador tudo continua à vista.
 48.5: Receitas (Filmes › Receitas), 7 combinações de filme + revelação + textura.
 
 48.4: luzes mais claras nos filmes coloridos e Pro 400 mais macio (comparação com o VSCO); Revelação com Puxar e Vencido (com dado).

@@ -95,6 +95,21 @@
   .dado:hover, .dado:active { color: var(--text); background: var(--raise); }
   .sec { padding: 10px 18px 0; color: var(--faint); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
   .rolar { max-height: 38vh; overflow-y: auto; padding-bottom: 6px; }
+  /* ferramentas: no celular, uma linha de nomes e só o controle escolhido (o painel não cresce e a foto não encolhe) */
+  .ferramentas { display: flex; gap: 20px; padding: 6px 18px 2px; overflow-x: auto; scrollbar-width: none; }
+  .ferramentas::-webkit-scrollbar { display: none; }
+  .ferramentas button { position: relative; flex: 0 0 auto; color: var(--muted); font-size: 13px; white-space: nowrap; padding: 6px 0; }
+  .ferramentas button.on { color: var(--text); box-shadow: inset 0 -1px 0 var(--text); }
+  .ferramentas button.mudou::after { content: ''; position: absolute; top: 3px; right: -6px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .grupo { display: none; } .grupo.on { display: block; }
+  .grupo .sec { display: none; }
+  .conteudo { min-height: 180px; }   /* a altura da aba Filmes: trocar de aba ou de ferramenta não mexe na foto */
+  #g_retrato .escolha { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 2px 18px; }
+  #g_retrato .ctl { padding: 1px 18px; }
+  #g_retrato .escolha button { flex: none; padding: 5px 14px; }
+  #g_retrato .escolha small, #e_luzTipo small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #e_luzTipo div { overflow-x: auto; scrollbar-width: none; } #e_luzTipo div::-webkit-scrollbar { display: none; }
+  #e_luzTipo button { flex: 0 0 auto; padding: 6px 12px; white-space: nowrap; }
 
   input[type=range] { -webkit-appearance: none; appearance: none; height: 26px; background: transparent; margin: 0; touch-action: pan-y; }
   input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 2px; }
@@ -107,6 +122,10 @@
     header { grid-column: 1 / -1; }
     #painel { border-top: 0; border-left: 1px solid var(--line); overflow-y: auto; }
     .rolar { max-height: none; }
+    .ferramentas { display: none; }
+    .grupo, .grupo .sec { display: block; }
+    #g_retrato .escolha small, #e_luzTipo small { white-space: normal; }
+    #e_luzTipo div { flex-wrap: wrap; overflow: visible; }
     .faixa { flex-wrap: wrap; overflow: visible; row-gap: 12px; }   /* computador: todos os filmes à vista, sem rolar */
   }
 </style>
@@ -132,7 +151,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.5 · 18/11/2026</small>
+    <small class="versao">versão de teste 48.6 · 18/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
