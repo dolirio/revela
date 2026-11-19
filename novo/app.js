@@ -4,6 +4,7 @@ import { decodeFile, isImageFile } from '../core.js';
 import { icon } from '../icons.js';
 
 const $ = (id) => document.getElementById(id);
+const celular = () => !matchMedia('(min-width: 900px)').matches;
 const tela = $('tela');
 
 // laboratório: a máquina que escaneia o negativo (pesquisa/laboratorios.md). Cada filme traz uma tabela por laboratório.
@@ -28,7 +29,6 @@ const LUZES = [
   { id: '2', n: 'Início', nota: 'A primeira foto do rolo: parte da imagem queimada' },
   { id: '3', n: 'Entre fotos', nota: 'Faixa estreita perto da divisa entre duas fotos' },
   { id: '4', n: 'Frontal', nota: 'Luz pela frente da câmera: véu frio e macio' },
-  { id: '5', n: 'Raios', nota: 'Furinho na vedação: feixes saindo de um ponto da borda' },
 ];
 
 const CATS = [{ id: 'filmes', n: 'Filmes' }, { id: 'receitas', n: 'Receitas' }];
@@ -59,6 +59,7 @@ function aplicaReceita(r) {
   s.grao = a.grao ?? 0; s.graoTamanho = a.grao_tamanho ?? 1; s.halacao = a.halacao ?? 0;
   Object.assign(s, r.s); s.receita = r.id;
   R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); desenha(); memoriza();
+  if (celular()) aviso(r.nota);
 }
 
 // ------------------------------------------------------------ estado da edição
@@ -178,9 +179,8 @@ function miniatura(c, f, extra = null) {
 function atualizaNota() {
   const f = filmeAtual();
   const rc = RECEITAS.find((r) => r.id === s.receita);
-  if (rc && catAtual === 'receitas') { $('nota').textContent = rc.nota; $('cIntensidade').style.display = ''; return; }
+  if (rc && catAtual === 'receitas') { $('nota').textContent = rc.nota; return; }
   $('nota').textContent = f ? `${f.meta.nota} · inspirado no ${f.meta.inspirado}` : 'Sem filme: a foto como saiu da câmera.';
-  $('cIntensidade').style.display = f ? '' : 'none';
 }
 
 function escolheFilme(id) {
@@ -190,6 +190,7 @@ function escolheFilme(id) {
   const a = f?.meta.analogico || {};
   s.grao = a.grao ?? 0; s.graoTamanho = a.grao_tamanho ?? 1; s.halacao = a.halacao ?? 0;   // o caráter do filme vem junto
   R.setFilm(f); montaFaixa(); sincroniza(); desenha(); memoriza();
+  if (celular()) aviso(f ? `${f.meta.nome || ''}${f.meta.nome ? ': ' : ''}${f.meta.nota}` : 'Digital: a foto como saiu da câmera');   // no celular a descrição aparece de passagem
 }
 
 // ------------------------------------------------------------ controles
@@ -281,11 +282,10 @@ function dado(k, nome, sorteia) {
 const novo = () => Math.floor(Math.random() * 1000) + 1;
 dado('grao', 'textura de grão', () => { s.semente = Math.random(); if (!s.grao) s.grao = filmeAtual()?.meta.analogico?.grao || 0.3; });
 // revelação: o que o laboratório e o tempo fazem com o filme (vale para qualquer filme)
-secao($('p-analogico'), 'Revelação');
-controle('puxar', $('p-analogico'));
-controle('vencido', $('p-analogico'));
+// revelação: mora junto do filme (aba Filmes), numa linha Intensidade · Puxar · Vencido
+controle('puxar', $('cIntensidade'));
+controle('vencido', $('cIntensidade'));
 dado('vencido', 'tonalidade de rolo vencido', () => { s.sorteVenc = novo(); if (!s.vencido) s.vencido = 0.5; });
-secao($('p-analogico'), 'Tempo');
 controle('luzVazada', $('p-analogico'));
 dado('luzVazada', 'luz vazada', () => { s.sorteLuz = novo(); if (!s.luzVazada) s.luzVazada = 0.5; });
 escolha('luzTipo', LUZES, $('p-analogico'));
@@ -314,6 +314,7 @@ let corHsl = 0;
 const gHsl = document.createElement('div'); gHsl.id = 'g_hsl'; $('p-ajustes').append(gHsl);
 {
   const fila = document.createElement('div'); fila.className = 'cores'; gHsl.append(fila);
+  setTimeout(() => { const q = document.createElement('span'); q.className = 'qual'; fila.append(q); sincronizaHsl(); });
   CORES.forEach(([n, c], i) => {
     const b = document.createElement('button'); b.style.background = c; b.title = n; b.setAttribute('aria-label', n);
     b.onclick = () => { corHsl = i; sincronizaHsl(); }; fila.append(b);
@@ -336,7 +337,7 @@ function sincronizaHsl() {
 let canal = 'l';
 const gCurva = document.createElement('div'); gCurva.id = 'g_curvas'; $('p-ajustes').append(gCurva);
 gCurva.innerHTML = `<div class="canais"><button data-c="l">Luz</button><button data-c="r">Vermelho</button><button data-c="g">Verde</button><button data-c="b">Azul</button><button class="zerar">Zerar</button></div>
-  <small class="dica">Toque na curva para criar um ponto e arraste. Para tirar, arraste o ponto para fora.</small>`;
+  <small class="dica">Toque na curva para criar um ponto e arraste. Para tirar, toque duas vezes no ponto.</small>`;
 const editorCurva = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); editorCurva.id = 'curva'; gCurva.append(editorCurva);
 gCurva.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { canal = b.dataset.c; desenhaCurva(); });
 gCurva.querySelector('.zerar').onclick = () => { if (!s.curvas) return; s.curvas = curvaMexida({ ...s.curvas, [canal]: CURVA0[canal] }) ? { ...s.curvas, [canal]: CURVA0[canal] } : null; desenhaCurva(); desenha(); sincronizaFerramentas(); memoriza(); };
@@ -357,10 +358,23 @@ function desenhaCurva() {
 {
   let arrasto = null;
   const pos = (e) => { const r = editorCurva.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, 1 - (e.clientY - r.top) / r.height, r]; };
+  let ultimo = { t: 0, i: -1 };
+  const apaga = (i, pts, c) => {   // tira um ponto do meio (as pontas ficam)
+    if (i <= 0 || i >= pts.length - 1) return false;
+    pts.splice(i, 1); s.curvas = curvaMexida({ ...c, [canal]: pts }) ? { ...c, [canal]: pts } : (curvaMexida({ ...c, [canal]: CURVA0[canal] }) ? { ...c, [canal]: pts } : null);
+    arrasto = null; desenhaCurva(); desenha(); sincronizaFerramentas(); memoriza(); return true;
+  };
+  const acha = (e) => { const [x, y, r] = pos(e), c = s.curvas || CURVA0, pts = c[canal].map((p) => [...p]); return { x, y, r, c, pts, i: pts.findIndex((p) => Math.hypot((p[0] - x) * r.width, (p[1] - y) * r.height) < 24) }; };
+  editorCurva.addEventListener('contextmenu', (e) => { e.preventDefault(); const a = acha(e); if (a.i >= 0) apaga(a.i, a.pts, a.c); });
   editorCurva.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); e.stopPropagation(); editorCurva.setPointerCapture?.(e.pointerId);
+    e.preventDefault(); e.stopPropagation();
+    if (e.button === 2) return;   // botão direito: fica com o contextmenu
+    editorCurva.setPointerCapture?.(e.pointerId);
+    const a0 = acha(e), agora = performance.now();
+    if (a0.i >= 0 && a0.i === ultimo.i && agora - ultimo.t < 350) { ultimo = { t: 0, i: -1 }; if (apaga(a0.i, a0.pts, a0.c)) return; }
+    ultimo = { t: agora, i: a0.i };
     const [x, y, r] = pos(e), c = s.curvas || CURVA0, pts = c[canal].map((p) => [...p]);
-    let i = pts.findIndex((p) => Math.hypot((p[0] - x) * r.width, (p[1] - y) * r.height) < 24);
+    let i = a0.i;
     if (i < 0) {   // ponto novo em cima da curva, na altura que ela já tem (não dá salto)
       const yc = amostraCurva(pts, 256)[Math.round(Math.min(1, Math.max(0, x)) * 255)];
       pts.push([Math.min(0.98, Math.max(0.02, x)), yc]); pts.sort((a, b) => a[0] - b[0]); i = pts.findIndex((p) => p[0] === Math.min(0.98, Math.max(0.02, x)));
@@ -445,13 +459,16 @@ const GRUPOS = {
     { id: 'corte', n: 'Cortar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte), sec: 'Corte' },
   ],
   'p-analogico': [
-    { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho'] },
-    { id: 'halacao', n: 'Halação', el: ['halacao'] },
-    { id: 'difusao', n: 'Difusão', el: ['difusao'] },
-    { id: 'puxar', n: 'Puxar', el: ['puxar'], sec: 'Revelação' },
-    { id: 'vencido', n: 'Vencido', el: ['vencido'] },
-    { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'], sec: 'Tempo' },
+    { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho'], sec: 'Textura' },
     { id: 'poeira', n: 'Poeira', el: ['poeira'] },
+    { id: 'halacao', n: 'Halação', el: ['halacao'], sec: 'Luz' },
+    { id: 'difusao', n: 'Difusão', el: ['difusao'] },
+    { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'] },
+  ],
+  cIntensidade: [   // aba Filmes: o que acontece COM o filme (sem filme, Puxar e Vencido agem na foto digital)
+    { id: 'intensidade', n: 'Intensidade', el: ['intensidade'] },
+    { id: 'puxar', n: 'Puxar', el: ['puxar'] },
+    { id: 'vencido', n: 'Vencido', el: ['vencido'] },
   ],
 };
 const grupoAtivo = {};
@@ -493,6 +510,12 @@ function sincronizaFerramentas() {
       if (g.id === 'retrato' && b) b.hidden = !temRetrato;
     }
     if (grupoAtivo[pag] === 'retrato' && !temRetrato) mostraGrupo(pag, grupos[0].id);
+    if (pag === 'cIntensidade') {   // sem filme não há intensidade: ficam Puxar e Vencido
+      const temFilme = !!filmeAtual();
+      $(pag).querySelector('.ferramentas button[data-g="intensidade"]').hidden = !temFilme;
+      $(pag).querySelector('.grupo[data-g="intensidade"]').style.display = temFilme ? '' : 'none';
+      if (!temFilme && grupoAtivo[pag] === 'intensidade') mostraGrupo(pag, 'puxar');
+    }
   }
   if (typeof sincronizaHsl === 'function') { sincronizaHsl(); }
 }

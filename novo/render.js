@@ -217,8 +217,6 @@ void main(){
     lin += uHalo * 2.6 * hs * vec3(1.0, 0.28, 0.06);
   }
   vec3 x = lin * uPre * exp2(uExp);                 // luz que chega ao filme
-  vec3 dig = enc(clamp(x * uPost, 0.0, 1.0));       // a mesma foto sem filme (intensidade 0)
-  vec3 f = dig;
   // retrato (receita Lindbergh): rosto marcado -> contraste centrado no rosto, pele exposta para o alvo e o
   // entorno escurecido por máscara suave, como na ampliação com máscara (referencias/lindbergh/README.md, v3/v6/v5)
   if (uRet > 0.5) {
@@ -240,6 +238,10 @@ void main(){
     x *= exp2(-0.6 * uVenc) * (1.0 + 0.35 * uVenc * uVencCor);
     x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 - 0.18 * uVenc)) + 0.18 * exp2(-4.2) * uVenc;
   }
+  // a foto sem filme (intensidade 0) vem DEPOIS da revelação: puxar e vencido valem também no Digital
+  // (antes ficavam sem efeito quando nenhum filme estava escolhido)
+  vec3 dig = enc(clamp(x * uPost, 0.0, 1.0));
+  vec3 f = dig;
   if (uHasFilm > 0.5) {
     vec3 fl = dec(filme(x));
     // equilíbrio automático do laboratório: como o scanner faz foto a foto, o cinza médio desta exposição volta a

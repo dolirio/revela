@@ -108,6 +108,13 @@
   .cores { display: flex; gap: 12px; padding: 8px 18px 4px; }
   .cores button { position: relative; width: 26px; height: 26px; border-radius: 50%; flex: none; outline: 2px solid transparent; outline-offset: 2px; }
   .cores button.on { outline-color: var(--text); }
+  .cores { align-items: center; gap: 9px; } .cores button { width: 22px; height: 22px; }
+  .cores .qual { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  /* aba Filmes: Intensidade · Puxar · Vencido numa linha; o controle numa linha só (o nome já está na ferramenta) */
+  #cIntensidade .ferramentas { padding-top: 2px; }
+  #cIntensidade .ctl { display: flex; align-items: center; gap: 10px; padding: 2px 18px 4px; }
+  #cIntensidade .ctl label { display: none; } #cIntensidade .ctl input { order: -1; flex: 1; min-width: 0; }
+  #cIntensidade .ctl output { min-width: 46px; text-align: right; }
   .cores button.mudou::after { content: ''; position: absolute; top: -5px; right: -5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
   .canais, .acoes { display: flex; gap: 6px; padding: 8px 18px 4px; overflow-x: auto; scrollbar-width: none; }
   .canais::-webkit-scrollbar, .acoes::-webkit-scrollbar, .props div::-webkit-scrollbar { display: none; }
@@ -135,7 +142,10 @@
   #moldCorte b[data-h=nw] { left: 0; top: 0; cursor: nwse-resize; } #moldCorte b[data-h=se] { left: 100%; top: 100%; cursor: nwse-resize; }
   #moldCorte b[data-h=ne] { left: 100%; top: 0; cursor: nesw-resize; } #moldCorte b[data-h=sw] { left: 0; top: 100%; cursor: nesw-resize; }
   .grupo .sec { display: none; }
-  .conteudo { min-height: 180px; }   /* a altura da aba Filmes: trocar de aba ou de ferramenta não mexe na foto */
+  #nota { display: none; }   /* celular: a descrição do filme aparece de passagem ao escolher (economiza a altura) */
+  .cats { padding: 6px 16px 6px; }
+  .film { width: 66px; } .film canvas, .film .ph { width: 66px; height: 66px; }
+  .conteudo { min-height: 213px; }   /* a altura da aba Filmes: trocar de aba ou de ferramenta não mexe na foto */
   #g_retrato .escolha { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 2px 18px; }
   #g_retrato .ctl { padding: 1px 18px; }
   #g_retrato .escolha button { flex: none; padding: 5px 14px; }
@@ -157,6 +167,8 @@
     .ferramentas { display: none; }
     .grupo, .grupo .sec { display: block; }
     .so-pc { display: inline-block; }
+    #nota { display: block; } .film { width: 74px; } .film canvas, .film .ph { width: 74px; height: 74px; }
+    #cIntensidade .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } #cIntensidade .ctl label { display: block; } #cIntensidade .ctl input { order: 0; grid-column: 1 / -1; }
     #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
     .acoes, .props div { flex-wrap: wrap; overflow: visible; }
     #g_curvas .dica { display: none; }
@@ -187,7 +199,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.7 · 18/11/2026</small>
+    <small class="versao">versão de teste 48.8 · 19/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
