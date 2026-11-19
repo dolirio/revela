@@ -56,11 +56,15 @@ const RECEITAS = [
     s: { filme: 'portrait800', puxar: 1.3, grao: 0.5, graoTipo: 'colorido', halacao: 0.2 } },
   { id: 'r_gold_tarde', n: 'Gold 200 · Fim de tarde', nota: 'Sol baixo de verão: um pouco superexposto, luz que se espalha',
     s: { filme: 'gold200', exposicao: 0.35, difusao: 0.25, halacao: 0.15, grao: 0.3 } },
+  { id: 'r_silver_epico', n: 'Silver 400 · Épico', nota: 'P&B épico: céu queimado, entorno escuro, o assunto acende como na ampliação',
+    s: { filme: 'silver400', puxar: 0.8, grao: 0.45, amplCeu: 0.7, amplAssunto: 0.4, amplEntorno: 0.5 } },
+  { id: 'r_gold_flash', n: 'Gold 200 · Flash', nota: 'Festa dos anos 90: flash direto, fundo escuro, cor quente de filme comum',
+    s: { filme: 'gold200', flash: 0.75, grao: 0.35, graoTipo: 'colorido' } },
   { id: 'r_tungsten_noite', n: 'Tungsten 800 · Noite', nota: 'Noite de cinema puxada: halo forte nas luzes, grão de filme rápido',
     s: { filme: 'tungsten800', puxar: 1, halacao: 0.6, grao: 0.45 } },
 ];
 // campos que uma receita controla (voltam ao padrão quando a receita não diz nada sobre eles)
-const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao', 'graoTipo', 'difusao'];
+const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao', 'graoTipo', 'difusao', 'flash', 'amplCeu', 'amplAssunto', 'amplEntorno'];
 function aplicaReceita(r) {
   const f = filmes.find((x) => x.meta.id === r.s.filme), a = f?.meta.analogico || {};
   for (const k of DA_RECEITA) s[k] = PADRAO[k];
@@ -78,11 +82,14 @@ const PADRAO = {
   brilho: 0, contraste: 0, realces: 0, sombras: 0, brancos: 0, pretos: 0, esmaecer: 0, saturacao: 0, vibracao: 0, pele: 0,
   clareza: 0, nitidez: 0, vinheta: 0, difusao: 0, hsl: HSL0, curvas: null,
   giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre', perspV: 0, perspH: 0, lente: 0,
+  // ampliação (laboratório) e flash: o assunto marcado (fração do quadro) e o horizonte valem para os dois
+  assunto: null, horizonte: 0.42, amplCeu: 0, amplAssunto: 0, amplEntorno: 0, amplTam: 0.5, flash: 0, flashAlcance: 0.5,
 };
 // Retrato (marcar o rosto) está guardado na gaveta (18/11/2026, a pedido): a função continua no código e no motor,
 // mas fica fora da tela até a ideia amadurecer. Para voltar, troque para true.
 const RETRATO = false;
-const GEO = ['giro', 'espelho', 'endireitar', 'corte', 'proporcao', 'perspV', 'perspH', 'lente'];   // é desta foto: não vai para a próxima nem para o lote
+const GEO = ['giro', 'espelho', 'endireitar', 'corte', 'proporcao', 'perspV', 'perspH', 'lente'];
+const POR_FOTO = [...GEO, 'assunto', 'horizonte'];   // a composição é desta foto: não vai para a próxima nem para o lote   // é desta foto: não vai para a próxima nem para o lote
 let s = { ...PADRAO };
 let marcando = false;   // esperando o toque no rosto (retrato)
 let foto = null;          // { bitmap, nome }
@@ -177,7 +184,7 @@ function miniatura(c, f, extra = null) {
   if (!miniFonte) return;
   Rmini.setFilm(f);
   // filme sozinho: sem os efeitos de agora; receita: com a revelação dela (o grão não aparece nesse tamanho)
-  const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0 }), ...(extra || {}),
+  const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0, flash: 0, amplCeu: 0, amplAssunto: 0, amplEntorno: 0 }), ...(extra || {}),
     filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, giro: 0, espelho: 0, endireitar: 0, corte: null, perspV: 0, perspH: 0, lente: 0, vinheta: 0, difusao: 0, ...(extra ? {} : { exposicao: 0 }) };
   Rmini.draw(st, miniFonte.width, miniFonte.height, 600);
   const g = c.getContext('2d'), k = Math.min(miniFonte.width, miniFonte.height);
@@ -220,6 +227,8 @@ const CTL = {
   nitidez: { n: 'Nitidez', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : v < 0 ? 'papel ' + Math.round(-v * 100) : '+' + Math.round(v * 100)) },   // como no RNI: − = maciez da cópia em papel
   vinheta: { n: 'Vinheta', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : (v < 0 ? 'clara ' : 'escura ') + Math.round(Math.abs(v) * 100)) },
   difusao: { n: 'Difusão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  flash: { n: 'Flash', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  flashAlcance: { n: 'Alcance do flash', min: 0, max: 1, passo: 0.01, fmt: (v) => (v < 0.34 ? 'perto ' : v > 0.66 ? 'longe ' : '') + Math.round(v * 100) },
   endireitar: { n: 'Endireitar', min: -45, max: 45, passo: 0.1, fmt: (v) => (Math.abs(v) < 0.05 ? '0°' : v.toFixed(1).replace('.', ',') + '°') },
   cenaMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
   labTemp: { n: 'Temperatura', min: -1, max: 1, passo: 0.01, fmt: sinal },
@@ -327,6 +336,21 @@ dado('poeira', 'poeira', () => { s.sorte = novo(); if (!s.poeira) s.poeira = 0.5
 // (moldura do filme saiu a pedido do usuário: o trabalho é sobre a imagem; quadro() continua no render.js)
 for (const k of ['brilho', 'contraste', 'realces', 'sombras', 'brancos', 'pretos', 'esmaecer', 'saturacao', 'vibracao', 'pele', 'clareza', 'nitidez', 'vinheta']) controle(k, $('p-ajustes'));
 controle('difusao', $('p-analogico'));
+controle('flash', $('p-analogico')); controle('flashAlcance', $('p-analogico'));
+{ const d = document.createElement('small'); d.className = 'dica'; d.id = 'dicaFlash'; d.textContent = 'Toque na foto para mirar o flash no assunto'; $('p-analogico').append(d); }
+// ampliação: quatro controles numa linha cada (cabem no painel), e a dica de como marcar
+const gAmpl = document.createElement('div'); gAmpl.id = 'g_ampl'; $('p-analogico').append(gAmpl);
+{
+  const f = (v) => Math.round(v * 100), ponto = (k) => (v) => { s[k] = v; };
+  gAmpl.linhas = [
+    linha('amplCeu', 'Céu', 0, 1, 0.01, () => s.amplCeu, ponto('amplCeu'), f, gAmpl),
+    linha('amplAssunto', 'Assunto', 0, 1, 0.01, () => s.amplAssunto, ponto('amplAssunto'), f, gAmpl),
+    linha('amplEntorno', 'Entorno', 0, 1, 0.01, () => s.amplEntorno, ponto('amplEntorno'), f, gAmpl),
+    linha('amplTam', 'Tamanho', 0, 1, 0.01, () => s.amplTam ?? 0.5, ponto('amplTam'), f, gAmpl),
+  ];
+  $('r_amplTam').addEventListener('dblclick', () => { s.amplTam = 0.5; gAmpl.linhas[3].sync(); desenha(); });
+  const d = document.createElement('small'); d.className = 'dica'; d.textContent = 'Toque no assunto · arraste a linha do horizonte'; gAmpl.append(d);
+}
 
 // ---- controle numa linha só (nome, barra, valor): para os grupos com três controles
 function linha(id, nome, min, max, passo, ler, gravar, fmt, pai) {
@@ -594,6 +618,8 @@ const GRUPOS = {
     { id: 'halacao', n: 'Halação', el: ['halacao'], sec: 'Luz' },
     { id: 'difusao', n: 'Difusão', el: ['difusao'] },
     { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'] },
+    { id: 'flash', n: 'Flash', el: ['flash', 'flashAlcance', '#dicaFlash'], muda: () => s.flash > 0 },
+    { id: 'ampliacao', n: 'Ampliação', el: ['#g_ampl'], sec: 'Ampliação', muda: () => !!(s.amplCeu || s.amplAssunto || s.amplEntorno) },
   ],
   cIntensidade: [   // aba Filmes: o que acontece COM o filme (sem filme, Puxar e Vencido agem na foto digital)
     { id: 'intensidade', n: 'Intensidade', el: ['intensidade'] },
@@ -649,6 +675,8 @@ function sincronizaFerramentas() {
     }
   }
   if (typeof sincronizaHsl === 'function') { sincronizaHsl(); }
+  if (typeof gAmpl !== 'undefined') gAmpl.linhas.forEach((l) => l.sync());
+  if (typeof posicionaMira === 'function' && pronto) posicionaMira();
 }
 
 function sincroniza() {
@@ -797,11 +825,54 @@ function anel() {
     width: 2 * o.a * r.width + 'px', height: 2 * o.b * r.height + 'px' });
 }
 
+// ------------------------------------------------------------ mira: o assunto (Flash e Ampliação) e a linha do horizonte
+const mira = document.createElement('div'); mira.id = 'mira';
+mira.innerHTML = '<div class="horizonte"><span>horizonte</span></div><div class="alvo"></div>';
+$('palco').append(mira);
+let miraAtiva = false, horAtivo = false;
+function atualizaMira() {
+  const ga = grupoAtivo['p-analogico'], noAnalog = aba === 'analogico' && !!foto && !modoCorte && !enquadrando;
+  const usaFlash = pc.matches ? s.flash > 0 : ga === 'flash', usaAmpl = pc.matches ? !!(s.amplCeu || s.amplAssunto || s.amplEntorno) : ga === 'ampliacao';
+  miraAtiva = noAnalog && (usaFlash || usaAmpl);
+  horAtivo = miraAtiva && (pc.matches ? s.amplCeu > 0 : ga === 'ampliacao');
+}
+function posicionaMira() {
+  atualizaMira();
+  mira.style.display = miraAtiva ? 'block' : 'none';
+  if (!miraAtiva) return;
+  const p = $('palco').getBoundingClientRect(), r = fotoRect(), a = s.assunto || { x: 0.5, y: 0.5 };
+  Object.assign(mira.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  Object.assign(mira.querySelector('.alvo').style, { left: a.x * 100 + '%', top: a.y * 100 + '%' });
+  const h = mira.querySelector('.horizonte'); h.style.display = horAtivo ? 'block' : 'none'; h.style.top = (s.horizonte ?? 0.42) * 100 + '%';
+}
+{
+  let arr = null;
+  const fr2 = (e) => { const r = mira.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)), r]; };
+  mira.addEventListener('pointerdown', (e) => {
+    if (!miraAtiva) return;
+    e.preventDefault(); e.stopPropagation(); mira.setPointerCapture?.(e.pointerId);
+    const [x, y, r] = fr2(e);
+    const pertoHor = horAtivo && Math.abs(y - (s.horizonte ?? 0.42)) * r.height < 22;
+    arr = pertoHor ? 'h' : 'a';
+    if (arr === 'a') s.assunto = { x, y };
+    posicionaMira(); desenha();
+  });
+  mira.addEventListener('pointermove', (e) => {
+    if (!arr) return; e.stopPropagation();
+    const [x, y] = fr2(e);
+    if (arr === 'h') s.horizonte = Math.min(0.95, Math.max(0.05, y)); else s.assunto = { x, y };
+    posicionaMira(); desenha();
+  });
+  const fim = () => { if (!arr) return; arr = null; memoriza(); };
+  mira.addEventListener('pointerup', fim); mira.addEventListener('pointercancel', fim);
+}
+
 // ------------------------------------------------------------ moldura do corte sobre a foto (alças nos cantos e lados; arrastar dentro move)
 const moldCorte = document.createElement('div'); moldCorte.id = 'moldCorte';
 moldCorte.innerHTML = '<div class="caixa"><i class="t1"></i><i class="t2"></i><i class="t3"></i><i class="t4"></i>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((h) => `<b data-h="${h}"></b>`).join('') + '</div>';
 $('palco').append(moldCorte);
 function posicionaSobreposicoes() {
+  posicionaMira();
   const p = $('palco').getBoundingClientRect(), r = fotoRect();
   moldCorte.style.display = modoCorte && foto ? 'block' : 'none';
   if (modoCorte && foto) {
@@ -940,7 +1011,7 @@ function perguntaRepetir(anterior) {
   $('pNao').onclick = () => { q.style.display = 'none'; };
   $('pSim').onclick = () => {
     q.style.display = 'none';
-    s = { ...anterior, semente: s.semente, rosto: null, ...Object.fromEntries(GEO.map((k) => [k, PADRAO[k]])) };   // o rosto e o corte são de outra foto
+    s = { ...anterior, semente: s.semente, rosto: null, ...Object.fromEntries(POR_FOTO.map((k) => [k, PADRAO[k]])) };   // o rosto e o corte são de outra foto
     R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); desenha(); memoriza();
   };
 }
@@ -1017,7 +1088,7 @@ $('bLote').onclick = () => $('lote').click();
 $('lote').addEventListener('change', async (e) => {
   const fs = [...e.target.files].filter(isImageFile); e.target.value = '';
   if (!fs.length) return;
-  const st = { ...s, rosto: null, ...Object.fromEntries(GEO.map((k) => [k, PADRAO[k]])) };   // o rosto e o corte são desta foto
+  const st = { ...s, rosto: null, ...Object.fromEntries(POR_FOTO.map((k) => [k, PADRAO[k]])) };   // o rosto e o corte são desta foto
   const c = document.createElement('canvas'), E = new Render(c, { preserve: true }), arqs = [];
   try {
     for (let i = 0; i < fs.length; i++) {
