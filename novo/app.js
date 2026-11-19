@@ -52,6 +52,10 @@ const RECEITAS = [
     s: { filme: 'silver400', puxar: 3, exposicao: -0.3, grao: 0.8, graoTamanho: 1.7, graoTipo: 'aspero' } },
   { id: 'r_chrome_chuva', n: 'Chrome 64 · Chuva', nota: 'Cor suave, quase pintada: cromo um pouco vencido, luz difusa, grão colorido',
     s: { filme: 'chrome64', vencido: 0.3, exposicao: 0.2, difusao: 0.35, grao: 0.3, graoTipo: 'colorido' } },
+  { id: 'r_portrait800_cidade', n: 'Portrait 800 · Cidade', nota: 'Noite na cidade em cor: puxado, quente e denso, grão colorido',
+    s: { filme: 'portrait800', puxar: 1.3, grao: 0.5, graoTipo: 'colorido', halacao: 0.2 } },
+  { id: 'r_gold_tarde', n: 'Gold 200 · Fim de tarde', nota: 'Sol baixo de verão: um pouco superexposto, luz que se espalha',
+    s: { filme: 'gold200', exposicao: 0.35, difusao: 0.25, halacao: 0.15, grao: 0.3 } },
   { id: 'r_tungsten_noite', n: 'Tungsten 800 · Noite', nota: 'Noite de cinema puxada: halo forte nas luzes, grão de filme rápido',
     s: { filme: 'tungsten800', puxar: 1, halacao: 0.6, grao: 0.45 } },
 ];

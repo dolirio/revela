@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.10 (19/11/2026)
+# Revela · versão de teste 48.11 (19/11/2026)
 
+48.11: três filmes novos: Portrait 800 (noite e interiores, denso e quente), Gold 200 (álbum de família, sol amarelo, pretos lavados) e Vivid 50 (paisagem, verdes esmeralda e azuis profundos). Receitas novas: Portrait 800 · Cidade e Gold 200 · Fim de tarde.
 48.10: Nitidez com zero no meio, como no RNI: + mais nítida; − maciez da cópia em papel fotográfico (maciez + acutância + luz no papel, modelo do app publicado). Grão por tipo: Fino, Clássico, Áspero, Colorido. Receitas novas: Silver 400 · Noturno (rua à noite, P&B cru) e Chrome 64 · Chuva (cor suave, quase pintada).
 48.9: Enquadrar (no lugar de Cortar), no espírito do SKRWT: ícones Cortar · Girar · Endireitar · Vertical · Horizontal · Lente; régua com marcas (arrastar, dois toques voltam ao zero, o celular vibra ao passar pelo zero); grade sobre a foto; ✕ cancela e ✓ aplica tudo de uma vez; a foto amplia sozinha para não sobrar canto vazio. Lente: + barril (estufa), − almofada. Espelhar saiu. Proporções com chave para deitar ou levantar.
 48.8: Puxar e Vencido moram junto do filme (aba Filmes: Intensidade · Puxar · Vencido) e valem também sem filme. Curvas: dois cliques, dois toques ou o botão direito apagam o ponto. Cores mostra o nome da cor escolhida. Luz vazada sem o tipo Raios. Poeira ao lado do Grão. No celular a descrição do filme aparece de passagem ao escolher, e todas as abas têm a mesma altura.

@@ -36,3 +36,11 @@ Três filmes novos, a partir de referências de retrato e de rua em cor:
 Ajustes pedidos pelo usuário: mais contraste no Editorial 100 e mais calor no Chrome 64. No Chrome 64 os vermelhos são contidos e a pele fica protegida (a primeira versão deixava a pele vermelha).
 
 A separação do rosto vale para todos os filmes, cada um com o seu alvo de pele.
+
+## Ampliação (19/11/2026): 12 filmes
+Três filmes novos, cada um para uma situação que não tinha dono (aprovados pelo usuário na revisão por áudio):
+- **Portrait 800** (base KP 800, da ficha com curvas puxadas): noite e interiores. Mais denso que o Portrait 400: contraste maior, luzes menos claras, vermelhos fortes, sombras quentes.
+- **Gold 200** (base KG 200): álbum de família. Sol amarelo (não laranja como o Portrait 400), pretos lavados, verdes amarelados, azuis contidos.
+- **Vivid 50** (identidade do Velvia 50 sobre a base do cromo E100; a ficha do Velvia ainda é só imagem): paisagem. Verdes esmeralda, azuis profundos, magenta nas sombras, mais quente e intenso que o Chrome 100 (que é frio e azul). Como o Velvia real, avermelha a pele: é filme de paisagem.
+
+A primeira versão deixava o Portrait 800 parecido com o 400 e o Vivid 50 parecido com o Chrome 100; as identidades foram afastadas comparando os 12 filmes lado a lado em quatro fotos (sol, noite, rua, retrato). Os 9 filmes anteriores saíram idênticos (byte a byte).

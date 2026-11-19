@@ -6,7 +6,7 @@ Ordem combinada com o usuário (revisão por áudio de 19/11):
 2. ✅ (48.10) **Grão por tipo** (fino, médio, grosso, colorido), trazendo aspereza, grão colorido e formato do filme da v47.
 3. **Poeira refeita**: mais orgânica (fibras e pelos de verdade, mais nas bordas, menos salpicado por igual); rever os tipos da v47.
 4. **Luz vazada**: propor 2 ou 3 tipos novos (queima do fim do rolo, faixa da porta traseira, névoa quente) e mostrar em imagens antes de entrar.
-5. **3 filmes novos** (aprovados): **Gold 200** (álbum de família, dia a dia), **Portrait 800** (noite e interiores, ficha com curvas puxadas), **Vivid 50** (paisagem, base Velvia 50). Cada um com identidade bem distinta.
+5. ✅ (48.11) **3 filmes novos** (aprovados): **Gold 200** (álbum de família, dia a dia), **Portrait 800** (noite e interiores, ficha com curvas puxadas), **Vivid 50** (paisagem, base Velvia 50). Cada um com identidade bem distinta.
 6. **Receitas inspiradas em fotógrafos** (nomes pelo caráter, sem nomes de pessoas):
    - Silver 400 · Épico (Sebastião Salgado): luzes que acendem, céu e bordas queimados, meios-tons com volume.
    - ✅ (48.10) Silver 400 · Noturno (Daido Moriyama, **o usuário ama**): contraste cru, grão grosso, rua à noite.
