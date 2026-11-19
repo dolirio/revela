@@ -69,12 +69,12 @@ const PADRAO = {
   // ajustes finos (depois do filme) e geometria
   brilho: 0, contraste: 0, realces: 0, sombras: 0, brancos: 0, pretos: 0, esmaecer: 0, saturacao: 0, vibracao: 0, pele: 0,
   clareza: 0, nitidez: 0, vinheta: 0, difusao: 0, hsl: HSL0, curvas: null,
-  giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre',
+  giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre', perspV: 0, perspH: 0, lente: 0,
 };
 // Retrato (marcar o rosto) está guardado na gaveta (18/11/2026, a pedido): a função continua no código e no motor,
 // mas fica fora da tela até a ideia amadurecer. Para voltar, troque para true.
 const RETRATO = false;
-const GEO = ['giro', 'espelho', 'endireitar', 'corte', 'proporcao'];   // é desta foto: não vai para a próxima nem para o lote
+const GEO = ['giro', 'espelho', 'endireitar', 'corte', 'proporcao', 'perspV', 'perspH', 'lente'];   // é desta foto: não vai para a próxima nem para o lote
 let s = { ...PADRAO };
 let marcando = false;   // esperando o toque no rosto (retrato)
 let foto = null;          // { bitmap, nome }
@@ -170,7 +170,7 @@ function miniatura(c, f, extra = null) {
   Rmini.setFilm(f);
   // filme sozinho: sem os efeitos de agora; receita: com a revelação dela (o grão não aparece nesse tamanho)
   const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0 }), ...(extra || {}),
-    filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, giro: 0, espelho: 0, endireitar: 0, corte: null, vinheta: 0, difusao: 0, ...(extra ? {} : { exposicao: 0 }) };
+    filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, giro: 0, espelho: 0, endireitar: 0, corte: null, perspV: 0, perspH: 0, lente: 0, vinheta: 0, difusao: 0, ...(extra ? {} : { exposicao: 0 }) };
   Rmini.draw(st, miniFonte.width, miniFonte.height, 600);
   const g = c.getContext('2d'), k = Math.min(miniFonte.width, miniFonte.height);
   g.drawImage(Rmini.canvas, (miniFonte.width - k) / 2, (miniFonte.height - k) / 2, k, k, 0, 0, c.width, c.height);
@@ -394,23 +394,65 @@ function desenhaCurva() {
   editorCurva.addEventListener('pointerup', fim); editorCurva.addEventListener('pointercancel', fim);
 }
 
-// ---- Corte: proporções, girar, espelhar e endireitar. Enquanto corta, a foto aparece inteira com a moldura do corte.
-const PROPORCOES = [['livre', 'Livre', 0], ['original', 'Original', -1], ['1:1', '1:1', 1], ['4:5', '4:5', 4 / 5], ['2:3', '2:3', 2 / 3], ['9:16', '9:16', 9 / 16], ['3:2', '3:2', 3 / 2], ['16:9', '16:9', 16 / 9]];
+// ---- Enquadrar (19/11/2026, no espírito do SKRWT): ícones Cortar · Girar · Endireitar · Vertical · Horizontal · Lente,
+// régua com marcas para os ajustes finos, grade sobre a foto e ✕ / ✓ (o enquadramento se aplica ou se cancela de uma vez)
+const PROPORCOES = [['livre', 'Livre'], ['original', 'Original'], ['1:1', '1:1'], ['4:5', '4:5'], ['2:3', '2:3'], ['9:16', '9:16']];
+const vira = (id) => (id.includes(':') ? id.split(':').reverse().join(':') : id);   // 4:5 <-> 5:4
 const gCorte = document.createElement('div'); gCorte.id = 'g_corte'; $('p-ajustes').append(gCorte);
-gCorte.innerHTML = `<div class="acoes"><button id="bGirar">Girar</button><button id="bEspelhar">Espelhar</button><button id="bZeraCorte">Desfazer o corte</button><button id="bModoCorte" class="so-pc">Cortar na foto</button></div>`;
-controle('endireitar', gCorte); $('r_endireitar').parentElement.classList.add('linha');
-{ const r = $('r_endireitar').parentElement; r.append($('o_endireitar')); }
-{
-  const w = document.createElement('div'); w.className = 'escolha props'; w.innerHTML = '<div></div>'; gCorte.append(w);
-  for (const [id, n] of PROPORCOES) {
-    const b = document.createElement('button'); b.textContent = n; b.dataset.v = id;
-    b.onclick = () => { s.proporcao = id; s.corte = cortePara(id); sincroniza(); desenha(); memoriza(); };
-    w.querySelector('div').append(b);
-  }
+gCorte.innerHTML = '<div class="acoes"><button id="bEnquadrar">Enquadrar a foto</button></div><small class="dica" style="display:block">Cortar, girar, endireitar, perspectiva e lente</small>';
+const ICO = {
+  cortar: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/>',
+  girar: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/>',
+  endireitar: '<path d="M3 16 21 8"/><path d="M3 20h18" opacity=".5"/>',
+  perspV: '<path d="M7 4h10l3 16H4z"/>',
+  perspH: '<path d="M4 7v10l16 4V3z"/>',
+  lente: '<path d="M5 4q-3 8 0 16h14q3-8 0-16z"/><path d="M12 4v16M3.5 12h17" opacity=".5"/>',
+};
+const FERR_ENQ = [['cortar', 'Cortar'], ['girar', 'Girar'], ['endireitar', 'Endireitar'], ['perspV', 'Vertical'], ['perspH', 'Horizontal'], ['lente', 'Lente']];
+const REGUA = {   // valor guardado -> régua (unidade mostrada, passo das marcas, marcas grandes, pixels por unidade)
+  endireitar: { min: -45, max: 45, k: 1, passo: 1, grande: 5, ppu: 11, fmt: (v) => (Math.abs(v) < 0.05 ? '0°' : v.toFixed(1).replace('.', ',') + '°') },
+  perspV: { min: -100, max: 100, k: 100, passo: 2, grande: 10, ppu: 2.6, fmt: (v) => Math.round(v) },
+  perspH: { min: -100, max: 100, k: 100, passo: 2, grande: 10, ppu: 2.6, fmt: (v) => Math.round(v) },
+  lente: { min: -100, max: 100, k: 100, passo: 2, grande: 10, ppu: 2.6, fmt: (v) => (Math.abs(v) < 0.5 ? '0' : (v > 0 ? 'barril ' : 'almofada ') + Math.round(Math.abs(v))) },
+};
+const enq = document.createElement('div'); enq.id = 'enq';
+enq.innerHTML = `<div class="enq-ferr">${FERR_ENQ.map(([id, n]) => `<button data-f="${id}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[id]}</svg><span>${n}</span></button>`).join('')}</div>
+  <div class="enq-meio"><div class="enq-props"></div><div class="regua"><output></output><div class="trilho"><div class="marcas"></div><i class="agulha"></i></div></div></div>
+  <div class="enq-fim"><button class="cancela" aria-label="Cancelar">✕</button><button class="restaura">Restaurar</button><button class="aplica" aria-label="Aplicar">✓</button></div>`;
+$('painel').append(enq);
+let enquadrando = false, ferrEnq = 'cortar', antesEnq = null, deitado = false, grupoAntes = 'luz';
+const GEO_ZERO = { giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre', perspV: 0, perspH: 0, lente: 0 };
+function abreEnquadrar() {
+  if (!foto || enquadrando) return;
+  antesEnq = JSON.stringify(Object.fromEntries(GEO.map((k) => [k, s[k]])));
+  const c = s.corte || { w: 1, h: 1 }, [QW, QH] = quadroGirado(s, R.w, R.h); deitado = c.w * QW > c.h * QH;
+  enquadrando = true; document.body.classList.add('enquadrando'); ferrEnq = 'cortar'; montaEnq(); atualizaModos();
+}
+function fechaEnquadrar(aplica) {
+  if (!enquadrando) return;
+  if (!aplica && antesEnq) Object.assign(s, JSON.parse(antesEnq));
+  enquadrando = false; document.body.classList.remove('enquadrando');
+  if (celular() && grupoAtivo['p-ajustes'] === 'corte') mostraGrupo('p-ajustes', grupoAntes);
+  sincroniza(); atualizaModos(); desenha(); if (aplica) memoriza();
+}
+$('bEnquadrar').onclick = abreEnquadrar;
+enq.querySelector('.cancela').onclick = () => fechaEnquadrar(false);
+enq.querySelector('.aplica').onclick = () => fechaEnquadrar(true);
+enq.querySelector('.restaura').onclick = () => { Object.assign(s, GEO_ZERO); deitado = false; montaEnq(); desenha(); posicionaSobreposicoes(); };
+enq.querySelectorAll('.enq-ferr button').forEach((b) => b.onclick = () => {
+  if (b.dataset.f === 'girar') { gira90(); return; }   // girar age na hora, como no SKRWT
+  ferrEnq = b.dataset.f; montaEnq(); posicionaSobreposicoes();
+});
+function gira90() {   // 90° no sentido do relógio: o corte gira junto e a proporção deita ou levanta
+  const c = s.corte; s.giro = ((s.giro || 0) + 1) % 4;
+  if (c) s.corte = { x: 1 - c.y - c.h, y: c.x, w: c.h, h: c.w };
+  if (s.proporcao && s.proporcao.includes(':')) s.proporcao = vira(s.proporcao);
+  deitado = !deitado; reencaixa(); montaEnq(); desenha();
 }
 function razao(id) {   // largura/altura do corte em pixels; 0 = livre
+  if (!id || id === 'livre') return 0;
   if (id === 'original') { const [QW, QH] = quadroGirado(s, R.w, R.h); return QW / QH; }
-  return PROPORCOES.find((p) => p[0] === id)?.[2] || 0;
+  const [a, b] = id.split(':').map(Number); return a / b;
 }
 function cortePara(id) {   // o maior corte nessa proporção, em volta do centro do corte atual
   const k = razao(id); if (!k) return s.corte;
@@ -420,17 +462,72 @@ function cortePara(id) {   // o maior corte nessa proporção, em volta do centr
   const x = Math.min(1 - w, Math.max(0, cx - w / 2)), y = Math.min(1 - h, Math.max(0, cy - h / 2));
   return encaixa(s, R.w, R.h, { x, y, w, h });
 }
-function aoEndireitar() { if (s.corte) s.corte = encaixa(s, R.w, R.h, s.corte); }
-$('bGirar').onclick = () => {   // 90° no sentido do relógio: o corte gira junto
-  const c = s.corte; s.giro = ((s.giro || 0) + 1) % 4;
-  if (c) s.corte = { x: 1 - c.y - c.h, y: c.x, w: c.h, h: c.w };
-  if (s.proporcao !== 'livre' && s.proporcao !== 'original') { const p = PROPORCOES.find((q) => q[0] === s.proporcao); const inv = PROPORCOES.find((q) => q[2] && Math.abs(q[2] - 1 / p[2]) < 1e-6); if (inv) s.proporcao = inv[0]; }
-  sincroniza(); desenha(); memoriza();
-};
-$('bEspelhar').onclick = () => { const c = s.corte; s.espelho = s.espelho ? 0 : 1; s.endireitar = -(s.endireitar || 0); if (c) s.corte = { ...c, x: 1 - c.x - c.w }; sincroniza(); desenha(); memoriza(); };
-$('bZeraCorte').onclick = () => { Object.assign(s, { giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre' }); sincroniza(); desenha(); memoriza(); };
-let corteBotao = false;
-$('bModoCorte').onclick = () => { corteBotao = !corteBotao; atualizaModos(); };
+function reencaixa() { if (s.corte) s.corte = encaixa(s, R.w, R.h, s.corte); }
+function aoEndireitar() { reencaixa(); }
+function montaEnq() {
+  const mexeu = GEO.some((k) => JSON.stringify(s[k] ?? GEO_ZERO[k]) !== JSON.stringify(GEO_ZERO[k]));
+  enq.querySelector('.restaura').style.visibility = mexeu ? 'visible' : 'hidden';
+  enq.querySelectorAll('.enq-ferr button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.f === ferrEnq);
+    const k = b.dataset.f; b.classList.toggle('mudou', k === 'cortar' ? !!s.corte : k === 'girar' ? !!s.giro : !!s[k]);
+  });
+  const props = enq.querySelector('.enq-props'), regua = enq.querySelector('.regua');
+  props.style.display = ferrEnq === 'cortar' ? '' : 'none'; regua.style.display = ferrEnq === 'cortar' ? 'none' : '';
+  if (ferrEnq === 'cortar') {
+    props.innerHTML = PROPORCOES.map(([id, n]) => { const v = deitado ? vira(id) : id; return `<button data-v="${v}" class="${(s.proporcao || 'livre') === v ? 'on' : ''}">${deitado ? vira(n) : n}</button>`; }).join('')
+      + `<button class="deita" title="Deitar ou levantar o corte" aria-label="Deitar ou levantar o corte">${deitado ? '▭' : '▯'}</button>`;
+    props.querySelectorAll('button[data-v]').forEach((b) => b.onclick = () => { s.proporcao = b.dataset.v; s.corte = cortePara(b.dataset.v); montaEnq(); desenha(); posicionaSobreposicoes(); });
+    props.querySelector('.deita').onclick = () => {
+      deitado = !deitado;
+      if (s.proporcao && s.proporcao.includes(':')) { s.proporcao = vira(s.proporcao); s.corte = cortePara(s.proporcao); }
+      else {   // livre ou original: troca largura e altura do corte, centralizado
+        const c = s.corte || { x: 0, y: 0, w: 1, h: 1 }, [QW, QH] = quadroGirado(s, R.w, R.h), k = (c.h * QH) / (c.w * QW);
+        let w = 1, h = (QW / k) / QH; if (h > 1) { h = 1; w = (QH * k) / QW; }
+        s.proporcao = 'livre'; s.corte = encaixa(s, R.w, R.h, { x: (1 - w) / 2, y: (1 - h) / 2, w, h });
+      }
+      montaEnq(); desenha(); posicionaSobreposicoes();
+    };
+  } else desenhaRegua();
+}
+// régua: arrastar para o lado muda o valor; dois toques voltam ao zero; perto do zero ela "encaixa" e o celular vibra
+function desenhaRegua() {
+  const R0 = REGUA[ferrEnq], v = (s[ferrEnq] || 0) * R0.k, tr = enq.querySelector('.trilho'), mk = enq.querySelector('.marcas');
+  const W = tr.clientWidth || 300, len = (R0.max - R0.min) * R0.ppu;
+  if (mk.dataset.f !== ferrEnq) {
+    mk.dataset.f = ferrEnq; mk.style.width = len + 'px';
+    let h = '';
+    for (let x = R0.min; x <= R0.max + 1e-6; x += R0.passo) {
+      const g = Math.abs(Math.round(x / R0.grande) * R0.grande - x) < 1e-6;
+      h += `<i class="${g ? 'g' : ''}" style="left:${(x - R0.min) * R0.ppu}px"></i>` + (g ? `<b style="left:${(x - R0.min) * R0.ppu}px">${Math.round(x)}</b>` : '');
+    }
+    mk.innerHTML = h;
+  }
+  mk.style.transform = `translateX(${W / 2 - (v - R0.min) * R0.ppu}px)`;
+  enq.querySelector('.regua output').textContent = R0.fmt(v);
+}
+{
+  const tr = enq.querySelector('.trilho'); let arr = null, ultimoT = 0;
+  const muda = (v) => {
+    const R0 = REGUA[ferrEnq]; v = Math.min(R0.max, Math.max(R0.min, v));
+    if (Math.abs(v) < R0.passo * 0.6) v = 0;   // encaixa no zero
+    const antes = (s[ferrEnq] || 0) * R0.k;
+    if (v === 0 && antes !== 0) navigator.vibrate?.(8);
+    s[ferrEnq] = v / R0.k; reencaixa(); desenhaRegua(); montaEnqMarcas(); desenha();
+  };
+  tr.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); tr.setPointerCapture?.(e.pointerId);
+    const t0 = performance.now(); if (t0 - ultimoT < 320) { muda(0); arr = null; ultimoT = 0; return; } ultimoT = t0;
+    arr = { x: e.clientX, v: (s[ferrEnq] || 0) * REGUA[ferrEnq].k };
+  });
+  tr.addEventListener('pointermove', (e) => { if (!arr) return; muda(arr.v - (e.clientX - arr.x) / REGUA[ferrEnq].ppu); });
+  const fim = () => { arr = null; }; tr.addEventListener('pointerup', fim); tr.addEventListener('pointercancel', fim);
+  tr.addEventListener('wheel', (e) => { e.preventDefault(); const R0 = REGUA[ferrEnq]; muda((s[ferrEnq] || 0) * R0.k + Math.sign(e.deltaY || e.deltaX) * R0.passo * 0.5); }, { passive: false });
+}
+function montaEnqMarcas() {   // só os pontinhos e o Restaurar (sem refazer a régua)
+  const mexeu = GEO.some((k) => JSON.stringify(s[k] ?? GEO_ZERO[k]) !== JSON.stringify(GEO_ZERO[k]));
+  enq.querySelector('.restaura').style.visibility = mexeu ? 'visible' : 'hidden';
+  enq.querySelectorAll('.enq-ferr button').forEach((b) => { const k = b.dataset.f; b.classList.toggle('mudou', k === 'cortar' ? !!s.corte : k === 'girar' ? !!s.giro : !!s[k]); });
+}
 
 // ------------------------------------------------------------ ferramentas (18/11/2026)
 // No celular cada aba mostra uma linha de ferramentas e só o controle da escolhida, como no VSCO e no RNI:
@@ -456,7 +553,7 @@ const GRUPOS = {
     { id: 'nitidez', n: 'Nitidez', el: ['nitidez'] },
     { id: 'vinheta', n: 'Vinheta', el: ['vinheta'] },
     ...(RETRATO ? [{ id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto, fam: true }] : []),
-    { id: 'corte', n: 'Cortar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte), sec: 'Corte' },
+    { id: 'corte', n: 'Enquadrar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte || s.perspV || s.perspH || s.lente), sec: 'Enquadrar' },
   ],
   'p-analogico': [
     { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho'], sec: 'Textura' },
@@ -479,6 +576,7 @@ function padraoDe(k) {
 }
 function mudou(g) { return g.muda ? g.muda() : g.el.some((k) => k[0] !== '#' && Math.abs((s[k] ?? 0) - padraoDe(k)) > 1e-6); }
 function mostraGrupo(pag, id) {
+  if (pag === 'p-ajustes' && id !== 'corte' && typeof grupoAntes !== 'undefined') grupoAntes = id;
   grupoAtivo[pag] = id;
   const p = $(pag);
   p.querySelectorAll('.grupo').forEach((g) => g.classList.toggle('on', g.dataset.g === id));
@@ -542,7 +640,6 @@ function sincroniza() {
   if ($('e_filtro')) $('e_filtro').style.display = f?.meta.filtros ? '' : 'none';
   if ($('e_lab')) $('e_lab').style.display = !f || (f.meta.labs || []).length > 1 ? '' : 'none';
   if (typeof sincronizaFerramentas === 'function') sincronizaFerramentas();
-  gCorte.querySelectorAll('.props button').forEach((b) => b.classList.toggle('on', b.dataset.v === (s.proporcao || 'livre')));
   desenhaCurva();
 }
 
@@ -560,12 +657,11 @@ let modoCorte = false, curvaNaFoto = false;
 function atualizaModos() {
   if (!pronto) return;
   const ajustes = aba === 'ajustes' && !!foto;
-  const corte = pc.matches ? corteBotao && !!foto : ajustes && grupoAtivo['p-ajustes'] === 'corte';
+  if (!pc.matches && ajustes && grupoAtivo['p-ajustes'] === 'corte' && !enquadrando) { abreEnquadrar(); return; }   // celular: tocar em Enquadrar já abre
+  const corte = enquadrando && !!foto;
   const curva = !pc.matches && ajustes && grupoAtivo['p-ajustes'] === 'curvas';
   if (curva !== curvaNaFoto) { curvaNaFoto = curva; (curva ? $('palco') : gCurva).append(editorCurva); editorCurva.classList.toggle('na-foto', curva); }
   if (corte !== modoCorte) { modoCorte = corte; if (modoCorte && zoom.z > 1) { zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom(); } }
-  $('bModoCorte').textContent = corteBotao ? 'Pronto' : 'Cortar na foto';
-  $('bModoCorte').classList.toggle('on', corteBotao);
   desenha(); requestAnimationFrame(() => { posicionaSobreposicoes(); desenhaCurva(); });
 }
 pc.addEventListener?.('change', atualizaModos);
@@ -678,6 +774,7 @@ function posicionaSobreposicoes() {
     Object.assign(moldCorte.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
     const c = encaixa(s, R.w, R.h, s.corte || { x: 0, y: 0, w: 1, h: 1 });
     Object.assign(moldCorte.firstChild.style, { left: c.x * 100 + '%', top: c.y * 100 + '%', width: c.w * 100 + '%', height: c.h * 100 + '%' });
+    moldCorte.firstChild.classList.toggle('fina', ferrEnq !== 'cortar');
   }
   if (curvaNaFoto) {
     Object.assign(editorCurva.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
@@ -716,7 +813,7 @@ function posicionaSobreposicoes() {
     s.corte = nc; if (h !== 'm' && !kf && s.proporcao !== 'livre') s.proporcao = 'livre';
     posicionaSobreposicoes();
   });
-  const fim = () => { if (!arr) return; arr = null; sincroniza(); desenha(); memoriza(); };
+  const fim = () => { if (!arr) return; arr = null; if (enquadrando) { montaEnq(); desenha(); } else { sincroniza(); desenha(); memoriza(); } };
   moldCorte.addEventListener('pointerup', fim); moldCorte.addEventListener('pointercancel', fim);
 }
 
@@ -823,7 +920,7 @@ async function abre(file) {
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
     // a foto nova começa limpa; se a anterior foi editada, pergunta se quer repetir (nunca aplica sozinho)
     const anterior = tinhaFoto && editada() ? { ...s } : null;
-    s = { ...PADRAO, semente: Math.random() }; marcando = false; corteBotao = false; R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
+    s = { ...PADRAO, semente: Math.random() }; marcando = false; if (enquadrando) { enquadrando = false; document.body.classList.remove('enquadrando'); } R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none'; document.body.classList.add('com-foto');
     for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
