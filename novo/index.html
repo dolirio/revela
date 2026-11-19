@@ -158,7 +158,8 @@
   #g_curvas > #curva { display: none; }
   /* mira: o assunto (círculo) e a linha do horizonte, sobre a foto */
   #mira { position: absolute; display: none; z-index: 3; touch-action: none; cursor: crosshair; }
-  #mira .alvo { position: absolute; width: 46px; height: 46px; margin: -23px; border-radius: 50%; border: 1.5px solid #fffe; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
+  #mira .alvo { position: absolute; width: 46px; height: 46px; margin: -23px; border-radius: 50%; border: 1.5px solid #fffd; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
+  #mira .alvo::before { content: ''; position: absolute; right: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #0007; }   /* alça: arrastar a borda muda o tamanho */
   #mira .alvo::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #fff; }
   #mira .horizonte { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px dashed #fffc; box-shadow: 0 0 0 .5px #0005; cursor: ns-resize; }
   #mira .horizonte span { position: absolute; right: 6px; top: -20px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 4px #000a; }
@@ -240,7 +241,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.14 · 19/11/2026</small>
+    <small class="versao">versão de teste 48.15 · 19/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

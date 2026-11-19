@@ -230,6 +230,16 @@ vec3 moldura(vec2 P){
   vec3 base = vec3(0.03, 0.026, 0.022) + (hash(floor(P * 0.5)) - 0.5) * 0.012;
   return mix(base, vec3(0.93, 0.91, 0.87), hole * step(0.0, d));
 }
+// semelhança com o ponto tocado, no estilo dos "U Points" (Nik/Snapseed): compara a cor e o brilho da foto levemente
+// desfocada (o pelo, o grão e as texturas não fazem a máscara piscar) com os do lugar tocado. 1 = igual, 0 = bem diferente.
+float semelhanca(vec2 uv){
+  float lod = max(0.0, log2(uTex * 0.011));   // compara regiões, não pixels: a máscara não se parte em manchas
+  vec3 a = textureLod(uImg, uv, lod).rgb, b = textureLod(uImg, geoUv(uAlvo), lod + 0.5).rgb;
+  float ya = luma(a), yb = luma(b);
+  vec2 ca = vec2(a.b - ya, a.r - ya), cb = vec2(b.b - yb, b.r - yb);
+  float dy = (ya - yb) / 0.2, dc = length(ca - cb) / 0.1;      // tolerância: brilho e cor
+  return exp(-0.5 * (dy * dy + dc * dc));
+}
 void main(){
   vec2 uv = vUv;
   if (uFr > 0.5) {
@@ -287,6 +297,7 @@ void main(){
     float k = uFlash.x, R = mix(0.2, 0.75, uFlash.y);
     vec2 q = aoAlvo(fu); q.y *= q.y < 0.0 ? 1.5 : 0.75; q.x *= 0.85;
     float F = 1.0 / (1.0 + 3.0 * dot(q, q) / (R * R));
+    F *= max(exp(-6.0 * dot(q, q) / (R * R)), mix(0.65, 1.0, semelhanca(uv)));   // perto do assunto, luz cheia; o fundo diferente recebe menos
     float gS = exp2(0.7 * k), gB = exp2(-2.2 * k), l0 = luma(x);
     vec3 cor = mix(vec3(1.05, 1.0, 0.88), vec3(0.96, 1.0, 1.06), F);                 // ambiente quente, flash frio
     x *= mix(gB, gS, F) * mix(vec3(1.0), cor, k);
@@ -441,11 +452,15 @@ void main(){
       L = pow(max(L, vec3(1e-6)), vec3(1.0 + 0.55 * uAmpl.x * m));
     }
     vec2 q = aoAlvo(fu); float r = mix(0.1, 0.45, uAmpl.w), d2 = dot(q, q) / (r * r);
+    // a máscara abraça o assunto: perto E parecido com o ponto tocado (o que é diferente, mesmo colado nele, fica de fora)
+    // no miolo do círculo vale tudo (é o corpo do assunto, de qualquer cor); a semelhança decide nas bordas,
+    // onde o assunto encontra o fundo: é ali que a máscara "abraça"
+    float sim = (uAmpl.y > 0.0 || uAmpl.z > 0.0) ? semelhanca(uv) : 1.0, pega = max(exp(-2.0 * d2), mix(0.25, 1.0, sim));
     if (uAmpl.y > 0.0) {   // assunto: acende sem nunca estourar o branco
-      float g = exp2(0.95 * uAmpl.y * exp(-0.5 * d2));
+      float g = exp2(0.95 * uAmpl.y * exp(-0.5 * d2) * pega);
       L = L * g / (1.0 + (g - 1.0) * min(L, vec3(1.0)));
     }
-    if (uAmpl.z > 0.0) L *= exp2(-1.3 * uAmpl.z * (1.0 - exp(-0.5 * d2 / 2.4)));   // entorno: queima tudo em volta, devagar
+    if (uAmpl.z > 0.0) L *= exp2(-1.3 * uAmpl.z * (1.0 - exp(-0.5 * d2 / 2.4) * pega));   // entorno: queima em volta, e o que é diferente do assunto, mesmo perto
     col = enc(L);
   }
   if (uDust != 0.0) {   // direita (+) = poeira branca, como no negativo escaneado; esquerda (−) = preta, como na cópia em papel
