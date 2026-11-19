@@ -24,6 +24,19 @@ uniform float uPush, uVenc, uGrainMul; uniform vec3 uVencCor;
 uniform float uBri, uCon, uRea, uSom, uBra, uPre2, uSat, uVib, uPele, uFade, uVig, uNit, uClar, uDif, uTemCurva, uTemHsl;
 uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
 uniform sampler2D uCurva; uniform mat3 uGeo; uniform vec2 uTexel;
+// enquadrar: corte (fração do quadro), quadro girado (px), endireitar (cos, sen), perspectiva (vertical, horizontal), lente
+uniform vec4 uCorte; uniform vec2 uQ, uRotCS, uPer; uniform float uLen, uEsp;
+vec2 geoUv(vec2 uv){   // mesma conta de mapeia() no JavaScript
+  vec2 P = (uCorte.xy + uv * uCorte.zw) * uQ, d = P - 0.5 * uQ;
+  vec2 r = vec2(uRotCS.x * d.x - uRotCS.y * d.y, uRotCS.y * d.x + uRotCS.x * d.y);
+  float D = 0.5 * length(uQ);
+  vec2 n = r / D;
+  n /= 1.0 + uPer.x * n.y + uPer.y * n.x;          // perspectiva: um lado do quadro mais perto que o outro
+  n *= 1.0 + uLen * dot(n, n);                      // lente: + estufa (barril), − afunda (almofada)
+  P = n * D + 0.5 * uQ;
+  if (uEsp > 0.5) P.x = uQ.x - P.x;
+  return (uGeo * vec3(P, 1.0)).xy;                  // desfaz o giro de 90° e passa para fração da foto
+}
 
 vec3 dec(vec3 c){ return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
 vec3 enc(vec3 c){ c = max(c, 0.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -192,7 +205,7 @@ void main(){
     uv = q / uFrm.zw;
   }
   vec2 fu = uv;                                   // posição no quadro final (vinheta, luz vazada, poeira)
-  uv = (uGeo * vec3(uv, 1.0)).xy;                 // corte, giro, espelho e endireitar -> posição na foto
+  uv = geoUv(uv);                                 // corte, giro, endireitar, perspectiva e lente -> posição na foto
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { o = vec4(0.07, 0.066, 0.06, 1.0); return; }   // fora da foto (só aparece enquanto corta)
   vec3 c = texture(uImg, uv).rgb;
   if (uBypass > 0.5) { o = vec4(c, 1.0); return; }
@@ -383,7 +396,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -477,6 +490,8 @@ export class Render {
     // geometria (corte, giro, espelho, endireitar): da saída para a foto; a comparação com a original mantém o corte
     const G = geometria(s, this.w, this.h, !!s.semCorte);
     gl.uniformMatrix3fv(u.uGeo, false, G.m); gl.uniform2f(u.uTexel, 1 / this.w, 1 / this.h);
+    gl.uniform4f(u.uCorte, G.corte.x, G.corte.y, G.corte.w, G.corte.h); gl.uniform2f(u.uQ, G.QW, G.QH);
+    gl.uniform2f(u.uRotCS, G.p.co, G.p.si); gl.uniform2f(u.uPer, G.p.pv, G.p.ph); gl.uniform1f(u.uLen, G.p.k); gl.uniform1f(u.uEsp, s.espelho ? 1 : 0);
     this.geo = G;
     gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uLong, longSide); gl.uniform1f(u.uTex, Math.max(this.w, this.h)); gl.uniform1f(u.uOut, Math.max(outW, outH)); gl.uniform2f(u.uRes, outW, outH);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -549,11 +564,30 @@ function tabelaCurva(c) {
 // s.corte: {x, y, w, h} em fração do quadro já girado (null = a foto inteira, encaixada se estiver endireitada)
 // Devolve a matriz saída(0..1) -> foto(0..1), o tamanho do corte em pixels da foto e o quadro girado (QW×QH).
 export function quadroGirado(s, W, H) { return (s.giro || 0) % 2 ? [H, W] : [W, H]; }
-export function dentro(s, W, H, c) {   // o corte cabe dentro da foto endireitada?
-  const [QW, QH] = quadroGirado(s, W, H), th = -(s.endireitar || 0) * Math.PI / 180, co = Math.cos(th), si = Math.sin(th);
-  for (const [fx, fy] of [[c.x, c.y], [c.x + c.w, c.y], [c.x, c.y + c.h], [c.x + c.w, c.y + c.h]]) {
-    const px = fx * QW - QW / 2, py = fy * QH - QH / 2, rx = co * px - si * py + QW / 2, ry = si * px + co * py + QH / 2;
-    if (rx < -0.5 || ry < -0.5 || rx > QW + 0.5 || ry > QH + 0.5) return false;
+// parâmetros do enquadramento (a mesma conta do shader, geoUv)
+function params(s, W, H) {
+  const [QW, QH] = quadroGirado(s, W, H), th = -(s.endireitar || 0) * Math.PI / 180;
+  const G = [[1, 0, 0, 0, 1, 0], [0, 1, 0, -1, 0, H], [-1, 0, W, 0, -1, H], [0, -1, W, 1, 0, 0]][(s.giro || 0) % 4];   // quadro -> foto (px)
+  return { QW, QH, co: Math.cos(th), si: Math.sin(th), pv: (s.perspV || 0) * 0.45, ph: (s.perspH || 0) * 0.45, k: (s.lente || 0) * 0.32,
+    D: 0.5 * Math.hypot(QW, QH), esp: !!s.espelho, G, W, H };
+}
+// ponto (u, v) do corte c -> fração da foto original
+export function mapeia(p, c, u, v) {
+  let x = (c.x + u * c.w) * p.QW, y = (c.y + v * c.h) * p.QH;
+  const dx = x - p.QW / 2, dy = y - p.QH / 2;
+  let nx = (p.co * dx - p.si * dy) / p.D, ny = (p.si * dx + p.co * dy) / p.D;
+  const z = 1 + p.pv * ny + p.ph * nx; nx /= z; ny /= z;
+  const f = 1 + p.k * (nx * nx + ny * ny); nx *= f; ny *= f;
+  x = nx * p.D + p.QW / 2; y = ny * p.D + p.QH / 2;
+  if (p.esp) x = p.QW - x;
+  const G = p.G;
+  return [(G[0] * x + G[1] * y + G[2]) / p.W, (G[3] * x + G[4] * y + G[5]) / p.H];
+}
+export function dentro(s, W, H, c) {   // o corte inteiro cai dentro da foto (bordas conferidas em vários pontos: a lente curva as bordas)
+  const p = params(s, W, H), N = 8, e = 1e-3;
+  for (let i = 0; i <= N; i++) for (const [u, v] of [[i / N, 0], [i / N, 1], [0, i / N], [1, i / N]]) {
+    const [a, b] = mapeia(p, c, u, v);
+    if (a < -e || b < -e || a > 1 + e || b > 1 + e) return false;
   }
   return true;
 }
@@ -562,21 +596,15 @@ export function encaixa(s, W, H, c) {   // diminui o corte em volta do centro at
   let lo = 0, hi = 1;
   const em = (k) => ({ x: c.x + c.w * (1 - k) / 2, y: c.y + c.h * (1 - k) / 2, w: c.w * k, h: c.h * k });
   for (let i = 0; i < 30; i++) { const k = (lo + hi) / 2; if (dentro(s, W, H, em(k))) lo = k; else hi = k; }
-  // se nem pequeno cabe (o centro saiu da foto), volta para o centro do quadro
-  const r = em(lo); if (lo > 0.02) return r;
-  return encaixa(s, W, H, { x: 0.5 - c.w / 2, y: 0.5 - c.h / 2, w: c.w, h: c.h });
+  const r = em(lo); if (lo > 0.02 || (Math.abs(c.x + c.w / 2 - 0.5) < 1e-3 && Math.abs(c.y + c.h / 2 - 0.5) < 1e-3)) return r;
+  return encaixa(s, W, H, { x: 0.5 - c.w / 2, y: 0.5 - c.h / 2, w: c.w, h: c.h });   // o centro saiu da foto: volta ao meio
 }
 export function geometria(s, W, H, semCorte = false) {
-  const [QW, QH] = quadroGirado(s, W, H), g = (s.giro || 0) % 4;
+  const p = params(s, W, H);
   const c = semCorte ? { x: 0, y: 0, w: 1, h: 1 } : encaixa(s, W, H, s.corte || { x: 0, y: 0, w: 1, h: 1 });
-  const th = -(s.endireitar || 0) * Math.PI / 180, co = Math.cos(th), si = Math.sin(th);
-  // composição de afins 2D [a b c; d e f] (linha) — saída -> quadro (px) -> desfaz endireitar -> desfaz espelho -> desfaz giro -> foto (0..1)
-  const mul = (A, B) => [A[0] * B[0] + A[1] * B[3], A[0] * B[1] + A[1] * B[4], A[0] * B[2] + A[1] * B[5] + A[2],
-                         A[3] * B[0] + A[4] * B[3], A[3] * B[1] + A[4] * B[4], A[3] * B[2] + A[4] * B[5] + A[5]];
-  let M = [c.w * QW, 0, c.x * QW, 0, c.h * QH, c.y * QH];
-  M = mul([1, 0, -QW / 2, 0, 1, -QH / 2], M); M = mul([co, -si, 0, si, co, 0], M); M = mul([1, 0, QW / 2, 0, 1, QH / 2], M);
-  if (s.espelho) M = mul([-1, 0, QW, 0, 1, 0], M);
-  const G = [[1, 0, 0, 0, 1, 0], [0, 1, 0, -1, 0, H], [-1, 0, W, 0, -1, H], [0, -1, W, 1, 0, 0]][g];   // quadro -> foto (px)
-  M = mul(G, M); M = mul([1 / W, 0, 0, 0, 1 / H, 0], M);
-  return { m: new Float32Array([M[0], M[3], 0, M[1], M[4], 0, M[2], M[5], 1]), w: c.w * QW, h: c.h * QH, QW, QH, corte: c, a: M };
+  const G = p.G, m = new Float32Array([G[0] / W, G[3] / H, 0, G[1] / W, G[4] / H, 0, G[2] / W, G[5] / H, 1]);
+  // aproximação afim (sem perspectiva e lente) para o oval do rosto, que está guardado
+  const P = (u, v) => mapeia({ ...p, pv: 0, ph: 0, k: 0 }, c, u, v), o = P(0, 0), ex = P(1, 0), ey = P(0, 1);
+  const a = [ex[0] - o[0], ey[0] - o[0], o[0], ex[1] - o[1], ey[1] - o[1], o[1]];
+  return { m, w: c.w * p.QW, h: c.h * p.QH, QW: p.QW, QH: p.QH, corte: c, a, p };
 }

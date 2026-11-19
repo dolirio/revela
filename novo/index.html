@@ -125,6 +125,32 @@
   .props div { overflow-x: auto; scrollbar-width: none; } .props button { flex: 0 0 auto; padding: 6px 12px; white-space: nowrap; }
   #g_corte .escolha { padding: 4px 18px; }
   .so-pc { display: none; }
+  /* Enquadrar: o painel vira a ferramenta (ícones, proporções ou régua, ✕ e ✓) */
+  #enq { display: none; }
+  body.enquadrando .abas, body.enquadrando .conteudo { display: none; }
+  body.enquadrando #enq { display: flex; flex-direction: column; justify-content: space-between; min-height: 255px; }
+  .enq-ferr { display: flex; justify-content: space-between; padding: 12px 12px 4px; gap: 2px; }
+  .enq-ferr button { position: relative; flex: 1; display: grid; justify-items: center; gap: 4px; padding: 6px 0; color: var(--muted); font-size: 11px; border-radius: 10px; }
+  .enq-ferr button.on { color: var(--text); background: var(--raise); }
+  .enq-ferr button.mudou::after { content: ''; position: absolute; top: 4px; right: calc(50% - 18px); width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .enq-meio { padding: 6px 0; }
+  .enq-props { display: flex; gap: 6px; padding: 4px 16px; overflow-x: auto; scrollbar-width: none; } .enq-props::-webkit-scrollbar { display: none; }
+  .enq-props button { flex: none; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .enq-props button.on { color: var(--text); border-color: var(--accent); }
+  .enq-props .deita { margin-left: auto; font-size: 16px; padding: 4px 12px; }
+  .regua { display: grid; justify-items: center; gap: 2px; }
+  .regua output { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; min-height: 18px; }
+  .regua .trilho { position: relative; width: 100%; height: 44px; overflow: hidden; touch-action: none; cursor: ew-resize;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); }
+  .regua .marcas { position: absolute; top: 0; left: 0; height: 100%; }
+  .regua .marcas i { position: absolute; top: 4px; width: 1px; height: 9px; background: var(--faint); }
+  .regua .marcas i.g { height: 16px; background: var(--muted); }
+  .regua .marcas b { position: absolute; top: 24px; transform: translateX(-50%); font-weight: 400; font-size: 10px; color: var(--faint); }
+  .regua .agulha { position: absolute; left: 50%; top: 0; width: 2px; height: 22px; margin-left: -1px; background: var(--accent); }
+  .enq-fim { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px calc(4px + var(--safe-b)); border-top: 1px solid var(--line); }
+  .enq-fim button { min-width: 56px; height: 44px; font-size: 20px; color: var(--text); }
+  .enq-fim .restaura { font-size: 13px; color: var(--muted); }
+  #moldCorte .caixa.fina { background-image: linear-gradient(#fff3 1px, transparent 1px), linear-gradient(90deg, #fff3 1px, transparent 1px); background-size: 12.5% 12.5%; }
   #curva { display: block; width: 100%; aspect-ratio: 1; touch-action: none; }
   #curva.na-foto { position: absolute; aspect-ratio: auto; background: #0005; z-index: 3; }
   #curva .grade line { stroke: #fff3; stroke-width: 1; } #curva polyline { fill: none; stroke-width: 2; } #curva .outra { stroke-width: 1; opacity: .55; }
@@ -167,6 +193,7 @@
     .ferramentas { display: none; }
     .grupo, .grupo .sec { display: block; }
     .so-pc { display: inline-block; }
+    body.enquadrando #enq { min-height: 0; justify-content: flex-start; gap: 18px; padding-top: 10px; }
     #nota { display: block; } .film { width: 74px; } .film canvas, .film .ph { width: 74px; height: 74px; }
     #cIntensidade .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } #cIntensidade .ctl label { display: block; } #cIntensidade .ctl input { order: 0; grid-column: 1 / -1; }
     #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
@@ -199,7 +226,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.8 · 19/11/2026</small>
+    <small class="versao">versão de teste 48.9 · 19/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
