@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.13 (19/11/2026)
+# Revela · versão de teste 48.14 (19/11/2026)
 
+48.14: Analógico › Ampliação (o trabalho do laboratório na cópia): Céu (queimado com filtro duro: escurece e as nuvens ganham contraste, a partir da linha do horizonte que você arrasta), Assunto (acende sem estourar), Entorno (queima em volta) e Tamanho; toque no assunto. Analógico › Flash (câmera compacta dos anos 90): a luz do flash entra na cena antes do filme; o assunto sobe até +0,7 parada e o fundo cai até −2,2; luz fria e dura, brilho na pele; mira no assunto e Alcance. Receitas: Silver 400 · Épico e Gold 200 · Flash. Sem IA: tudo pelo toque no assunto.
 48.13 (estudo do RNI): número grande sobre a foto enquanto arrasta; barra acesa a partir do zero, com um pontinho no zero nas de dois lados. Grão mais assumido, com manchinhas (os grãos se juntam em nuvens) e um pouco de cor nos filmes coloridos. Poeira refeita: menos quantidade, tamanhos bem variados, grumos irregulares e fios curvos de verdade.
 48.12: a descrição do Silver Portrait não manda mais marcar o rosto (a marcação está guardada).
 48.11: três filmes novos: Portrait 800 (noite e interiores, denso e quente), Gold 200 (álbum de família, sol amarelo, pretos lavados) e Vivid 50 (paisagem, verdes esmeralda e azuis profundos). Receitas novas: Portrait 800 · Cidade e Gold 200 · Fim de tarde.

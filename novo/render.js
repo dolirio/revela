@@ -26,6 +26,10 @@ uniform float uHslH[8]; uniform float uHslS[8]; uniform float uHslL[8];
 uniform sampler2D uCurva; uniform mat3 uGeo; uniform vec2 uTexel;
 // enquadrar: corte (fração do quadro), quadro girado (px), endireitar (cos, sen), perspectiva (vertical, horizontal), lente
 uniform vec4 uCorte; uniform vec2 uQ, uRotCS, uPer; uniform float uLen, uEsp;
+// assunto marcado (fração do quadro final), ampliação (céu, assunto, entorno, tamanho), horizonte e flash (força, alcance)
+uniform vec2 uAlvo, uFlash; uniform vec4 uAmpl; uniform float uHor;
+// distância ao assunto em unidades do lado menor da foto (um círculo é círculo em qualquer formato)
+vec2 aoAlvo(vec2 fu){ return (fu - uAlvo) * uRes / min(uRes.x, uRes.y); }
 vec2 geoUv(vec2 uv){   // mesma conta de mapeia() no JavaScript
   vec2 P = (uCorte.xy + uv * uCorte.zw) * uQ, d = P - 0.5 * uQ;
   vec2 r = vec2(uRotCS.x * d.x - uRotCS.y * d.y, uRotCS.y * d.x + uRotCS.x * d.y);
@@ -272,6 +276,23 @@ void main(){
     float mask = exp(-0.5 * dot(d, d));
     x *= exp2((c - 1.0) * log2(max(luma(x), 1e-7) / fx) + ef - burn * (1.0 - mask));
   }
+  // ---------- flash direto (câmera compacta dos anos 90): a luz do flash entra NA CENA, antes do filme. O ambiente
+  // fica mais escuro e quente; a luz do flash, fria e forte, cai com a distância (como 1/d²) a partir do assunto.
+  // A pele perto "estoura" e é o ombro da curva do próprio filme que segura, como numa foto de verdade.
+  if (uFlash.x > 0.0) {
+    // a câmera expõe para o assunto: perto do flash a luz sobe até +0,7 parada (a pele quase estoura), e o que está
+    // longe (o fundo) cai até −2,2 paradas, porque a luz do flash some rápido com a distância
+    // sem saber a distância de cada coisa, usa a composição típica da foto de flash: o que está ao lado e abaixo do
+    // assunto (as pessoas do lado, a mesa, o corpo) costuma estar perto; o que está acima costuma ser o fundo
+    float k = uFlash.x, R = mix(0.2, 0.75, uFlash.y);
+    vec2 q = aoAlvo(fu); q.y *= q.y < 0.0 ? 1.5 : 0.75; q.x *= 0.85;
+    float F = 1.0 / (1.0 + 3.0 * dot(q, q) / (R * R));
+    float gS = exp2(0.7 * k), gB = exp2(-2.2 * k), l0 = luma(x);
+    vec3 cor = mix(vec3(1.05, 1.0, 0.88), vec3(0.96, 1.0, 1.06), F);                 // ambiente quente, flash frio
+    x *= mix(gB, gS, F) * mix(vec3(1.0), cor, k);
+    x += x * F * k * smoothstep(0.3, 1.5, l0) * 1.1;                                  // brilho duro na pele e no que é claro
+    x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 + 0.2 * k * F));               // luz dura: mais contraste no assunto
+  }
   // ---------- revelação: puxar/segurar e filme vencido agem na LUZ que chega ao filme, e a curva do próprio filme
   // faz o resto (o pé esmaga as sombras, o ombro segura as luzes)
   if (uPush != 0.0) x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 + 0.18 * uPush));   // puxado: mais contraste no meio-tom
@@ -406,6 +427,27 @@ void main(){
     col = mix(col, col * 0.88 + 0.1, clamp(x, 0.0, 1.0) * 0.25);
     col = 1.0 - (1.0 - col) * (1.0 - lk);
   }
+  // ---------- ampliação (o trabalho do fotógrafo no laboratório, na cópia): queimar o céu, segurar a luz em cima do
+  // assunto (ele acende) e queimar o entorno (o olhar vai para o assunto). Em paradas de luz no papel; o grão do
+  // negativo, que vem depois, é ampliado junto, como na cópia de verdade.
+  if (uAmpl.x > 0.0 || uAmpl.y > 0.0 || uAmpl.z > 0.0) {
+    vec3 L = dec(col); float l = luma(col);
+    if (uAmpl.x > 0.0) {   // céu: gradual a partir do horizonte, mais forte lá em cima e mais nas áreas claras (o céu)
+      float m = (1.0 - smoothstep(uHor - 0.24, uHor + 0.04, fu.y)) * mix(1.0, 1.3, 1.0 - smoothstep(0.0, uHor, fu.y));
+      m *= mix(0.4, 1.0, smoothstep(0.2, 0.7, l));
+      // queimado com filtro duro (como no laboratório, "split grade"): o céu escurece E as nuvens ganham contraste,
+      // em vez de virar um cinza chapado; o branco das nuvens fica, o azul do céu desce
+      L *= exp2(-1.1 * uAmpl.x * m);
+      L = pow(max(L, vec3(1e-6)), vec3(1.0 + 0.55 * uAmpl.x * m));
+    }
+    vec2 q = aoAlvo(fu); float r = mix(0.1, 0.45, uAmpl.w), d2 = dot(q, q) / (r * r);
+    if (uAmpl.y > 0.0) {   // assunto: acende sem nunca estourar o branco
+      float g = exp2(0.95 * uAmpl.y * exp(-0.5 * d2));
+      L = L * g / (1.0 + (g - 1.0) * min(L, vec3(1.0)));
+    }
+    if (uAmpl.z > 0.0) L *= exp2(-1.3 * uAmpl.z * (1.0 - exp(-0.5 * d2 / 2.4)));   // entorno: queima tudo em volta, devagar
+    col = enc(L);
+  }
   if (uDust != 0.0) {   // direita (+) = poeira branca, como no negativo escaneado; esquerda (−) = preta, como na cópia em papel
     float d = dustOf(fu * vec2(uRes.x / uRes.y, 1.0));
     if (d > 0.0) col = mix(col, uDust > 0.0 ? 1.0 - (1.0 - col) * 0.06 : col * 0.06, d * min(1.0, abs(uDust)) * 0.95);   // clareia o que está embaixo
@@ -458,7 +500,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -550,6 +592,11 @@ export class Render {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       }
     }
+    // assunto marcado, ampliação e flash
+    const al = s.assunto || { x: 0.5, y: 0.5 };
+    gl.uniform2f(u.uAlvo, al.x, al.y); gl.uniform1f(u.uHor, s.horizonte ?? 0.42);
+    gl.uniform4f(u.uAmpl, z('amplCeu'), z('amplAssunto'), z('amplEntorno'), s.amplTam ?? 0.5);
+    gl.uniform2f(u.uFlash, z('flash'), s.flashAlcance ?? 0.5);
     // geometria (corte, giro, espelho, endireitar): da saída para a foto; a comparação com a original mantém o corte
     const G = geometria(s, this.w, this.h, !!s.semCorte);
     gl.uniformMatrix3fv(u.uGeo, false, G.m); gl.uniform2f(u.uTexel, 1 / this.w, 1 / this.h);
