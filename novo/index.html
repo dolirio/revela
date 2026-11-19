@@ -89,9 +89,8 @@
   .escolha div { display: flex; gap: 6px; } .escolha button { flex: 1; padding: 7px 4px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
   .escolha button.on { color: var(--text); border-color: var(--accent); }
   .escolha label { font-size: 13px; color: var(--text); }
-  #r_puxar { background: linear-gradient(var(--line), var(--line)) 25% center / 2px 12px no-repeat; }   /* marca do normal (0 entre −1 e +3) */
-  #r_poeira { background: linear-gradient(var(--line), var(--line)) center / 2px 12px no-repeat; }
-  #r_nitidez { background: linear-gradient(var(--line), var(--line)) center / 2px 12px no-repeat; }
+  /* barra (como no RNI): o trecho entre o zero e o botão fica aceso; nas barras de dois lados, um pontinho marca o zero */
+  input[type=range].bi { background: radial-gradient(circle at calc(9px + (100% - 18px) * var(--z, .5)) 50%, var(--muted) 0 2.5px, transparent 3px) no-repeat; }
   .dado { width: 32px; height: 32px; margin: -6px 0; display: grid; place-items: center; border-radius: 8px; color: var(--muted); }
   .dado:hover, .dado:active { color: var(--text); background: var(--raise); }
   .sec { padding: 10px 18px 0; color: var(--faint); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
@@ -184,8 +183,12 @@
   .grupo[data-g=grao] .ctl { padding-top: 3px; padding-bottom: 3px; }
 
   input[type=range] { -webkit-appearance: none; appearance: none; height: 26px; background: transparent; margin: 0; touch-action: pan-y; }
-  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 2px; }
-  input[type=range]::-moz-range-track { height: 2px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  input[type=range]::-moz-range-track { height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  /* o número grande sobre a foto enquanto arrasta */
+  #numero { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; pointer-events: none; color: #fff; font-size: 64px; font-weight: 200;
+    letter-spacing: .02em; text-shadow: 0 2px 18px #0009; opacity: 0; transition: opacity .25s; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #numero small { display: block; text-align: center; font-size: 13px; font-weight: 400; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
   input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--text); margin-top: -8px; border: 0; }
   input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--text); border: 0; }
 
@@ -230,7 +233,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.12 · 19/11/2026</small>
+    <small class="versao">versão de teste 48.13 · 19/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

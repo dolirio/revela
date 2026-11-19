@@ -57,7 +57,7 @@ vec4 hash4(vec3 p){
   return fract((q.xxyz + q.yzzw) * q.zywx);
 }
 uniform vec4 uGrainT;   // tipo de grão: x = aspereza, y = raio do grão, z = escala da célula, w = força
-uniform float uGrainCor;   // 1 = grão colorido (nuvens de corante de cada camada, como no negativo em cores)
+uniform float uGrainCor, uGrainCrom;   // crom: um pouco de cor no grão dos filmes coloridos (pontinhos no céu, como no RNI)   // 1 = grão colorido (nuvens de corante de cada camada, como no negativo em cores)
 float grainLayer(vec2 p, float D, float sd){
   const float N = 2.0; float RM = uGrainT.y, rough = uGrainT.x;
   float a0 = 1.0 - 0.45 * rough, a1 = 0.9 * rough;
@@ -116,10 +116,38 @@ float traco(vec2 q, float sc, float p, float off){
   float d = abs(dv.y - bend * dv.x * dv.x);
   return (1.0 - smoothstep(w, w + px, d)) * (1.0 - smoothstep(len * 0.6, len, abs(dv.x))) * min(1.0, w * 2.0 / px) * 0.8;
 }
-float dustOf(vec2 q){   // como no RNI: pontinhos brancos e traços finos, sutis e constantes (sem manchas nem bloquinhos)
-  float a = dots(q, 60.0, 0.16, 1.3, 41.0);
-  a = max(a, dots(q, 140.0, 0.05, 0.8, 7.0));
-  a = max(a, traco(q, 9.0, 0.14, 3.0));
+// fio (pelo, fibra de papel): curvo, de comprimento e curvatura sorteados, mais fino nas pontas (19/11/2026, estudo do RNI)
+float fio(vec2 q, float sc, float p, float off){
+  vec2 gp = q * sc; vec2 cell = floor(gp) + off + uDustSeed * 13.7;
+  if (hash(cell) >= p) return 0.0;
+  float esc = uRes.y / 2000.0, cpx = uRes.y / sc;                                       // pixels da foto por célula
+  vec2 dv = (fract(gp) - (0.35 + 0.3 * vec2(hash(cell + 1.3), hash(cell + 2.9)))) * cpx;
+  float ang = hash(cell + 6.1) * 6.283; dv = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * dv;
+  float len = mix(14.0, 70.0, pow(hash(cell + 8.2), 1.6)) * esc;                        // a maioria curta, alguns longos
+  float t = clamp(dv.x / len, -0.5, 0.5);
+  float c1 = (hash(cell + 3.7) - 0.5) * 1.1, c2 = (hash(cell + 4.4) - 0.5) * 1.4;          // curva e "S"
+  float y = (c1 * t * t + c2 * t * t * t) * len, dy = (2.0 * c1 * t + 3.0 * c2 * t * t);
+  float d = abs(dv.y - y) / sqrt(1.0 + dy * dy);
+  float px = max(fwidth(gp.y) / sc * uRes.y, 0.5), w = mix(0.45, 0.9, hash(cell + 5.5)) * esc * (1.0 - 0.6 * abs(t) * 2.0);
+  float dentro = 1.0 - smoothstep(len * 0.5 - px, len * 0.5, abs(dv.x));
+  return (1.0 - smoothstep(w, w + px, d)) * dentro * min(1.0, w * 2.0 / px) * mix(0.55, 0.95, hash(cell + 9.4));
+}
+// grão de poeira maior e irregular (raro): contorno torto, não um círculo perfeito
+float grumo(vec2 q, float sc, float p, float off){
+  vec2 gp = q * sc; vec2 cell = floor(gp) + off + uDustSeed * 13.7;
+  if (hash(cell) >= p) return 0.0;
+  vec2 dv = (fract(gp) - (0.3 + 0.4 * vec2(hash(cell + 1.7), hash(cell + 3.1)))) / sc * uRes.y;
+  float r = mix(1.8, 4.5, hash(cell + 5.3)) * (uRes.y / 2000.0), a = atan(dv.y, dv.x);
+  r *= 0.75 + 0.5 * vnoise(vec2(a * 1.6 + hash(cell) * 9.0, hash(cell + 2.0) * 7.0));
+  float px = max(fwidth(gp.y) / sc * uRes.y, 0.5);
+  return (1.0 - smoothstep(r - px * 0.5, r + px * 0.5, length(dv))) * mix(0.6, 1.0, hash(cell + 9.1));
+}
+float dustOf(vec2 q){   // como no RNI: poucos e espalhados, de tamanhos bem diferentes; pontinhos, grumos e fios curvos
+  float a = dots(q, 60.0, 0.1, 1.3, 41.0);
+  a = max(a, dots(q, 140.0, 0.035, 0.8, 7.0));
+  a = max(a, grumo(q, 14.0, 0.12, 23.0));
+  a = max(a, fio(q, 6.0, 0.34, 3.0));
+  a = max(a, fio(q, 11.0, 0.14, 17.0));
   return a;
 }
 float lineAA(float d, float w, float px){ float ww = max(w, px); return (1.0 - smoothstep(ww * 0.5, ww * 0.5 + px, d)) * min(1.0, w / max(px, 1e-4)); }
@@ -400,9 +428,15 @@ void main(){
     float vis = smoothstep(0.35, 1.2, cellPx);          // células menores que um pixel viram ruído fino
     vec2 p = gl_FragCoord.xy / max(cellPx, 0.6);
     float l = luma(col);
-    float D = clamp(1.0 - l, 0.02, 0.98);
-    float amp = uGrain * uGrainMul * 0.16 * uGrainT.w * (0.35 + 0.65 * vis) * (0.4 + 2.4 * l * (1.0 - l));
-    if (uGrainCor > 0.5) {   // cada camada (ciano, magenta, amarelo) tem as suas nuvens: o grão ganha cor nos meios-tons
+    // manchinhas: os grãos se juntam em nuvens maiores (a "textura" do Analog Feel do RNI): mais densos aqui, menos ali
+    float mot = gnoise(p * 0.13 + uSeed * 17.0);
+    float D = clamp((1.0 - l) * (0.72 + 0.56 * mot), 0.02, 0.98);
+    float amp = uGrain * (1.0 + 1.1 * uGrain) * uGrainMul * 0.16 * uGrainT.w * (0.35 + 0.65 * vis) * (0.4 + 2.4 * l * (1.0 - l));
+    col += (mot - 0.5) * amp * 0.5 * uGrain;   // a nuvem também aparece no tom, de leve
+    if (uGrainCrom > 0.0 && uGrainCor < 0.5) {   // grão dos coloridos: a maior parte cinza, um pouco de cor
+      float n0 = grainLayer(p, D, uSeed), n1 = grainLayer(p * 1.07 + 17.3, D, uSeed + 3.1);
+      col += vec3(n0, mix(n0, n1, uGrainCrom), mix(n0, -n1, uGrainCrom * 0.8)) * amp;
+    } else if (uGrainCor > 0.5) {   // cada camada (ciano, magenta, amarelo) tem as suas nuvens: o grão ganha cor nos meios-tons
       vec3 nc = vec3(grainLayer(p, D, uSeed), grainLayer(p * 1.07 + 17.3, D, uSeed + 3.1), grainLayer(p * 0.93 + 31.7, D, uSeed + 6.7));
       col += mix(vec3(dot(nc, vec3(0.3333))), nc, 0.9) * amp * 1.5;
     } else col += grainLayer(p, D, uSeed) * amp;
@@ -424,7 +458,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -484,7 +518,7 @@ export class Render {
     gl.uniform1f(u.uMix, s.intensidade); gl.uniform1f(u.uExp, s.exposicao);
     gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, m?.cat === 'pb' ? [1, 1, 1] : wb(s.labTemp, s.labMatiz));   // P&B: o scan é cinza, não há o que equilibrar
     gl.uniform1f(u.uHalo, s.halacao); gl.uniform1f(u.uGrain, s.grao); gl.uniform1f(u.uGrainSize, s.graoTamanho);
-    const gt = TIPOS_GRAO[s.graoTipo] || TIPOS_GRAO.classico; gl.uniform4fv(u.uGrainT, gt); gl.uniform1f(u.uGrainCor, s.graoTipo === 'colorido' ? 1 : 0);
+    const gt = TIPOS_GRAO[s.graoTipo] || TIPOS_GRAO.classico; gl.uniform4fv(u.uGrainT, gt); gl.uniform1f(u.uGrainCor, s.graoTipo === 'colorido' ? 1 : 0); gl.uniform1f(u.uGrainCrom, m?.cat === 'pb' ? 0 : 0.3);
     gl.uniform1f(u.uSoft, m ? s.caraterFilme : 0); gl.uniform3fv(u.uSoftCh, a.nitidez_canal ? a.nitidez_canal.map((v) => 1 - v) : [0, 0, 0]);
     // retrato: só com filme de retrato e rosto marcado (posição em fração da foto)
     const ret = m?.retrato && s.rosto;
