@@ -91,6 +91,7 @@
   .escolha label { font-size: 13px; color: var(--text); }
   #r_puxar { background: linear-gradient(var(--line), var(--line)) 25% center / 2px 12px no-repeat; }   /* marca do normal (0 entre −1 e +3) */
   #r_poeira { background: linear-gradient(var(--line), var(--line)) center / 2px 12px no-repeat; }
+  #r_nitidez { background: linear-gradient(var(--line), var(--line)) center / 2px 12px no-repeat; }
   .dado { width: 32px; height: 32px; margin: -6px 0; display: grid; place-items: center; border-radius: 8px; color: var(--muted); }
   .dado:hover, .dado:active { color: var(--text); background: var(--raise); }
   .sec { padding: 10px 18px 0; color: var(--faint); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
@@ -178,6 +179,9 @@
   #g_retrato .escolha small, #e_luzTipo small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #e_luzTipo div { overflow-x: auto; scrollbar-width: none; } #e_luzTipo div::-webkit-scrollbar { display: none; }
   #e_luzTipo button { flex: 0 0 auto; padding: 6px 12px; white-space: nowrap; }
+  #e_graoTipo { padding: 2px 18px 4px; gap: 4px; } #e_graoTipo small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #e_graoTipo button { padding: 5px 4px; }
+  .grupo[data-g=grao] .ctl { padding-top: 3px; padding-bottom: 3px; }
 
   input[type=range] { -webkit-appearance: none; appearance: none; height: 26px; background: transparent; margin: 0; touch-action: pan-y; }
   input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 2px; }
@@ -199,7 +203,7 @@
     #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
     .acoes, .props div { flex-wrap: wrap; overflow: visible; }
     #g_curvas .dica { display: none; }
-    #g_retrato .escolha small, #e_luzTipo small { white-space: normal; }
+    #g_retrato .escolha small, #e_luzTipo small, #e_graoTipo small { white-space: normal; }
     #e_luzTipo div { flex-wrap: wrap; overflow: visible; }
     .faixa { flex-wrap: wrap; overflow: visible; row-gap: 12px; }   /* computador: todos os filmes à vista, sem rolar */
   }
@@ -226,7 +230,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.9 · 19/11/2026</small>
+    <small class="versao">versão de teste 48.10 · 19/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

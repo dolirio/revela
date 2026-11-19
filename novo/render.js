@@ -56,8 +56,10 @@ vec4 hash4(vec3 p){
   q += dot(q, q.wzxy + 33.33);
   return fract((q.xxyz + q.yzzw) * q.zywx);
 }
+uniform vec4 uGrainT;   // tipo de grão: x = aspereza, y = raio do grão, z = escala da célula, w = força
+uniform float uGrainCor;   // 1 = grão colorido (nuvens de corante de cada camada, como no negativo em cores)
 float grainLayer(vec2 p, float D, float sd){
-  const float N = 2.0, RM = 0.42, rough = 0.45;
+  const float N = 2.0; float RM = uGrainT.y, rough = uGrainT.x;
   float a0 = 1.0 - 0.45 * rough, a1 = 0.9 * rough;
   float area = 3.14159 * RM * RM * (a0 * a0 + a0 * a1 + a1 * a1 / 3.0);
   float q = clamp(-log(max(1.0 - D, 0.001)) / (N * area), 0.0, 1.0);
@@ -276,6 +278,29 @@ void main(){
     d = sign(d) * max(abs(d) - 0.004, 0.0); d = d / (1.0 + abs(d) * 4.0);   // ignora o ruído fino; contorno forte não ganha halo
     col = clamp(col + d * uNit * 2.2, 0.0, 1.0);
   }
+  if (uNit < 0.0) {
+    // cópia em papel fotográfico (modelo do app publicado, renderer.js, uPrint): o ampliador e o papel apagam o detalhe
+    // microscópico (maciez), mas o contraste das formas fica (acutância: "macia, mas nítida"), e a luz que entra no papel
+    // anda um pouco por baixo da imagem e acende de leve as sombras vizinhas das luzes (luz no papel)
+    float sn = -uNit, R = (0.0009 * sn + 0.0014 * sn * sn) * uTex;   // −100: ~5,5 px numa foto de 2400 px (macia, não borrada)
+    vec3 s0 = texture(uImg, uv).rgb;
+    if (R > 0.4) {
+      float lod = max(0.0, log2(R) - 1.2); vec3 b = textureLod(uImg, uv, lod).rgb * 0.2;
+      for (int i = 0; i < 12; i++) {
+        float a = float(i) * 0.5236 + 0.13, rr = (i % 2 == 0) ? R : R * 0.5;
+        b += textureLod(uImg, uv + vec2(cos(a), sin(a)) * rr * uTexel, lod).rgb * (0.8 / 12.0);
+      }
+      col = clamp(col + (b - s0) * min(1.0, 0.6 + 0.6 * sn), 0.0, 1.0);   // tira o detalhe fino (da foto original) do resultado
+    }
+    float Ra = 0.006 * uTex, la = max(0.0, log2(Ra) - 1.5), lb = 0.0;
+    for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854 + 0.2; lb += luma(textureLod(uImg, uv + vec2(cos(a), sin(a)) * Ra * uTexel, la).rgb); }
+    float l = luma(col), d = luma(textureLod(uImg, uv, la).rgb) - lb / 8.0;
+    d *= 1.0 / (1.0 + (d / 0.18) * (d / 0.18));
+    col = clamp(col + d * 0.42 * sn * (1.0 - pow(abs(l * 2.0 - 1.0), 2.0)), 0.0, 1.0);
+    float Rp = 0.012 * uTex, lp = max(0.0, log2(Rp) - 1.0), w = luma(textureLod(uImg, uv, lp).rgb) * 0.2;
+    for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854 + 0.4; w += luma(textureLod(uImg, uv + vec2(cos(a), sin(a)) * Rp * uTexel, lp).rgb) * 0.1; }
+    col += max(w - luma(s0), 0.0) * 0.07 * sn * vec3(1.0, 0.99, 0.97);
+  }
   if (uClar != 0.0) {   // claridade: volume nos meios-tons, sem mexer no brilho geral nem nos contornos fortes
     float R = uTex * 0.022, lod = max(0.0, log2(R) - 1.5);
     float lb = luma(textureLod(uImg, uv, lod).rgb) * 0.2;
@@ -371,13 +396,16 @@ void main(){
   if (uGrain > 0.0) {
     // célula do grão em pixels DA SAÍDA: o mesmo tamanho relativo à foto na prévia e na exportação
     // (antes usava o lado da foto original e a prévia mostrava o grão ~5× maior que o exportado)
-    float cellPx = uGrainSize * 1.6 * (uOut / 4000.0);
+    float cellPx = uGrainSize * 1.6 * uGrainT.z * (uOut / 4000.0);
     float vis = smoothstep(0.35, 1.2, cellPx);          // células menores que um pixel viram ruído fino
     vec2 p = gl_FragCoord.xy / max(cellPx, 0.6);
     float l = luma(col);
-    float n = grainLayer(p, clamp(1.0 - l, 0.02, 0.98), uSeed);
-    float amp = uGrain * uGrainMul * 0.16 * (0.35 + 0.65 * vis) * (0.4 + 2.4 * l * (1.0 - l));
-    col += n * amp;
+    float D = clamp(1.0 - l, 0.02, 0.98);
+    float amp = uGrain * uGrainMul * 0.16 * uGrainT.w * (0.35 + 0.65 * vis) * (0.4 + 2.4 * l * (1.0 - l));
+    if (uGrainCor > 0.5) {   // cada camada (ciano, magenta, amarelo) tem as suas nuvens: o grão ganha cor nos meios-tons
+      vec3 nc = vec3(grainLayer(p, D, uSeed), grainLayer(p * 1.07 + 17.3, D, uSeed + 3.1), grainLayer(p * 0.93 + 31.7, D, uSeed + 6.7));
+      col += mix(vec3(dot(nc, vec3(0.3333))), nc, 0.9) * amp * 1.5;
+    } else col += grainLayer(p, D, uSeed) * amp;
   }
   o = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
@@ -396,7 +424,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -456,6 +484,7 @@ export class Render {
     gl.uniform1f(u.uMix, s.intensidade); gl.uniform1f(u.uExp, s.exposicao);
     gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, m?.cat === 'pb' ? [1, 1, 1] : wb(s.labTemp, s.labMatiz));   // P&B: o scan é cinza, não há o que equilibrar
     gl.uniform1f(u.uHalo, s.halacao); gl.uniform1f(u.uGrain, s.grao); gl.uniform1f(u.uGrainSize, s.graoTamanho);
+    const gt = TIPOS_GRAO[s.graoTipo] || TIPOS_GRAO.classico; gl.uniform4fv(u.uGrainT, gt); gl.uniform1f(u.uGrainCor, s.graoTipo === 'colorido' ? 1 : 0);
     gl.uniform1f(u.uSoft, m ? s.caraterFilme : 0); gl.uniform3fv(u.uSoftCh, a.nitidez_canal ? a.nitidez_canal.map((v) => 1 - v) : [0, 0, 0]);
     // retrato: só com filme de retrato e rosto marcado (posição em fração da foto)
     const ret = m?.retrato && s.rosto;
@@ -608,3 +637,11 @@ export function geometria(s, W, H, semCorte = false) {
   const a = [ex[0] - o[0], ey[0] - o[0], o[0], ex[1] - o[1], ey[1] - o[1], o[1]];
   return { m, w: c.w * p.QW, h: c.h * p.QH, QW: p.QW, QH: p.QH, corte: c, a, p };
 }
+
+// tipos de grão: [aspereza, raio do grão, escala da célula, força]
+export const TIPOS_GRAO = {
+  fino: [0.18, 0.38, 0.8, 1.0],       // grão chato (T-grain, Portra e T-Max): liso e redondo
+  classico: [0.45, 0.42, 1, 1],        // grão cúbico (Tri-X, HP5)
+  aspero: [0.85, 0.46, 1.35, 1.25],    // puxado ou de alta sensibilidade: grãos aglomerados, irregulares
+  colorido: [0.4, 0.42, 1.1, 1.15],      // nuvens de corante do negativo em cores
+};

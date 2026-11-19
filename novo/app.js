@@ -1,5 +1,5 @@
 // Revela novo: filmes com a física do filme. Interface enxuta: Filmes, Ajustes, Analógico.
-import { Render, quadro, geometria, encaixa, dentro, quadroGirado, amostraCurva, curvaMexida, HSL0, CURVA0 } from './render.js';
+import { Render, quadro, TIPOS_GRAO, geometria, encaixa, dentro, quadroGirado, amostraCurva, curvaMexida, HSL0, CURVA0 } from './render.js';
 import { decodeFile, isImageFile } from '../core.js';
 import { icon } from '../icons.js';
 
@@ -48,11 +48,15 @@ const RECEITAS = [
     s: { filme: 'portrait400', puxar: 1.5, grao: 0.45, cenaTemp: 0.1 } },
   { id: 'r_portrait_claro', n: 'Portrait 160 · Claro', nota: 'Luz clara e etérea: superexposto, pastel, pele suave',
     s: { filme: 'portrait160', exposicao: 0.5, puxar: -0.5, grao: 0.18 } },
+  { id: 'r_silver_noturno', n: 'Silver 400 · Noturno', nota: 'Rua à noite em P&B cru: puxado ao máximo, contraste duro, grão áspero e grosso',
+    s: { filme: 'silver400', puxar: 3, exposicao: -0.3, grao: 0.8, graoTamanho: 1.7, graoTipo: 'aspero' } },
+  { id: 'r_chrome_chuva', n: 'Chrome 64 · Chuva', nota: 'Cor suave, quase pintada: cromo um pouco vencido, luz difusa, grão colorido',
+    s: { filme: 'chrome64', vencido: 0.3, exposicao: 0.2, difusao: 0.35, grao: 0.3, graoTipo: 'colorido' } },
   { id: 'r_tungsten_noite', n: 'Tungsten 800 · Noite', nota: 'Noite de cinema puxada: halo forte nas luzes, grão de filme rápido',
     s: { filme: 'tungsten800', puxar: 1, halacao: 0.6, grao: 0.45 } },
 ];
 // campos que uma receita controla (voltam ao padrão quando a receita não diz nada sobre eles)
-const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao'];
+const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao', 'graoTipo', 'difusao'];
 function aplicaReceita(r) {
   const f = filmes.find((x) => x.meta.id === r.s.filme), a = f?.meta.analogico || {};
   for (const k of DA_RECEITA) s[k] = PADRAO[k];
@@ -65,7 +69,7 @@ function aplicaReceita(r) {
 // ------------------------------------------------------------ estado da edição
 const PADRAO = {
   filme: null, receita: null, intensidade: 1, exposicao: 0, lab: 'neutro', filtro: 'nenhum', labAuto: 1, rosto: null, separacao: 0.5, rostoTam: 1, poeira: 0, riscos: 0, luzVazada: 0, luzTipo: '0', sorteLuz: 3, moldura: 0, sorte: 7, puxar: 0, vencido: 0, sorteVenc: 5, cenaTemp: 0, cenaMatiz: 0, labTemp: 0, labMatiz: 0,
-  grao: 0, graoTamanho: 1, halacao: 0, caraterFilme: 1, semente: 0.37,
+  grao: 0, graoTamanho: 1, graoTipo: 'classico', halacao: 0, caraterFilme: 1, semente: 0.37,
   // ajustes finos (depois do filme) e geometria
   brilho: 0, contraste: 0, realces: 0, sombras: 0, brancos: 0, pretos: 0, esmaecer: 0, saturacao: 0, vibracao: 0, pele: 0,
   clareza: 0, nitidez: 0, vinheta: 0, difusao: 0, hsl: HSL0, curvas: null,
@@ -209,7 +213,7 @@ const CTL = {
   vibracao: { n: 'Vibração', min: -1, max: 1, passo: 0.01, fmt: sinal },
   pele: { n: 'Tom de pele', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : (v < 0 ? 'rosado ' : 'dourado ') + Math.round(Math.abs(v) * 100)) },
   clareza: { n: 'Clareza', min: -1, max: 1, passo: 0.01, fmt: sinal },
-  nitidez: { n: 'Nitidez', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  nitidez: { n: 'Nitidez', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : v < 0 ? 'papel ' + Math.round(-v * 100) : '+' + Math.round(v * 100)) },   // como no RNI: − = maciez da cópia em papel
   vinheta: { n: 'Vinheta', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : (v < 0 ? 'clara ' : 'escura ') + Math.round(Math.abs(v) * 100)) },
   difusao: { n: 'Difusão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   endireitar: { n: 'Endireitar', min: -45, max: 45, passo: 0.1, fmt: (v) => (Math.abs(v) < 0.05 ? '0°' : v.toFixed(1).replace('.', ',') + '°') },
@@ -270,6 +274,13 @@ secao(retrato, 'Retrato', 'Destaque do rosto, como na ampliação com máscara')
   w.innerHTML = '<div><button id="bRosto">Marcar o rosto</button></div><small id="nRosto"></small>'; retrato.append(w); }
 controle('separacao', retrato); controle('rostoTam', retrato);
 controle('grao', $('p-analogico')); controle('graoTamanho', $('p-analogico'));
+const GRAOS = [
+  { id: 'fino', n: 'Fino', nota: 'Liso e redondo, como os filmes de grão chato (Portra, T-Max)' },
+  { id: 'classico', n: 'Clássico', nota: 'O grão de prata de sempre (Tri-X, HP5)' },
+  { id: 'aspero', n: 'Áspero', nota: 'Filme puxado ou rápido: grãos aglomerados e irregulares' },
+  { id: 'colorido', n: 'Colorido', nota: 'As nuvens de corante do negativo em cores' },
+];
+escolha('graoTipo', GRAOS, $('p-analogico'));
 controle('halacao', $('p-analogico'));
 // tempo: cada efeito com a sua intensidade e o seu dado (sortear outra variação só daquele efeito)
 const DADO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor"/><circle cx="15" cy="15" r="1.1" fill="currentColor"/><circle cx="15" cy="9" r="1.1" fill="currentColor"/><circle cx="9" cy="15" r="1.1" fill="currentColor"/></svg>';
@@ -556,7 +567,7 @@ const GRUPOS = {
     { id: 'corte', n: 'Enquadrar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte || s.perspV || s.perspH || s.lente), sec: 'Enquadrar' },
   ],
   'p-analogico': [
-    { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho'], sec: 'Textura' },
+    { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho', '#e_graoTipo'], sec: 'Textura', muda: () => Math.abs(s.grao - padraoDe('grao')) > 1e-6 || Math.abs(s.graoTamanho - padraoDe('graoTamanho')) > 1e-6 || s.graoTipo !== 'classico' },
     { id: 'poeira', n: 'Poeira', el: ['poeira'] },
     { id: 'halacao', n: 'Halação', el: ['halacao'], sec: 'Luz' },
     { id: 'difusao', n: 'Difusão', el: ['difusao'] },
@@ -571,7 +582,7 @@ const GRUPOS = {
 const grupoAtivo = {};
 function padraoDe(k) {
   const a = filmeAtual()?.meta.analogico || {};
-  if (k === 'grao') return a.grao ?? 0; if (k === 'halacao') return a.halacao ?? 0;
+  if (k === 'grao') return a.grao ?? 0; if (k === 'halacao') return a.halacao ?? 0; if (k === 'graoTamanho') return a.grao_tamanho ?? 1;
   return PADRAO[k] ?? 0;
 }
 function mudou(g) { return g.muda ? g.muda() : g.el.some((k) => k[0] !== '#' && Math.abs((s[k] ?? 0) - padraoDe(k)) > 1e-6); }
@@ -622,7 +633,7 @@ function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
   if ($('c_moldura')) $('c_moldura').checked = !!s.moldura;
-  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS], ['luzTipo', LUZES]]) {
+  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS], ['luzTipo', LUZES], ['graoTipo', GRAOS]]) {
     const e = $('e_' + k); if (!e) continue;
     e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s[k]));
     e.querySelector('small').textContent = ops.find((l) => l.id === s[k])?.nota || '';
