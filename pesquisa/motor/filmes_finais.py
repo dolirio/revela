@@ -95,7 +95,7 @@ FILMES = [
     dict(id='silver400', nome='Silver 400', inspirado='Kodak Tri-X 400 com filtro laranja', base='kx400.laranja', grao=0.40,
          nota='preto e branco épico: pretos profundos, céus dramáticos', pb=True, contraste=1.45, preto=0.0, branco=1.0, piv=0.42),
     dict(id='silverportrait', nome='Silver Portrait', inspirado='retrato P&B de Peter Lindbergh', base='lb', grao=0.25,
-         nota='preto e branco íntimo: o rosto em destaque · marque o rosto em Ajustes', pb=True),
+         nota='preto e branco íntimo: pele luminosa, contraste macio', pb=True),
 ]
 
 if __name__ == '__main__':
