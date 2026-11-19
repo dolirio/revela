@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.14 (19/11/2026)
+# Revela · versão de teste 48.15 (19/11/2026)
 
+48.15 (como o Ajuste seletivo do Snapseed): o círculo do assunto mostra o tamanho real do efeito; arraste a borda (ou faça pinça no celular) para mudar. A máscara abraça o assunto: no miolo vale tudo (o assunto inteiro, de qualquer cor) e nas bordas ela segue o que se parece com o ponto tocado (cor e brilho, como os U Points), sem IA. Vale para Ampliação e Flash.
 48.14: Analógico › Ampliação (o trabalho do laboratório na cópia): Céu (queimado com filtro duro: escurece e as nuvens ganham contraste, a partir da linha do horizonte que você arrasta), Assunto (acende sem estourar), Entorno (queima em volta) e Tamanho; toque no assunto. Analógico › Flash (câmera compacta dos anos 90): a luz do flash entra na cena antes do filme; o assunto sobe até +0,7 parada e o fundo cai até −2,2; luz fria e dura, brilho na pele; mira no assunto e Alcance. Receitas: Silver 400 · Épico e Gold 200 · Flash. Sem IA: tudo pelo toque no assunto.
 48.13 (estudo do RNI): número grande sobre a foto enquanto arrasta; barra acesa a partir do zero, com um pontinho no zero nas de dois lados. Grão mais assumido, com manchinhas (os grãos se juntam em nuvens) e um pouco de cor nos filmes coloridos. Poeira refeita: menos quantidade, tamanhos bem variados, grumos irregulares e fios curvos de verdade.
 48.12: a descrição do Silver Portrait não manda mais marcar o rosto (a marcação está guardada).

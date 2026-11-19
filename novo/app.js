@@ -337,7 +337,7 @@ dado('poeira', 'poeira', () => { s.sorte = novo(); if (!s.poeira) s.poeira = 0.5
 for (const k of ['brilho', 'contraste', 'realces', 'sombras', 'brancos', 'pretos', 'esmaecer', 'saturacao', 'vibracao', 'pele', 'clareza', 'nitidez', 'vinheta']) controle(k, $('p-ajustes'));
 controle('difusao', $('p-analogico'));
 controle('flash', $('p-analogico')); controle('flashAlcance', $('p-analogico'));
-{ const d = document.createElement('small'); d.className = 'dica'; d.id = 'dicaFlash'; d.textContent = 'Toque na foto para mirar o flash no assunto'; $('p-analogico').append(d); }
+{ const d = document.createElement('small'); d.className = 'dica'; d.id = 'dicaFlash'; d.textContent = 'Toque no assunto · arraste a borda para o alcance'; $('p-analogico').append(d); }
 // ampliação: quatro controles numa linha cada (cabem no painel), e a dica de como marcar
 const gAmpl = document.createElement('div'); gAmpl.id = 'g_ampl'; $('p-analogico').append(gAmpl);
 {
@@ -349,7 +349,7 @@ const gAmpl = document.createElement('div'); gAmpl.id = 'g_ampl'; $('p-analogico
     linha('amplTam', 'Tamanho', 0, 1, 0.01, () => s.amplTam ?? 0.5, ponto('amplTam'), f, gAmpl),
   ];
   $('r_amplTam').addEventListener('dblclick', () => { s.amplTam = 0.5; gAmpl.linhas[3].sync(); desenha(); });
-  const d = document.createElement('small'); d.className = 'dica'; d.textContent = 'Toque no assunto · arraste a linha do horizonte'; gAmpl.append(d);
+  const d = document.createElement('small'); d.className = 'dica'; d.textContent = 'Toque no assunto · arraste a borda ou o horizonte'; gAmpl.append(d);
 }
 
 // ---- controle numa linha só (nome, barra, valor): para os grupos com três controles
@@ -836,34 +836,68 @@ function atualizaMira() {
   miraAtiva = noAnalog && (usaFlash || usaAmpl);
   horAtivo = miraAtiva && (pc.matches ? s.amplCeu > 0 : ga === 'ampliacao');
 }
+// o círculo mostra o tamanho real do efeito: na Ampliação, onde a máscara cai pela metade; no Flash, onde a luz cai pela metade
+function qualTam() {
+  const ga = grupoAtivo['p-analogico'];
+  if (!pc.matches) return ga === 'flash' ? 'flash' : 'ampl';
+  return (s.amplCeu || s.amplAssunto || s.amplEntorno) ? 'ampl' : 'flash';
+}
+function raioMira(r) {
+  const m = Math.min(r.width, r.height);
+  return qualTam() === 'flash' ? (0.2 + 0.55 * (s.flashAlcance ?? 0.5)) * 0.6 * m : (0.1 + 0.35 * (s.amplTam ?? 0.5)) * 1.3 * m;
+}
+function tamDeRaio(rp, r) {   // o inverso: raio na tela -> controle (0..1)
+  const m = Math.min(r.width, r.height), k = qualTam();
+  const v = k === 'flash' ? (rp / (0.6 * m) - 0.2) / 0.55 : (rp / (1.3 * m) - 0.1) / 0.35;
+  return [k === 'flash' ? 'flashAlcance' : 'amplTam', Math.min(1, Math.max(0, v))];
+}
 function posicionaMira() {
   atualizaMira();
   mira.style.display = miraAtiva ? 'block' : 'none';
   if (!miraAtiva) return;
   const p = $('palco').getBoundingClientRect(), r = fotoRect(), a = s.assunto || { x: 0.5, y: 0.5 };
   Object.assign(mira.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
-  Object.assign(mira.querySelector('.alvo').style, { left: a.x * 100 + '%', top: a.y * 100 + '%' });
+  const rp = raioMira(r);
+  Object.assign(mira.querySelector('.alvo').style, { left: a.x * 100 + '%', top: a.y * 100 + '%', width: 2 * rp + 'px', height: 2 * rp + 'px', margin: -rp + 'px' });
   const h = mira.querySelector('.horizonte'); h.style.display = horAtivo ? 'block' : 'none'; h.style.top = (s.horizonte ?? 0.42) * 100 + '%';
 }
 {
-  let arr = null;
+  // um dedo: tocar ou arrastar move o assunto; perto da borda do círculo, arrastar muda o tamanho (como no Snapseed);
+  // perto da linha do horizonte, arrasta o horizonte. Dois dedos: pinça muda o tamanho.
+  let arr = null; const toques = new Map(); let pinca2 = null;
   const fr2 = (e) => { const r = mira.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)), r]; };
+  const centroPx = (r) => { const a = s.assunto || { x: 0.5, y: 0.5 }; return [r.left + a.x * r.width, r.top + a.y * r.height]; };
+  const mudaTam = (rp, r) => { const [k, v] = tamDeRaio(rp, r); s[k] = v; sincroniza(); posicionaMira(); desenha(); };
   mira.addEventListener('pointerdown', (e) => {
     if (!miraAtiva) return;
     e.preventDefault(); e.stopPropagation(); mira.setPointerCapture?.(e.pointerId);
+    toques.set(e.pointerId, [e.clientX, e.clientY]);
     const [x, y, r] = fr2(e);
+    if (toques.size === 2) {   // pinça
+      const [p1, p2] = [...toques.values()]; pinca2 = { d: Math.hypot(p1[0] - p2[0], p1[1] - p2[1]), rp: raioMira(r) }; arr = null; return;
+    }
+    const [cx, cy] = centroPx(r), dc = Math.hypot(e.clientX - cx, e.clientY - cy), rp = raioMira(r);
     const pertoHor = horAtivo && Math.abs(y - (s.horizonte ?? 0.42)) * r.height < 22;
-    arr = pertoHor ? 'h' : 'a';
-    if (arr === 'a') s.assunto = { x, y };
+    if (Math.abs(dc - rp) < 18 && rp > 24) arr = 'tam';
+    else if (pertoHor) arr = 'h';
+    else { arr = 'a'; s.assunto = { x, y }; }
     posicionaMira(); desenha();
   });
   mira.addEventListener('pointermove', (e) => {
-    if (!arr) return; e.stopPropagation();
-    const [x, y] = fr2(e);
+    if (!toques.has(e.pointerId)) return; e.stopPropagation();
+    toques.set(e.pointerId, [e.clientX, e.clientY]);
+    const [x, y, r] = fr2(e);
+    if (pinca2 && toques.size === 2) { const [p1, p2] = [...toques.values()]; mudaTam(pinca2.rp * Math.hypot(p1[0] - p2[0], p1[1] - p2[1]) / pinca2.d, r); return; }
+    if (!arr) return;
+    if (arr === 'tam') { const [cx, cy] = centroPx(r); mudaTam(Math.hypot(e.clientX - cx, e.clientY - cy), r); return; }
     if (arr === 'h') s.horizonte = Math.min(0.95, Math.max(0.05, y)); else s.assunto = { x, y };
     posicionaMira(); desenha();
   });
-  const fim = () => { if (!arr) return; arr = null; memoriza(); };
+  mira.addEventListener('mousemove', (e) => {
+    if (toques.size) return; const r = mira.getBoundingClientRect(), [cx, cy] = centroPx(r), dc = Math.hypot(e.clientX - cx, e.clientY - cy);
+    mira.style.cursor = Math.abs(dc - raioMira(r)) < 18 ? 'nwse-resize' : horAtivo && Math.abs((e.clientY - r.top) / r.height - (s.horizonte ?? 0.42)) * r.height < 22 ? 'ns-resize' : 'crosshair';
+  });
+  const fim = (e) => { toques.delete(e.pointerId); if (toques.size < 2) pinca2 = null; if (!arr && toques.size) return; arr = null; memoriza(); };
   mira.addEventListener('pointerup', fim); mira.addEventListener('pointercancel', fim);
 }
 
