@@ -204,7 +204,7 @@ function escolheFilme(id) {
 // ------------------------------------------------------------ controles
 const CTL = {
   intensidade: { n: 'Intensidade do filme', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
-  exposicao: { n: 'Exposição', min: -3, max: 3, passo: 0.05, fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) },
+  exposicao: { n: 'Exposição', min: -3, max: 3, passo: 0.05, fmt: (v) => ((v > 0 ? '+' : '') + v.toFixed(1)).replace('.', ',') },
   cenaTemp: { n: 'Calor', min: -1, max: 1, passo: 0.01, fmt: sinal },
   brilho: { n: 'Brilho', min: -1, max: 1, passo: 0.01, fmt: sinal },
   contraste: { n: 'Contraste', min: -1, max: 1, passo: 0.01, fmt: sinal },
@@ -225,7 +225,7 @@ const CTL = {
   labTemp: { n: 'Temperatura', min: -1, max: 1, passo: 0.01, fmt: sinal },
   labMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
   grao: { n: 'Grão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
-  graoTamanho: { n: 'Tamanho do grão', min: 0.5, max: 2.5, passo: 0.05, fmt: (v) => v.toFixed(2) },
+  graoTamanho: { n: 'Tamanho do grão', min: 0.5, max: 2.5, passo: 0.05, fmt: (v) => v.toFixed(2).replace('.', ',') },
   halacao: { n: 'Halação', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   puxar: { n: 'Puxar', min: -1, max: 3, passo: 0.1, fmt: (v) => (Math.abs(v) < 0.05 ? 'normal' : (v > 0 ? 'puxado +' : 'segurado ') + v.toFixed(1).replace('.', ',')) },
   vencido: { n: 'Vencido', min: 0, max: 1, passo: 0.01, fmt: (v) => (v < 0.01 ? 'novo' : Math.round(v * 100)) },
@@ -247,6 +247,24 @@ function controle(k, pai) {
   r.addEventListener('change', memoriza);
   r.addEventListener('dblclick', () => { s[k] = PADRAO[k] ?? 0; if (k === 'grao' || k === 'halacao') { const a = filmeAtual()?.meta.analogico || {}; s[k] = (k === 'grao' ? a.grao : a.halacao) ?? 0; } sincroniza(); desenha(); memoriza(); });
 }
+// barra como no RNI: acende o trecho entre o zero e o botão; nas de dois lados, um pontinho marca o zero
+function pintaBarra(r) {
+  const mn = +r.min, mx = +r.max, v = +r.value, bi = mn < 0 && mx > 0, z = bi ? (0 - mn) / (mx - mn) : 0, p = (v - mn) / (mx - mn);
+  r.classList.toggle('bi', bi);
+  r.style.setProperty('--z', z); r.style.setProperty('--a', Math.min(z, p)); r.style.setProperty('--b', Math.max(z, p));
+}
+// o número grande sobre a foto enquanto arrasta (some quando solta)
+const numero = document.createElement('div'); numero.id = 'numero'; $('palco').append(numero);
+let tNumero = 0;
+document.addEventListener('input', (e) => {
+  const r = e.target; if (!(r instanceof HTMLInputElement) || r.type !== 'range') return;
+  pintaBarra(r);
+  const c = r.closest('.ctl'), o = c?.querySelector('output'), nome = c?.querySelector('label')?.textContent || '';
+  if (!o || !foto) return;
+  numero.innerHTML = `${o.textContent}<small>${nome}</small>`; numero.style.opacity = 1;
+  clearTimeout(tNumero); tNumero = setTimeout(() => (numero.style.opacity = 0), 900);
+});
+document.addEventListener('change', (e) => { if (e.target.type === 'range') { clearTimeout(tNumero); tNumero = setTimeout(() => (numero.style.opacity = 0), 350); } });
 // chave liga/desliga (valor 1 ou 0 no estado)
 function chave(k, nome, nota, pai) {
   const w = document.createElement('label'); w.className = 'chave';
@@ -316,7 +334,7 @@ function linha(id, nome, min, max, passo, ler, gravar, fmt, pai) {
   w.innerHTML = `<label for="r_${id}">${nome}</label><input type="range" id="r_${id}" min="${min}" max="${max}" step="${passo}"><output id="o_${id}"></output>`;
   pai.append(w);
   const r = w.querySelector('input');
-  w.sync = () => { r.value = ler(); w.querySelector('output').textContent = fmt(+r.value); };
+  w.sync = () => { r.value = ler(); w.querySelector('output').textContent = fmt(+r.value); pintaBarra(r); };
   r.addEventListener('input', () => { gravar(+r.value); w.sync(); desenha(); sincronizaFerramentas(); });
   r.addEventListener('change', memoriza);
   r.addEventListener('dblclick', () => { gravar(0); w.sync(); desenha(); sincronizaFerramentas(); memoriza(); });
@@ -635,6 +653,7 @@ function sincronizaFerramentas() {
 
 function sincroniza() {
   for (const k of Object.keys(CTL)) { const r = $('r_' + k); if (r) { r.value = s[k]; $('o_' + k).textContent = CTL[k].fmt(s[k]); } }
+  document.querySelectorAll('input[type=range]').forEach(pintaBarra);
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
   if ($('c_moldura')) $('c_moldura').checked = !!s.moldura;
   for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS], ['luzTipo', LUZES], ['graoTipo', GRAOS]]) {

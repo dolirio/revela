@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.12 (19/11/2026)
+# Revela · versão de teste 48.13 (19/11/2026)
 
+48.13 (estudo do RNI): número grande sobre a foto enquanto arrasta; barra acesa a partir do zero, com um pontinho no zero nas de dois lados. Grão mais assumido, com manchinhas (os grãos se juntam em nuvens) e um pouco de cor nos filmes coloridos. Poeira refeita: menos quantidade, tamanhos bem variados, grumos irregulares e fios curvos de verdade.
 48.12: a descrição do Silver Portrait não manda mais marcar o rosto (a marcação está guardada).
 48.11: três filmes novos: Portrait 800 (noite e interiores, denso e quente), Gold 200 (álbum de família, sol amarelo, pretos lavados) e Vivid 50 (paisagem, verdes esmeralda e azuis profundos). Receitas novas: Portrait 800 · Cidade e Gold 200 · Fim de tarde.
 48.10: Nitidez com zero no meio, como no RNI: + mais nítida; − maciez da cópia em papel fotográfico (maciez + acutância + luz no papel, modelo do app publicado). Grão por tipo: Fino, Clássico, Áspero, Colorido. Receitas novas: Silver 400 · Noturno (rua à noite, P&B cru) e Chrome 64 · Chuva (cor suave, quase pintada).
