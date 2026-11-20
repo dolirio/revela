@@ -134,6 +134,9 @@ function montaCats() {
     b.onclick = () => { catAtual = c.id; montaCats(); montaFaixa(); if (c.id === 'minhas' && foto) dica('minhas'); };
     $('cats').append(b);
   }
+  if (catAtual === 'filmes') {   // deixar claro que são filmes inspirados nos de verdade, não os próprios
+    const n = document.createElement('small'); n.className = 'insp'; n.textContent = 'inspirados em filmes reais'; $('cats').append(n);
+  }
 }
 
 // rolar a faixa de filmes com o mouse (roda e arrastar), além do dedo
@@ -497,7 +500,7 @@ controle('flash', $('p-analogico')); controle('flashAlcance', $('p-analogico'));
 // estilos de flash (como no Prequel): escolhas rápidas, cada uma muda a força no assunto, a queda do fundo e a cor
 const FLASHES_UI = [
   { id: 'anos90', n: 'Anos 90', nota: 'Compacta de filme: fundo bem escuro, ambiente quente' },
-  { id: 'digital', n: 'Compacta digital', nota: 'Anos 2010: luz fria e limpa, pele brilhante, fundo que cai menos' },
+  { id: 'digital', n: 'Anos 2010', nota: 'Compacta digital: luz fria e limpa, pele brilhante, fundo que cai menos' },
   { id: 'festa', n: 'Festa', nota: 'Flash forte e perto: o fundo some, contraste alto' },
 ];
 escolha('flashEstilo', FLASHES_UI, $('p-analogico'));
