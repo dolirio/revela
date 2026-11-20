@@ -20,7 +20,7 @@ cp "$RAIZ/android/capacitor.config.json" .
 # o app: os arquivos da raiz que ele usa (sem o service worker, o app clássico, a pesquisa e os testes)
 rm -rf www && mkdir www
 cp "$RAIZ"/index.html "$RAIZ"/app.js "$RAIZ"/render.js "$RAIZ"/core.js "$RAIZ"/icons.js "$RAIZ"/manifest.webmanifest "$RAIZ"/icone.svg "$RAIZ"/icone-*.png www/
-cp -r "$RAIZ/filmes" www/filmes && cp -r "$RAIZ/vendor" www/vendor
+cp -r "$RAIZ/filmes" www/filmes && cp -r "$RAIZ/vendor" www/vendor && cp -r "$RAIZ/fontes" www/fontes
 # só os filmes do índice (as tabelas antigas ficam no repositório, mas não vão no APK)
 python3 - www/filmes <<'PY'
 import json, os, sys

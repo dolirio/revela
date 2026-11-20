@@ -2,7 +2,8 @@
 // Mude a versão a cada publicação.
 const CACHE = 'revela-49b';
 const BASE = ['./', 'index.html', 'app.js', 'render.js', 'manifest.webmanifest', 'icone.svg', 'icone-192.png', 'icone-512.png',
-  'core.js', 'icons.js', 'vendor/libheif-bundle.mjs', 'filmes/indice.json'];
+  'core.js', 'icons.js', 'vendor/libheif-bundle.mjs', 'filmes/indice.json',
+  'fontes/InstrumentSerif-400.woff2', 'fontes/InstrumentSerif-400i.woff2', 'fontes/IBMPlexMono-400.woff2', 'fontes/IBMPlexMono-500.woff2'];
 self.addEventListener('install', (e) => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(BASE.map((f) => new Request(f, { cache: 'reload' })));
