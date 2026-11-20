@@ -25,3 +25,6 @@ Sugestões aceitas (19/11, depois do estudo do RNI):
 - ✅ (48.16) Minhas receitas (salvar e passar adiante por código curto).
 - ✅ (48.16) Comparar com cortina; ficha do filme (toque longo na miniatura); exportar pronto para o Instagram (4:5, 1080 × 1350).
 - Identidade visual do briefing, trocar a v47 e preparar a Play Store.
+
+20/11: ✅ (48.19) Seletivo, Céu com proteção e estilos de flash (pedidos do usuário depois do teste da Ampliação e do Flash).
+Próximos: reconhecimento leve no aparelho (rosto, pessoa, céu) e lançamento (identidade visual, trocar a v47, Play Store).

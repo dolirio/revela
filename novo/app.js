@@ -60,19 +60,22 @@ const RECEITAS = [
   { id: 'r_gold_tarde', n: 'Gold 200 · Fim de tarde', nota: 'Sol baixo de verão: um pouco superexposto, luz que se espalha',
     s: { filme: 'gold200', exposicao: 0.35, difusao: 0.25, halacao: 0.15, grao: 0.3 } },
   { id: 'r_silver_epico', n: 'Silver 400 · Épico', nota: 'P&B épico: céu queimado, entorno escuro, o assunto acende como na ampliação',
-    s: { filme: 'silver400', puxar: 0.8, grao: 0.45, amplCeu: 0.7, amplAssunto: 0.4, amplEntorno: 0.5 } },
+    s: { filme: 'silver400', puxar: 0.8, grao: 0.45, amplCeu: 0.7, pontos: [{ x: 0.5, y: 0.5, tam: 0.45, luz: 0.35, entorno: 0.5 }] } },
   { id: 'r_gold_flash', n: 'Gold 200 · Flash', nota: 'Festa dos anos 90: flash direto, fundo escuro, cor quente de filme comum',
-    s: { filme: 'gold200', flash: 0.75, grao: 0.35, graoTipo: 'colorido' } },
+    s: { filme: 'gold200', flash: 0.75, flashEstilo: 'anos90', grao: 0.35, graoTipo: 'colorido' } },
+  { id: 'r_portrait_compacta', n: 'Portrait 400 · Compacta', nota: 'Flash de compacta digital: luz fria e limpa, pele brilhante, fundo que cai',
+    s: { filme: 'portrait400', flash: 0.7, flashEstilo: 'digital', grao: 0.2 } },
   { id: 'r_tungsten_noite', n: 'Tungsten 800 · Noite', nota: 'Noite de cinema puxada: halo forte nas luzes, grão de filme rápido',
     s: { filme: 'tungsten800', puxar: 1, halacao: 0.6, grao: 0.45 } },
 ];
 // campos que uma receita controla (voltam ao padrão quando a receita não diz nada sobre eles)
-const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao', 'graoTipo', 'difusao', 'flash', 'amplCeu', 'amplAssunto', 'amplEntorno'];
+const DA_RECEITA = ['puxar', 'vencido', 'poeira', 'luzVazada', 'cenaTemp', 'cenaMatiz', 'exposicao', 'graoTipo', 'difusao', 'flash', 'flashEstilo', 'amplCeu'];
 function aplicaReceita(r) {
   const f = filmes.find((x) => x.meta.id === r.s.filme), a = f?.meta.analogico || {};
   for (const k of DA_RECEITA) s[k] = PADRAO[k];
   s.grao = a.grao ?? 0; s.graoTamanho = a.grao_tamanho ?? 1; s.halacao = a.halacao ?? 0;
-  Object.assign(s, r.s); s.receita = r.id;
+  const rs = { ...r.s }; if (rs.pontos && (s.pontos || []).length) delete rs.pontos;   // os pontos que você já pôs nesta foto ficam
+  Object.assign(s, rs); s.receita = r.id;
   R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); desenha(); memoriza();
   if (celular()) aviso(r.nota);
 }
@@ -86,13 +89,14 @@ const PADRAO = {
   clareza: 0, nitidez: 0, vinheta: 0, difusao: 0, hsl: HSL0, curvas: null,
   giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre', perspV: 0, perspH: 0, lente: 0,
   // ampliação (laboratório) e flash: o assunto marcado (fração do quadro) e o horizonte valem para os dois
-  assunto: null, horizonte: 0.42, amplCeu: 0, amplAssunto: 0, amplEntorno: 0, amplTam: 0.5, flash: 0, flashAlcance: 0.5,
+  assunto: null, horizonte: 0.42, amplCeu: 0, flash: 0, flashAlcance: 0.5, flashEstilo: 'anos90',
+  pontos: [],   // Seletivo: até 4 pontos { x, y, tam, luz, contraste, sat, calor, estrutura, entorno }
 };
 // Retrato (marcar o rosto) está guardado na gaveta (18/11/2026, a pedido): a função continua no código e no motor,
 // mas fica fora da tela até a ideia amadurecer. Para voltar, troque para true.
 const RETRATO = false;
 const GEO = ['giro', 'espelho', 'endireitar', 'corte', 'proporcao', 'perspV', 'perspH', 'lente'];
-const POR_FOTO = [...GEO, 'assunto', 'horizonte'];   // a composição é desta foto: não vai para a próxima nem para o lote   // é desta foto: não vai para a próxima nem para o lote
+const POR_FOTO = [...GEO, 'assunto', 'horizonte', 'pontos'];   // a composição é desta foto: não vai para a próxima nem para o lote   // é desta foto: não vai para a próxima nem para o lote
 let s = { ...PADRAO };
 let marcando = false;   // esperando o toque no rosto (retrato)
 let foto = null;          // { bitmap, nome }
@@ -267,7 +271,7 @@ function aplicaMinha(m) {
 function salvarMinha() {
   if (!foto) { aviso('Abra uma foto e edite antes de salvar'); return; }
   const l = lerMinhas(), nome = 'Minha receita ' + (l.length + 1);
-  folha(`<div class="ficha"><h3>Salvar esta edição</h3><p class="alma">Filme, ajustes e textura. O corte e o assunto marcado ficam só nesta foto.</p>
+  folha(`<div class="ficha"><h3>Salvar esta edição</h3><p class="alma">Filme, ajustes e textura. O corte e os pontos marcados ficam só nesta foto.</p>
     <input class="campo" maxlength="32" value="${esc(nome)}" aria-label="Nome da receita">
     <div class="botoes"><button class="fecha">Cancelar</button><button class="pri">Salvar</button></div></div>`);
   const inp = folhaEl.querySelector('input'); setTimeout(() => { inp.focus(); inp.select(); }, 50);
@@ -351,7 +355,7 @@ function miniatura(c, f, extra = null) {
   if (!miniFonte) return;
   Rmini.setFilm(f);
   // filme sozinho: sem os efeitos de agora; receita: com a revelação dela (o grão não aparece nesse tamanho)
-  const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0, flash: 0, amplCeu: 0, amplAssunto: 0, amplEntorno: 0 }), ...(extra || {}),
+  const st = { ...s, ...(extra ? Object.fromEntries(DA_RECEITA.map((k) => [k, PADRAO[k]])) : { puxar: 0, vencido: 0, flash: 0, amplCeu: 0, pontos: [] }), ...(extra || {}),
     filme: f?.meta.id ?? null, intensidade: 1, grao: 0, halacao: 0, poeira: 0, riscos: 0, luzVazada: 0, moldura: 0, giro: 0, espelho: 0, endireitar: 0, corte: null, perspV: 0, perspH: 0, lente: 0, vinheta: 0, difusao: 0, ...(extra ? {} : { exposicao: 0 }) };
   Rmini.draw(st, miniFonte.width, miniFonte.height, 600);
   const g = c.getContext('2d'), k = Math.min(miniFonte.width, miniFonte.height);
@@ -395,6 +399,7 @@ const CTL = {
   vinheta: { n: 'Vinheta', min: -1, max: 1, passo: 0.01, fmt: (v) => (Math.abs(v) < 0.005 ? '0' : (v < 0 ? 'clara ' : 'escura ') + Math.round(Math.abs(v) * 100)) },
   difusao: { n: 'Difusão', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   flash: { n: 'Flash', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
+  amplCeu: { n: 'Céu', min: 0, max: 1, passo: 0.01, fmt: (v) => Math.round(v * 100) },
   flashAlcance: { n: 'Alcance do flash', min: 0, max: 1, passo: 0.01, fmt: (v) => (v < 0.34 ? 'perto ' : v > 0.66 ? 'longe ' : '') + Math.round(v * 100) },
   endireitar: { n: 'Endireitar', min: -45, max: 45, passo: 0.1, fmt: (v) => (Math.abs(v) < 0.05 ? '0°' : v.toFixed(1).replace('.', ',') + '°') },
   cenaMatiz: { n: 'Matiz', min: -1, max: 1, passo: 0.01, fmt: sinal },
@@ -504,19 +509,46 @@ dado('poeira', 'poeira', () => { s.sorte = novo(); if (!s.poeira) s.poeira = 0.5
 for (const k of ['brilho', 'contraste', 'realces', 'sombras', 'brancos', 'pretos', 'esmaecer', 'saturacao', 'vibracao', 'pele', 'clareza', 'nitidez', 'vinheta']) controle(k, $('p-ajustes'));
 controle('difusao', $('p-analogico'));
 controle('flash', $('p-analogico')); controle('flashAlcance', $('p-analogico'));
-{ const d = document.createElement('small'); d.className = 'dica'; d.id = 'dicaFlash'; d.textContent = 'Toque no assunto · arraste a borda para o alcance'; $('p-analogico').append(d); }
-// ampliação: quatro controles numa linha cada (cabem no painel), e a dica de como marcar
-const gAmpl = document.createElement('div'); gAmpl.id = 'g_ampl'; $('p-analogico').append(gAmpl);
+{ const d = document.createElement('small'); d.className = 'dica'; d.id = 'dicaFlash'; d.textContent = 'Toque no assunto · arraste a alça do círculo para o alcance'; $('p-analogico').append(d); }
+// estilos de flash (como no Prequel): escolhas rápidas, cada uma muda a força no assunto, a queda do fundo e a cor
+const FLASHES_UI = [
+  { id: 'anos90', n: 'Anos 90', nota: 'Compacta de filme: fundo bem escuro, ambiente quente' },
+  { id: 'digital', n: 'Compacta digital', nota: 'Anos 2010: luz fria e limpa, pele brilhante, fundo que cai menos' },
+  { id: 'festa', n: 'Festa', nota: 'Flash forte e perto: o fundo some, contraste alto' },
+];
+escolha('flashEstilo', FLASHES_UI, $('p-analogico'));
+// céu: a queima com filtro duro a partir da linha do horizonte (o assunto e o entorno foram para o Seletivo, em Ajustes)
+controle('amplCeu', $('p-analogico'));
+{ const d = document.createElement('small'); d.className = 'dica'; d.id = 'dicaCeu'; d.textContent = 'Arraste a linha do horizonte · o que não é céu fica protegido'; $('p-analogico').append(d); }
+
+// ------------------------------------------------------------ Seletivo (Ajustes): pontos com a máscara que abraça o assunto
+const PARAMS = [['luz', 'Luz', -1, 1], ['contraste', 'Contraste', -1, 1], ['sat', 'Saturação', -1, 1], ['calor', 'Calor', -1, 1], ['estrutura', 'Estrutura', -1, 1], ['entorno', 'Entorno', 0, 1]];
+let ptSel = -1, paramSel = 'luz', novoPonto = false, verMasc = -1;
+const gSel = document.createElement('div'); gSel.id = 'g_sel'; $('p-ajustes').append(gSel);
+gSel.innerHTML = `<div class="selParams">${PARAMS.map(([k, n]) => `<button data-k="${k}">${n}</button>`).join('')}</div>`;
+const selLinha = linha('selVal', 'Luz', -1, 1, 0.01, () => (ptSel >= 0 ? s.pontos[ptSel]?.[paramSel] || 0 : 0), (v) => {
+  if (ptSel < 0) return; s.pontos = s.pontos.map((p, i) => (i === ptSel ? { ...p, [paramSel]: v } : p));
+}, (v) => sinal(v), gSel);
 {
-  const f = (v) => Math.round(v * 100), ponto = (k) => (v) => { s[k] = v; };
-  gAmpl.linhas = [
-    linha('amplCeu', 'Céu', 0, 1, 0.01, () => s.amplCeu, ponto('amplCeu'), f, gAmpl),
-    linha('amplAssunto', 'Assunto', 0, 1, 0.01, () => s.amplAssunto, ponto('amplAssunto'), f, gAmpl),
-    linha('amplEntorno', 'Entorno', 0, 1, 0.01, () => s.amplEntorno, ponto('amplEntorno'), f, gAmpl),
-    linha('amplTam', 'Tamanho', 0, 1, 0.01, () => s.amplTam ?? 0.5, ponto('amplTam'), f, gAmpl),
-  ];
-  $('r_amplTam').addEventListener('dblclick', () => { s.amplTam = 0.5; gAmpl.linhas[3].sync(); desenha(); });
-  const d = document.createElement('small'); d.className = 'dica'; d.textContent = 'Toque no assunto · arraste a borda ou o horizonte'; gAmpl.append(d);
+  const acoes = document.createElement('div'); acoes.className = 'selAcoes';
+  acoes.innerHTML = '<button class="novo">+ Ponto</button><button class="apaga">Apagar ponto</button><small class="dica"></small>'; gSel.append(acoes);
+  acoes.querySelector('.novo').onclick = () => { novoPonto = !novoPonto; montaSel(); posicionaPontos(); };
+  acoes.querySelector('.apaga').onclick = () => {
+    if (ptSel < 0) return; s.pontos = s.pontos.filter((_, i) => i !== ptSel); ptSel = s.pontos.length ? Math.min(ptSel, s.pontos.length - 1) : -1;
+    montaSel(); posicionaPontos(); desenha(); sincronizaFerramentas(); memoriza();
+  };
+}
+gSel.querySelectorAll('.selParams button').forEach((b) => b.onclick = () => { paramSel = b.dataset.k; montaSel(); });
+function montaSel() {
+  const pt = ptSel >= 0 ? s.pontos[ptSel] : null, def = PARAMS.find((p) => p[0] === paramSel);
+  gSel.querySelectorAll('.selParams button').forEach((b) => { b.classList.toggle('on', b.dataset.k === paramSel); b.classList.toggle('mudou', !!(pt && pt[b.dataset.k])); b.disabled = !pt; });
+  const r = $('r_selVal'); r.min = def[2]; r.max = def[3]; r.disabled = !pt;
+  selLinha.querySelector('label').textContent = def[1]; selLinha.sync();
+  const n = (s.pontos || []).length, a = gSel.querySelector('.selAcoes');
+  a.querySelector('.novo').classList.toggle('on', novoPonto); a.querySelector('.novo').disabled = n >= 4;
+  a.querySelector('.apaga').style.display = pt ? '' : 'none';
+  a.querySelector('.dica').textContent = n >= 4 ? 'Até 4 pontos' : celular() ? (n ? 'Toque fora para outro ponto' : 'Toque na foto para criar um ponto') : (novoPonto ? 'Clique na foto para pôr o ponto' : (n ? '' : 'Clique em + Ponto e depois na foto'));
+  a.querySelector('.novo').style.display = celular() ? 'none' : '';
 }
 
 // ---- controle numa linha só (nome, barra, valor): para os grupos com três controles
@@ -776,6 +808,7 @@ const GRUPOS = {
     { id: 'clareza', n: 'Clareza', el: ['clareza'], sec: 'Detalhe' },
     { id: 'nitidez', n: 'Nitidez', el: ['nitidez'] },
     { id: 'vinheta', n: 'Vinheta', el: ['vinheta'] },
+    { id: 'seletivo', n: 'Seletivo', el: ['#g_sel'], sec: 'Seletivo', muda: () => (s.pontos || []).length > 0 },
     ...(RETRATO ? [{ id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto, fam: true }] : []),
     { id: 'corte', n: 'Enquadrar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte || s.perspV || s.perspH || s.lente), sec: 'Enquadrar' },
   ],
@@ -785,8 +818,8 @@ const GRUPOS = {
     { id: 'halacao', n: 'Halação', el: ['halacao'], sec: 'Luz' },
     { id: 'difusao', n: 'Difusão', el: ['difusao'] },
     { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'] },
-    { id: 'flash', n: 'Flash', el: ['flash', 'flashAlcance', '#dicaFlash'], muda: () => s.flash > 0 },
-    { id: 'ampliacao', n: 'Ampliação', el: ['#g_ampl'], sec: 'Ampliação', muda: () => !!(s.amplCeu || s.amplAssunto || s.amplEntorno) },
+    { id: 'flash', n: 'Flash', el: ['#e_flashEstilo', 'flash', 'flashAlcance', '#dicaFlash'], muda: () => s.flash > 0 },
+    { id: 'ceu', n: 'Céu', el: ['amplCeu', '#dicaCeu'], sec: 'Laboratório', muda: () => s.amplCeu > 0 },
   ],
   cIntensidade: [   // aba Filmes: o que acontece COM o filme (sem filme, Puxar e Vencido agem na foto digital)
     { id: 'intensidade', n: 'Intensidade', el: ['intensidade'] },
@@ -842,8 +875,8 @@ function sincronizaFerramentas() {
     }
   }
   if (typeof sincronizaHsl === 'function') { sincronizaHsl(); }
-  if (typeof gAmpl !== 'undefined') gAmpl.linhas.forEach((l) => l.sync());
-  if (typeof posicionaMira === 'function' && pronto) posicionaMira();
+  if (typeof montaSel === 'function') { if (ptSel >= (s.pontos || []).length) ptSel = (s.pontos || []).length - 1; montaSel(); }
+  if (typeof posicionaMira === 'function' && pronto) { posicionaMira(); posicionaPontos(); }
 }
 
 function sincroniza() {
@@ -851,7 +884,7 @@ function sincroniza() {
   document.querySelectorAll('input[type=range]').forEach(pintaBarra);
   const c = $('c_labAuto'); if (c) c.checked = !!s.labAuto;
   if ($('c_moldura')) $('c_moldura').checked = !!s.moldura;
-  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS], ['luzTipo', LUZES], ['graoTipo', GRAOS]]) {
+  for (const [k, ops] of [['lab', LABS], ['filtro', FILTROS], ['luzTipo', LUZES], ['graoTipo', GRAOS], ['flashEstilo', FLASHES_UI]]) {
     const e = $('e_' + k); if (!e) continue;
     e.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === s[k]));
     e.querySelector('small').textContent = ops.find((l) => l.id === s[k])?.nota || '';
@@ -924,7 +957,7 @@ function desenha() {
     const k = Math.min((box.width - 28) / Q.W, (box.height - 18) / Q.H);   // tamanho na tela (CSS)
     const px = Math.min(k * dpr * zoom.z, 1);                                // pixels de verdade (mais com zoom): nunca acima da foto carregada
     const w = Math.max(1, Math.round(G.w * px)), h = Math.max(1, Math.round(G.h * px));
-    R.draw(original ? { ...st, moldura: 0 } : { ...st, cortina: modoCorte ? -1 : cortina }, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
+    R.draw(original ? { ...st, moldura: 0 } : { ...st, cortina: modoCorte ? -1 : cortina, verMasc }, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
     tela.style.width = Math.floor(Q.W * k) + 'px'; tela.style.height = Math.floor(Q.H * k) + 'px';
     anel(); posicionaSobreposicoes();
   });
@@ -996,27 +1029,21 @@ function anel() {
 const mira = document.createElement('div'); mira.id = 'mira';
 mira.innerHTML = '<div class="horizonte"><span>horizonte</span></div><div class="alvo"></div>';
 $('palco').append(mira);
-let miraAtiva = false, horAtivo = false;
+let miraAtiva = false, horAtivo = false, alvoAtivo = false;
 function atualizaMira() {
   const ga = grupoAtivo['p-analogico'], noAnalog = aba === 'analogico' && !!foto && !modoCorte && !enquadrando;
-  const usaFlash = pc.matches ? s.flash > 0 : ga === 'flash', usaAmpl = pc.matches ? !!(s.amplCeu || s.amplAssunto || s.amplEntorno) : ga === 'ampliacao';
-  miraAtiva = noAnalog && (usaFlash || usaAmpl) && !(cortina >= 0);
-  horAtivo = miraAtiva && (pc.matches ? s.amplCeu > 0 : ga === 'ampliacao');
+  const usaFlash = pc.matches ? s.flash > 0 : ga === 'flash', usaCeu = pc.matches ? s.amplCeu > 0 : ga === 'ceu';
+  miraAtiva = noAnalog && (usaFlash || usaCeu) && !(cortina >= 0);
+  horAtivo = miraAtiva && usaCeu; alvoAtivo = miraAtiva && usaFlash;
 }
 // o círculo mostra o tamanho real do efeito: na Ampliação, onde a máscara cai pela metade; no Flash, onde a luz cai pela metade
-function qualTam() {
-  const ga = grupoAtivo['p-analogico'];
-  if (!pc.matches) return ga === 'flash' ? 'flash' : 'ampl';
-  return (s.amplCeu || s.amplAssunto || s.amplEntorno) ? 'ampl' : 'flash';
-}
-function raioMira(r) {
-  const m = Math.min(r.width, r.height);
-  return qualTam() === 'flash' ? (0.2 + 0.55 * (s.flashAlcance ?? 0.5)) * 0.6 * m : (0.1 + 0.35 * (s.amplTam ?? 0.5)) * 1.3 * m;
+function raioMira(r) {   // o alcance do flash (onde a luz cai pela metade)
+  const m = Math.min(r.width, r.height), fe = { anos90: 1, digital: 1.25, festa: 0.85 }[s.flashEstilo] || 1;
+  return (0.2 + 0.55 * (s.flashAlcance ?? 0.5)) * fe * 0.6 * m;
 }
 function tamDeRaio(rp, r) {   // o inverso: raio na tela -> controle (0..1)
-  const m = Math.min(r.width, r.height), k = qualTam();
-  const v = k === 'flash' ? (rp / (0.6 * m) - 0.2) / 0.55 : (rp / (1.3 * m) - 0.1) / 0.35;
-  return [k === 'flash' ? 'flashAlcance' : 'amplTam', Math.min(1, Math.max(0, v))];
+  const m = Math.min(r.width, r.height), fe = { anos90: 1, digital: 1.25, festa: 0.85 }[s.flashEstilo] || 1;
+  return ['flashAlcance', Math.min(1, Math.max(0, (rp / (0.6 * m * fe) - 0.2) / 0.55))];
 }
 function posicionaMira() {
   atualizaMira();
@@ -1025,7 +1052,7 @@ function posicionaMira() {
   const p = $('palco').getBoundingClientRect(), r = fotoRect(), a = s.assunto || { x: 0.5, y: 0.5 };
   Object.assign(mira.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
   const rp = raioMira(r);
-  Object.assign(mira.querySelector('.alvo').style, { left: a.x * 100 + '%', top: a.y * 100 + '%', width: 2 * rp + 'px', height: 2 * rp + 'px', margin: -rp + 'px' });
+  Object.assign(mira.querySelector('.alvo').style, { display: alvoAtivo ? '' : 'none', left: a.x * 100 + '%', top: a.y * 100 + '%', width: 2 * rp + 'px', height: 2 * rp + 'px', margin: -rp + 'px' });
   const h = mira.querySelector('.horizonte'); h.style.display = horAtivo ? 'block' : 'none'; h.style.top = (s.horizonte ?? 0.42) * 100 + '%';
 }
 {
@@ -1045,9 +1072,10 @@ function posicionaMira() {
     }
     const [cx, cy] = centroPx(r), dc = Math.hypot(e.clientX - cx, e.clientY - cy), rp = raioMira(r);
     const pertoHor = horAtivo && Math.abs(y - (s.horizonte ?? 0.42)) * r.height < 22;
-    if (Math.abs(dc - rp) < 18 && rp > 24) arr = 'tam';
-    else if (pertoHor) arr = 'h';
+    if (alvoAtivo && Math.hypot(e.clientX - (cx + rp), e.clientY - cy) < 22) arr = 'tam';   // só pela alça (ou pinça): tocar na borda move o assunto
+    else if (pertoHor || !alvoAtivo) arr = horAtivo ? 'h' : null;
     else { arr = 'a'; s.assunto = { x, y }; }
+    if (arr === 'h') s.horizonte = Math.min(0.95, Math.max(0.05, y));
     posicionaMira(); desenha();
   });
   mira.addEventListener('pointermove', (e) => {
@@ -1061,11 +1089,69 @@ function posicionaMira() {
     posicionaMira(); desenha();
   });
   mira.addEventListener('mousemove', (e) => {
-    if (toques.size) return; const r = mira.getBoundingClientRect(), [cx, cy] = centroPx(r), dc = Math.hypot(e.clientX - cx, e.clientY - cy);
-    mira.style.cursor = Math.abs(dc - raioMira(r)) < 18 ? 'nwse-resize' : horAtivo && Math.abs((e.clientY - r.top) / r.height - (s.horizonte ?? 0.42)) * r.height < 22 ? 'ns-resize' : 'crosshair';
+    if (toques.size) return; const r = mira.getBoundingClientRect(), [cx, cy] = centroPx(r);
+    mira.style.cursor = alvoAtivo && Math.hypot(e.clientX - (cx + raioMira(r)), e.clientY - cy) < 22 ? 'ew-resize' : horAtivo && Math.abs((e.clientY - r.top) / r.height - (s.horizonte ?? 0.42)) * r.height < 22 ? 'ns-resize' : 'crosshair';
   });
   const fim = (e) => { toques.delete(e.pointerId); if (toques.size < 2) pinca2 = null; if (!arr && toques.size) return; arr = null; memoriza(); };
   mira.addEventListener('pointerup', fim); mira.addEventListener('pointercancel', fim);
+}
+
+// ------------------------------------------------------------ pontos do Seletivo sobre a foto
+// celular: com o Seletivo escolhido, tocar num lugar vazio cria um ponto (até 4); computador: "+ Ponto" e clicar na foto.
+// Tocar num ponto o escolhe; arrastar move; puxar a borda (ou pinça) muda o tamanho; enquanto mexe, a área fica vermelha.
+const pontosEl = document.createElement('div'); pontosEl.id = 'pontos'; $('palco').append(pontosEl);
+let pontosAtivos = false;
+function atualizaPontos() {
+  const aj = aba === 'ajustes' && !!foto && !modoCorte && !enquadrando && !(cortina >= 0) && !curvaNaFoto;
+  pontosAtivos = aj && (pc.matches ? ((s.pontos || []).length > 0 || novoPonto) : grupoAtivo['p-ajustes'] === 'seletivo');
+}
+const raioPonto = (pt, r) => (0.06 + 0.44 * (pt.tam ?? 0.4)) * 1.3 * Math.min(r.width, r.height);
+function posicionaPontos() {
+  atualizaPontos();
+  pontosEl.style.display = pontosAtivos ? 'block' : 'none'; if (!pontosAtivos) return;
+  const p = $('palco').getBoundingClientRect(), r = fotoRect();
+  Object.assign(pontosEl.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px', cursor: novoPonto ? 'crosshair' : 'default' });
+  pontosEl.innerHTML = (s.pontos || []).map((pt, i) => {
+    const sel = i === ptSel, rp = raioPonto(pt, r);
+    return `<div class="pt${sel ? ' sel' : ''}" style="left:${pt.x * 100}%;top:${pt.y * 100}%">${sel ? `<i class="aro" style="width:${2 * rp}px;height:${2 * rp}px;margin:${-rp}px"></i>` : ''}<b>${i + 1}</b></div>`;
+  }).join('');
+}
+{
+  let arr = null; const toques = new Map(); let pinca3 = null;
+  const pos = (e) => { const r = pontosEl.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)), r]; };
+  const centro = (pt, r) => [r.left + pt.x * r.width, r.top + pt.y * r.height];
+  const muda = (i, campos) => { s.pontos = s.pontos.map((p, j) => (j === i ? { ...p, ...campos } : p)); };
+  pontosEl.addEventListener('pointerdown', (e) => {
+    if (!pontosAtivos) return;
+    e.preventDefault(); e.stopPropagation(); pontosEl.setPointerCapture?.(e.pointerId);
+    toques.set(e.pointerId, [e.clientX, e.clientY]);
+    const [x, y, r] = pos(e), pts = s.pontos || [];
+    if (toques.size === 2 && ptSel >= 0) { const [a, b] = [...toques.values()]; pinca3 = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), tam: pts[ptSel].tam ?? 0.4 }; arr = null; return; }
+    // perto do centro de um ponto: escolhe e arrasta; na borda do escolhido: tamanho; vazio: cria (celular ou "+ Ponto")
+    const perto = pts.findIndex((pt) => { const [cx, cy] = centro(pt, r); return Math.hypot(e.clientX - cx, e.clientY - cy) < 24; });
+    if (ptSel >= 0 && pts[ptSel] && perto !== ptSel) {
+      // o tamanho muda só pela alça (o pontinho branco à direita do aro) ou pela pinça: tocar na borda não cria confusão
+      const [cx, cy] = centro(pts[ptSel], r); if (Math.hypot(e.clientX - (cx + raioPonto(pts[ptSel], r)), e.clientY - cy) < 22) { arr = 'tam'; verMasc = ptSel; desenha(); return; }
+    }
+    if (perto >= 0) { ptSel = perto; arr = 'mover'; verMasc = ptSel; }
+    else if ((celular() || novoPonto) && pts.length < 4) {
+      s.pontos = [...pts, { x, y, tam: 0.4, luz: 0, contraste: 0, sat: 0, calor: 0, estrutura: 0, entorno: 0 }]; ptSel = s.pontos.length - 1;
+      novoPonto = false; arr = 'mover'; verMasc = ptSel; sincronizaFerramentas();
+    } else { ptSel = -1; arr = null; }
+    montaSel(); posicionaPontos(); desenha();
+  });
+  pontosEl.addEventListener('pointermove', (e) => {
+    if (!toques.has(e.pointerId)) return; e.stopPropagation();
+    toques.set(e.pointerId, [e.clientX, e.clientY]);
+    const [x, y, r] = pos(e);
+    if (pinca3 && toques.size === 2 && ptSel >= 0) { const [a, b] = [...toques.values()]; muda(ptSel, { tam: Math.min(1, Math.max(0, pinca3.tam + (Math.hypot(a[0] - b[0], a[1] - b[1]) / pinca3.d - 1) * 0.6)) }); verMasc = ptSel; posicionaPontos(); desenha(); return; }
+    if (arr === 'mover') muda(ptSel, { x, y });
+    else if (arr === 'tam') { const [cx, cy] = centro(s.pontos[ptSel], r), d = Math.hypot(e.clientX - cx, e.clientY - cy); muda(ptSel, { tam: Math.min(1, Math.max(0, (d / (1.3 * Math.min(r.width, r.height)) - 0.06) / 0.44)) }); }
+    else return;
+    posicionaPontos(); desenha();
+  });
+  const fim = (e) => { toques.delete(e.pointerId); if (toques.size < 2) pinca3 = null; if (toques.size) return; const mexeu = arr || verMasc >= 0; arr = null; verMasc = -1; desenha(); if (mexeu) memoriza(); };
+  pontosEl.addEventListener('pointerup', fim); pontosEl.addEventListener('pointercancel', fim);
 }
 
 // ------------------------------------------------------------ moldura do corte sobre a foto (alças nos cantos e lados; arrastar dentro move)
@@ -1073,7 +1159,7 @@ const moldCorte = document.createElement('div'); moldCorte.id = 'moldCorte';
 moldCorte.innerHTML = '<div class="caixa"><i class="t1"></i><i class="t2"></i><i class="t3"></i><i class="t4"></i>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((h) => `<b data-h="${h}"></b>`).join('') + '</div>';
 $('palco').append(moldCorte);
 function posicionaSobreposicoes() {
-  posicionaMira(); if (typeof posicionaCortina === 'function') posicionaCortina();
+  posicionaMira(); if (typeof posicionaPontos === 'function') posicionaPontos(); if (typeof posicionaCortina === 'function') posicionaCortina();
   const p = $('palco').getBoundingClientRect(), r = fotoRect();
   moldCorte.style.display = modoCorte && foto ? 'block' : 'none';
   if (modoCorte && foto) {
@@ -1257,7 +1343,7 @@ async function abre(file) {
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
     // a foto nova começa limpa; se a anterior foi editada, pergunta se quer repetir (nunca aplica sozinho)
     const anterior = tinhaFoto && editada() ? { ...s } : null;
-    s = { ...PADRAO, semente: Math.random() }; marcando = false; if (enquadrando) { enquadrando = false; document.body.classList.remove('enquadrando'); } R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
+    s = { ...PADRAO, semente: Math.random() }; ptSel = -1; novoPonto = false; marcando = false; if (enquadrando) { enquadrando = false; document.body.classList.remove('enquadrando'); } R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none'; document.body.classList.add('com-foto');
     for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
