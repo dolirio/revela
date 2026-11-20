@@ -178,7 +178,8 @@ float scratchOf(vec2 iu){
 vec3 leakRamp(float x, float warm, float cool){
   vec3 r = mix(vec3(0.72, 0.05, 0.04), vec3(0.92, 0.22, 0.05), warm), o = mix(vec3(1.0, 0.36, 0.07), vec3(1.0, 0.56, 0.12), warm);
   vec3 y = vec3(1.0, 0.86, 0.52), w = vec3(1.0, 0.97, 0.9);
-  if (cool > 0.5) { r = vec3(0.2, 0.08, 0.42); o = vec3(0.3, 0.42, 0.95); y = vec3(0.78, 0.72, 1.0); w = vec3(0.95, 0.95, 1.0); }
+  if (cool > 1.5) { r = vec3(0.5, 0.26, 0.16); o = vec3(0.96, 0.68, 0.46); y = vec3(1.0, 0.88, 0.72); w = vec3(1.0, 0.97, 0.92); }   // névoa quente: pastel
+  else if (cool > 0.5) { r = vec3(0.2, 0.08, 0.42); o = vec3(0.3, 0.42, 0.95); y = vec3(0.78, 0.72, 1.0); w = vec3(0.95, 0.95, 1.0); }
   vec3 col = r * smoothstep(0.0, 0.45, x);
   col = mix(col, o, smoothstep(0.25, 0.75, x));
   col = mix(col, y, smoothstep(0.55, 1.05, x));
@@ -188,7 +189,7 @@ vec3 leakRamp(float x, float warm, float cool){
 float leakField(vec2 iu, out float cool){
   cool = 0.0;
   int t = int(uLeakType + 0.5); float sd = uLeakSeed, bit = uLeakP.x; bool land = uRes.x >= uRes.y;
-  bool longEdge = t == 0 || t == 5 || (t == 4 && hash(vec2(sd, 4.0)) > 0.5);
+  bool longEdge = t == 0 || t == 5 || t == 7 || (t == 4 && hash(vec2(sd, 4.0)) > 0.5);
   int side = longEdge ? (land ? (bit > 0.5 ? 2 : 3) : (bit > 0.5 ? 0 : 1)) : (land ? (bit > 0.5 ? 0 : 1) : (bit > 0.5 ? 2 : 3));
   float d, s;
   if (side == 0) { d = iu.x; s = iu.y; } else if (side == 1) { d = 1.0 - iu.x; s = iu.y; } else if (side == 2) { d = iu.y; s = iu.x; } else { d = 1.0 - iu.y; s = iu.x; }
@@ -212,6 +213,23 @@ float leakField(vec2 iu, out float cool){
     cool = 1.0;
     vec2 q = vec2(dn - (0.1 + 0.35 * v), sn - tp) / (0.45 + 0.45 * w);
     return 0.55 * exp(-dot(q, q)) * (0.8 + 0.3 * fbm2(vec2(sn, dn) * 2.0 + sd));
+  }
+  if (t == 6) {   // rolo aberto: a tampa abriu e quase o quadro inteiro velou, com um canto quente
+    float lim = 0.55 + 0.55 * w + (fbm2(vec2(sn * 1.4 + sd, 3.0)) - 0.5) * 0.7;
+    float vela = 1.0 - smoothstep(lim - 0.6, lim + 0.15, dn);
+    vec2 c = vec2(dn, sn - tp); float quente = exp(-dot(c, c) / (0.06 + 0.08 * v));
+    return 1.0 * vela * (0.7 + 0.4 * fbm2(vec2(sn, dn) * 2.2 + sd)) + 1.0 * quente;
+  } else if (t == 7) {   // fresta: um risco de luz atravessando a foto (vão na porta traseira da câmera)
+    // largo e macio, de borda irregular, mais forte perto da borda do filme por onde a luz entra e sumindo para dentro
+    float bw = (0.045 + 0.07 * w) * (0.7 + 0.6 * gnoise(vec2(dn * 2.2 + sd, 5.0)));
+    float off = sn - tp - (gnoise(vec2(dn * 1.1 + sd, 1.0)) - 0.5) * 0.12;
+    float nucleo = exp(-pow(off / bw, 2.0)), brilho = exp(-abs(off) / (0.12 + 0.12 * w));
+    float entra = exp(-dn / (0.45 + 0.5 * v)) * 0.8 + 0.2;
+    return (0.85 * nucleo + 0.5 * brilho) * entra * (0.45 + 0.7 * fbm2(vec2(dn * 3.0 + sd, sn * 0.7)));
+  } else if (t == 8) {   // névoa quente: véu macio e quente entrando por um canto, que tira o contraste
+    cool = 2.0;
+    vec2 c = vec2(dn, (bit > 0.5 ? sn : lenS / sh - sn)); float dist = length(c);
+    return 1.5 * exp(-dist / (0.55 + 0.6 * w)) * (0.8 + 0.3 * fbm2(c * 1.8 + sd));
   }
   vec2 rel = vec2(dn, sn - tp); float ang = atan(rel.y, rel.x + 1e-4), dist = length(rel);
   float rays = smoothstep(0.42, 0.9, gnoise(vec2(ang * 2.6 + sd, sd * 0.37))), soft = 0.35 + 0.65 * gnoise(vec2(dist * 3.0 + sd, ang * 1.5));
@@ -435,7 +453,7 @@ void main(){
   if (uLeak > 0.0) {
     float cool, x = leakField(fu, cool) * uLeak * 1.15;
     vec3 lk = leakRamp(min(x, 1.25), hash(vec2(uLeakSeed, 7.0)), cool);
-    col = mix(col, col * 0.88 + 0.1, clamp(x, 0.0, 1.0) * 0.25);
+    col = mix(col, col * 0.88 + 0.1, clamp(x, 0.0, 1.0) * (cool > 1.5 ? 0.6 : 0.25));   // a névoa vela mais (tira o contraste)
     col = 1.0 - (1.0 - col) * (1.0 - lk);
   }
   // ---------- ampliação (o trabalho do fotógrafo no laboratório, na cópia): queimar o céu, segurar a luz em cima do

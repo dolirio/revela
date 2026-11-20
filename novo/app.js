@@ -29,6 +29,9 @@ const LUZES = [
   { id: '2', n: 'Início', nota: 'A primeira foto do rolo: parte da imagem queimada' },
   { id: '3', n: 'Entre fotos', nota: 'Faixa estreita perto da divisa entre duas fotos' },
   { id: '4', n: 'Frontal', nota: 'Luz pela frente da câmera: véu frio e macio' },
+  { id: '6', n: 'Rolo aberto', nota: 'A tampa abriu: quase o quadro inteiro velado, com um canto quente' },
+  { id: '7', n: 'Fresta', nota: 'Um risco de luz atravessando a foto, por um vão na porta da câmera' },
+  { id: '8', n: 'Névoa quente', nota: 'Véu macio e quente entrando por um canto; tira o contraste' },
 ];
 
 const CATS = [{ id: 'filmes', n: 'Filmes' }, { id: 'receitas', n: 'Receitas' }, { id: 'minhas', n: 'Minhas' }];
