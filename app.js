@@ -145,13 +145,20 @@ function montaCats() {
   addEventListener('pointerup', () => { x0 = null; });
   fx.addEventListener('click', (e) => { if (moveu) { e.stopPropagation(); e.preventDefault(); moveu = false; } }, true);   // arrastar não escolhe filme
 }
+// o filme real que inspirou cada um (aparece em letra menor embaixo do nome, na faixa)
+const INSPIRADO = {   // curto, numa linha só: a marca vai na ficha (toque longo)
+  portrait400: 'Portra 400', portrait160: 'Portra 160', portrait800: 'Portra 800', gold200: 'Gold 200',
+  editorial100: 'Ektachrome', chrome100: 'Ektar 100', vivid50: 'Velvia 50', chrome64: 'Kodachrome',
+  pro400: 'Pro 400H', tungsten800: 'CineStill', silver400: 'Tri-X 400', silverportrait: 'Tri-X verde',
+};
 function montaFaixa() {
   const fx = $('faixa'); fx.innerHTML = '';
-  const item = (id, nome, desenha) => {
+  const item = (id, nome, desenha, ref = '') => {
     const b = document.createElement('button'); b.className = 'film' + ((s.filme ?? 'none') === id ? ' on' : '');
     const c = document.createElement('canvas'); c.width = c.height = 148;
     if (foto && desenha) desenha(c); else { c.className = 'ph'; }
     b.append(c); const n = document.createElement('span'); n.textContent = nome; b.append(n);
+    if (ref) { const r = document.createElement('small'); r.className = 'ref'; r.textContent = ref; b.append(r); }
     b.onclick = () => escolheFilme(id === 'none' ? null : id);
     toqueLongo(b, () => fichaFilme(id === 'none' ? null : id));
     fx.append(b);
@@ -184,8 +191,8 @@ function montaFaixa() {
       b.onclick = () => aplicaReceita(r); toqueLongo(b, () => fichaReceita(r)); fx.append(b);
     }
   } else {
-    item('none', 'Digital', (c) => miniatura(c, null));
-    for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
+    item('none', 'Digital', (c) => miniatura(c, null), 'sem filme');
+    for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f), INSPIRADO[f.meta.id] || '');
   }
   atualizaNota();
 }
@@ -911,7 +918,7 @@ function volta(n) {
   if (s.filme !== ant || s.lab !== antLab || s.filtro !== antF) { R.setFilm(filmeAtual()); montaFaixa(); }
   sincroniza(); atualizaNota(); desenha(); botoes();
 }
-function botoes() { $('bDesfazer').disabled = hi <= 0; $('bRefazer').disabled = hi >= hist.length - 1; }
+function botoes() { guardaEstado(); $('bDesfazer').disabled = hi <= 0; $('bRefazer').disabled = hi >= hist.length - 1; }
 $('bDesfazer').onclick = () => volta(-1); $('bRefazer').onclick = () => volta(1);
 
 // ------------------------------------------------------------ desenho na tela
@@ -1302,8 +1309,8 @@ function perguntaRepetir(anterior) {
     R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); desenha(); memoriza();
   };
 }
-async function abre(file) {
-  aviso('Abrindo…');
+async function abre(file, recupera = null) {
+  aviso(recupera ? 'Recuperando a edição…' : 'Abrindo…');
   try {
     const { bitmap, note } = await decodeFile(file);
     const tinhaFoto = !!foto;   // na primeira foto não há edição anterior para repetir
@@ -1311,15 +1318,59 @@ async function abre(file) {
     R.setImage(reduz(bitmap, Math.min(R.maxTex, 2400)));
     miniFonte = reduz(bitmap, 300); Rmini.setImage(miniFonte);
     // a foto nova começa limpa; se a anterior foi editada, pergunta se quer repetir (nunca aplica sozinho)
-    const anterior = tinhaFoto && editada() ? { ...s } : null;
+    const anterior = !recupera && tinhaFoto && editada() ? { ...s } : null;
     s = { ...PADRAO, semente: Math.random() }; ptSel = -1; novoPonto = false; marcando = false; if (enquadrando) { enquadrando = false; document.body.classList.remove('enquadrando'); } R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none'; document.body.classList.add('com-foto');
     for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
-    montaFaixa(); sincroniza(); atualizaNota(); atualizaModos(); desenha(); hist = []; hi = -1; memoriza();
-    aviso(note || '');
+    if (recupera) {   // o Android fechou o app em segundo plano: volta a foto, a edição e o histórico de desfazer
+      s = { ...PADRAO, ...recupera.s }; hist = recupera.hist || []; hi = Math.min(recupera.hi ?? hist.length - 1, hist.length - 1);
+      R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); atualizaModos(); desenha(); botoes(); memoriza();
+      aviso('Edição recuperada');
+    } else {
+      montaFaixa(); sincroniza(); atualizaNota(); atualizaModos(); desenha(); hist = []; hi = -1; memoriza();
+      guardaFoto(file); aviso(note || '');
+    }
   } catch (err) { console.error(err); aviso(err.message || 'Não consegui abrir essa foto.'); }
 }
+
+// ------------------------------------------------------------ sessão guardada no aparelho
+// O Android (e às vezes o iPhone) fecha o app em segundo plano para liberar memória; na volta, tudo se perdia.
+// A foto e a edição (com o histórico de desfazer) ficam guardadas no próprio aparelho (IndexedDB) e voltam sozinhas.
+// Nada sai do celular. Guarda só a última foto; abrir outra substitui.
+function banco() {
+  return new Promise((ok, erro) => {
+    const r = indexedDB.open('revela', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('sessao');
+    r.onsuccess = () => ok(r.result); r.onerror = () => erro(r.error);
+  });
+}
+async function grava(chave, valor) {
+  try { const db = await banco(); await new Promise((ok, erro) => { const tx = db.transaction('sessao', 'readwrite'); tx.objectStore('sessao').put(valor, chave); tx.oncomplete = ok; tx.onerror = () => erro(tx.error); }); db.close(); } catch { /* sem armazenamento: segue sem guardar */ }
+}
+async function le(chave) {
+  try { const db = await banco(); const v = await new Promise((ok, erro) => { const g = db.transaction('sessao').objectStore('sessao').get(chave); g.onsuccess = () => ok(g.result); g.onerror = () => erro(g.error); }); db.close(); return v; } catch { return null; }
+}
+function guardaFoto(file) { grava('foto', { blob: file, nome: file.name, tipo: file.type, quando: Date.now() }); grava('estado', null); }
+let tGuarda = 0;
+function guardaEstado(ja = false) {
+  if (!foto) return;
+  clearTimeout(tGuarda);
+  const faz = () => { const corte = Math.max(0, hist.length - 80);   // guarda os últimos 80 passos do desfazer
+    grava('estado', { s, hist: hist.slice(corte), hi: Math.max(0, hi - corte), quando: Date.now() }); };
+  if (ja) faz(); else tGuarda = setTimeout(faz, 400);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardaEstado(true); });   // ao sair para outro app
+addEventListener('pagehide', () => guardaEstado(true));
+async function recuperaSessao() {
+  const f = await le('foto'), e = await le('estado');
+  if (!f?.blob || foto) return;
+  if (Date.now() - (f.quando || 0) > 1000 * 60 * 60 * 24 * 7) return;   // mais de uma semana: começa limpo
+  await abre(new File([f.blob], f.nome || 'foto.jpg', { type: f.tipo || f.blob.type }), e?.s ? e : { s: {}, hist: [], hi: -1 });
+}
+// a placa de vídeo pode "esquecer" a imagem (pouca memória): recarrega e a sessão guardada volta sozinha
+tela.addEventListener('webglcontextlost', (e) => { e.preventDefault(); guardaEstado(true); });
+tela.addEventListener('webglcontextrestored', () => location.reload());
 
 // ------------------------------------------------------------ exportar em tamanho real
 // app Android (APK, Capacitor): o WebView não baixa arquivos. Grava em Imagens/Revela (a Galeria encontra);
@@ -1482,4 +1533,5 @@ function aviso(t) {
 pronto = true;
 carregaFilmes().then(() => {
   montaCats(); montaFaixa(); sincroniza(); atualizaNota();   // começa sem filme: nada é aplicado antes de você escolher
+  recuperaSessao();   // se o app foi fechado no meio de uma edição, ela volta
 }).catch((e) => { console.error(e); aviso('Não consegui carregar os filmes.'); });

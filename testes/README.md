@@ -4,14 +4,15 @@ Rodam no navegador Chromium do Playwright (com placa de vídeo simulada, `--use-
 
 ```bash
 python3 -m http.server 8765 --bind 127.0.0.1    # na raiz do repositório
-node novo/testes/revisao.js  PASTA              # revisão completa (celular e computador): filmes, rosto, efeitos, desfazer, exportar, pergunta da foto nova, lote
-node novo/testes/grupos.js   FOTO PASTA         # altura do painel igual em todas as ferramentas (a foto não pula)
-node novo/testes/medir_area.js FOTO PASTA nome  # quanto da tela a foto ocupa em cada aba (iPhone 15, Pixel 7)
-node novo/testes/novas.js    PASTA_FOTOS PASTA  # Minhas receitas (inclusive código malicioso), ficha do filme, cortina, exportar
-node novo/testes/sel.js      PASTA_FOTOS PASTA  # Seletivo: criar, ajustar, máscara, apagar, desfazer, foto nova sem pontos
-node novo/testes/enq.js      FOTO PASTA         # Enquadrar: cortar, endireitar, perspectiva, lente, cancelar, aplicar, exportar
-node novo/testes/formato.js  PASTA_FOTOS PASTA  # Exportar em JPEG e PNG, formato lembrado
-node novo/testes/revgeral.js PASTA_FOTOS PASTA  # nada cortado ou transbordando em 320 px, iPhone e computador
+node testes/revisao.js  PASTA              # revisão completa (celular e computador): filmes, rosto, efeitos, desfazer, exportar, pergunta da foto nova, lote
+node testes/grupos.js   FOTO PASTA         # altura do painel igual em todas as ferramentas (a foto não pula)
+node testes/medir_area.js FOTO PASTA nome  # quanto da tela a foto ocupa em cada aba (iPhone 15, Pixel 7)
+node testes/novas.js    PASTA_FOTOS PASTA  # Minhas receitas (inclusive código malicioso), ficha do filme, cortina, exportar
+node testes/sel.js      PASTA_FOTOS PASTA  # Seletivo: criar, ajustar, máscara, apagar, desfazer, foto nova sem pontos
+node testes/enq.js      FOTO PASTA         # Enquadrar: cortar, endireitar, perspectiva, lente, cancelar, aplicar, exportar
+node testes/formato.js  PASTA_FOTOS PASTA  # Exportar em JPEG e PNG, formato lembrado
+node testes/revgeral.js PASTA_FOTOS PASTA  # nada cortado ou transbordando em 320 px, iPhone e computador
+node testes/sessao.js FOTO [PASTA]               # o app é fechado no meio da edição e reaberto: foto, edição e desfazer voltam
 ```
 
 As fotos de teste **não ficam no repositório** (são do usuário e podem ter localização). Use uma pasta local com:
