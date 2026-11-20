@@ -156,6 +156,33 @@
   #curva .grade line { stroke: #fff3; stroke-width: 1; } #curva polyline { fill: none; stroke-width: 2; } #curva .outra { stroke-width: 1; opacity: .55; }
   #curva circle { fill: #0009; stroke-width: 2; }
   #g_curvas > #curva { display: none; }
+  /* folha: sobe por cima dos controles (não muda a altura da tela) */
+  #veu { position: fixed; inset: 0; background: #0007; z-index: 20; display: none; }
+  #folha { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+    padding: 18px 18px calc(16px + var(--safe-b)); transform: translateY(105%); transition: transform .22s ease; max-height: 80vh; overflow-y: auto; }
+  body.com-folha #veu { display: block; } body.com-folha #folha { transform: none; }
+  .ficha h3 { margin: 0 0 6px; font-weight: 500; font-size: 20px; letter-spacing: .01em; }
+  .ficha .alma { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .ficha dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 13px; }
+  .ficha dt { color: var(--faint); text-transform: uppercase; letter-spacing: .1em; font-size: 11px; padding-top: 2px; } .ficha dd { margin: 0; color: var(--text); }
+  .ficha .campo { width: 100%; box-sizing: border-box; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font: inherit; font-size: 15px; padding: 10px 12px; margin-bottom: 12px; }
+  .ficha .codigo { font-family: ui-monospace, Menlo, monospace; font-size: 12px; resize: none; word-break: break-all; }
+  .ficha .botoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .ficha .botoes button { min-height: 44px; padding: 0 16px; border-radius: 10px; font-size: 14px; color: var(--text); border: 1px solid var(--line); }
+  .ficha .botoes .pri { background: var(--text); color: var(--bg, #111); border-color: transparent; font-weight: 600; }
+  .ficha .botoes .apaga { margin-right: auto; color: #e58a7a; border-color: transparent; }
+  .ficha .opcao { display: grid; gap: 3px; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); }
+  .ficha .opcao b { font-weight: 500; font-size: 15px; } .ficha .opcao small { color: var(--muted); font-size: 12.5px; }
+  .ficha .opcao:hover { border-color: var(--accent); }
+  .film.acao .ph { font-size: 30px; font-weight: 200; color: var(--muted); border: 1px dashed var(--line); background: transparent; }
+  /* cortina: antes | depois */
+  #cortina { position: absolute; display: none; z-index: 4; touch-action: none; cursor: ew-resize; }
+  #cortina i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 0 1px #0005; }
+  #cortina i::after { content: '‹ ›'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #111;
+    display: grid; place-items: center; font-size: 15px; letter-spacing: 2px; box-shadow: 0 1px 8px #0006; }
+  #cortina span { position: absolute; top: 8px; font-size: 10.5px; letter-spacing: .14em; color: #fff; text-shadow: 0 1px 4px #000b; pointer-events: none; }
+  #cortina .ant { left: 10px; } #cortina .dep { right: 10px; }
+  #bComparar.on { color: var(--accent); }
   /* mira: o assunto (círculo) e a linha do horizonte, sobre a foto */
   #mira { position: absolute; display: none; z-index: 3; touch-action: none; cursor: crosshair; }
   #mira .alvo { position: absolute; width: 46px; height: 46px; margin: -23px; border-radius: 50%; border: 1.5px solid #fffd; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
@@ -208,6 +235,7 @@
     .ferramentas { display: none; }
     .grupo, .grupo .sec { display: block; }
     .so-pc { display: inline-block; }
+    #folha { left: auto; right: 0; width: 360px; border-left: 1px solid var(--line); border-radius: 16px 0 0 0; }
     body.enquadrando #enq { min-height: 0; justify-content: flex-start; gap: 18px; padding-top: 10px; }
     #nota { display: block; } .film { width: 74px; } .film canvas, .film .ph { width: 74px; height: 74px; }
     #cIntensidade .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } #cIntensidade .ctl label { display: block; } #cIntensidade .ctl input { order: 0; grid-column: 1 / -1; }
@@ -241,7 +269,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.15 · 19/11/2026</small>
+    <small class="versao">versão de teste 48.16 · 20/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

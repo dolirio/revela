@@ -31,7 +31,7 @@ const LUZES = [
   { id: '4', n: 'Frontal', nota: 'Luz pela frente da câmera: véu frio e macio' },
 ];
 
-const CATS = [{ id: 'filmes', n: 'Filmes' }, { id: 'receitas', n: 'Receitas' }];
+const CATS = [{ id: 'filmes', n: 'Filmes' }, { id: 'receitas', n: 'Receitas' }, { id: 'minhas', n: 'Minhas' }];
 
 // receitas: um toque aplica filme + revelação + textura. Nomes clássicos (sem nomes de pessoas); a inspiração está
 // em pesquisa/receitas.md. Tudo continua ajustável depois.
@@ -160,22 +160,186 @@ function montaFaixa() {
     if (foto && desenha) desenha(c); else { c.className = 'ph'; }
     b.append(c); const n = document.createElement('span'); n.textContent = nome; b.append(n);
     b.onclick = () => escolheFilme(id === 'none' ? null : id);
+    toqueLongo(b, () => fichaFilme(id === 'none' ? null : id));
     fx.append(b);
   };
-  if (catAtual === 'receitas') {
+  if (catAtual === 'minhas') {
+    // as receitas da pessoa: a primeira casa salva a edição de agora; depois as salvas; por fim, colar um código
+    const extra = (rot, sub, acao) => {
+      const b = document.createElement('button'); b.className = 'film acao';
+      b.innerHTML = `<div class="ph">${rot}</div><span>${sub}</span>`; b.onclick = acao; fx.append(b);
+    };
+    extra('+', 'Salvar esta', () => salvarMinha());
+    for (const m of lerMinhas()) {
+      const f = filmes.find((x) => x.meta.id === m.s.filme);
+      const b = document.createElement('button'); b.className = 'film' + (s.receita === 'm_' + m.id ? ' on' : '');
+      const c = document.createElement('canvas'); c.width = c.height = 148;
+      if (foto) miniatura(c, f, m.s); else c.className = 'ph';
+      const n = document.createElement('span'); n.textContent = m.n; b.append(c, n);
+      b.onclick = () => aplicaMinha(m); toqueLongo(b, () => fichaMinha(m)); fx.append(b);
+    }
+    extra('⧉', 'Colar código', () => colarCodigo());
+  } else if (catAtual === 'receitas') {
     for (const r of RECEITAS) {
       const f = filmes.find((x) => x.meta.id === r.s.filme);
       const b = document.createElement('button'); b.className = 'film' + (s.receita === r.id ? ' on' : '');
       const c = document.createElement('canvas'); c.width = c.height = 148;
       if (foto) miniatura(c, f, r.s); else c.className = 'ph';
       const n = document.createElement('span'); n.textContent = r.n; b.append(c, n);
-      b.onclick = () => aplicaReceita(r); fx.append(b);
+      b.onclick = () => aplicaReceita(r); toqueLongo(b, () => fichaReceita(r)); fx.append(b);
     }
   } else {
     item('none', 'Digital', (c) => miniatura(c, null));
     for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
   }
   atualizaNota();
+}
+
+// ------------------------------------------------------------ folha: um painel pequeno que sobe por cima dos controles
+// (salvar e renomear receitas, códigos, ficha do filme, exportar). Não muda a altura da tela; toque fora fecha.
+const veu = document.createElement('div'); veu.id = 'veu'; document.body.append(veu);
+const folhaEl = document.createElement('div'); folhaEl.id = 'folha'; folhaEl.setAttribute('role', 'dialog'); document.body.append(folhaEl);
+function folha(html) { folhaEl.innerHTML = html; document.body.classList.add('com-folha'); return folhaEl; }
+function fechaFolha() { document.body.classList.remove('com-folha'); }
+veu.onclick = fechaFolha;
+addEventListener('keydown', (e) => { if (e.key === 'Escape') fechaFolha(); });
+const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// toque longo (ou botão direito) abre a ficha; o toque normal continua escolhendo
+function toqueLongo(el, abre) {
+  let tm = 0, longo = false;
+  el.addEventListener('pointerdown', (e) => { if (e.button) return; longo = false; tm = setTimeout(() => { longo = true; navigator.vibrate?.(10); abre(); }, 480); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel', 'pointermove']) el.addEventListener(ev, (e) => { if (ev === 'pointermove' && Math.abs(e.movementX) + Math.abs(e.movementY) < 3) return; clearTimeout(tm); });
+  el.addEventListener('click', (e) => { if (longo) { e.stopImmediatePropagation(); e.preventDefault(); longo = false; } }, true);
+  el.addEventListener('contextmenu', (e) => { e.preventDefault(); abre(); });
+}
+
+// ------------------------------------------------------------ ficha do filme (toque longo na miniatura)
+const PARA = {
+  portrait400: 'retratos e viagens com sol; pele bonita em quase qualquer luz',
+  portrait160: 'retrato íntimo em luz suave: janela, sombra aberta, fim de tarde',
+  portrait800: 'noite e interiores: festa, restaurante, casa à noite',
+  gold200: 'o dia a dia: família, praia, verão, a casa numa tarde de sol',
+  editorial100: 'retrato produzido: moda, estúdio, luz de janela',
+  chrome100: 'arquitetura e céu azul; cor forte ao meio-dia',
+  vivid50: 'paisagem: natureza, cachoeira, pôr do sol (deixa a pele vermelha)',
+  chrome64: 'rua: luz dura, sombras e cor que contam história',
+  pro400: 'casamento, natureza e céu aberto: verdes e brancos leves',
+  tungsten800: 'cidade à noite: neon e luz artificial',
+  silver400: 'rua e documental; céus dramáticos',
+  silverportrait: 'retrato em preto e branco, pele luminosa',
+};
+function fichaFilme(id) {
+  const f = filmes.find((x) => x.meta.id === id);
+  const m = f?.meta;
+  folha(`<div class="ficha"><h3>${m ? esc(m.nome) : 'Digital'}</h3>
+    <p class="alma">${m ? esc(m.nota) : 'A foto como saiu da câmera, sem filme.'}</p>
+    ${m ? `<dl><dt>Inspirado no</dt><dd>${esc(m.inspirado)}</dd>${PARA[id] ? `<dt>Para</dt><dd>${esc(PARA[id])}</dd>` : ''}</dl>` : ''}
+    <div class="botoes"><button class="fecha">Fechar</button><button class="pri">Usar este filme</button></div></div>`);
+  folhaEl.querySelector('.fecha').onclick = fechaFolha;
+  folhaEl.querySelector('.pri').onclick = () => { fechaFolha(); escolheFilme(id); };
+}
+function fichaReceita(r) {
+  const f = filmes.find((x) => x.meta.id === r.s.filme);
+  folha(`<div class="ficha"><h3>${esc(r.n)}</h3><p class="alma">${esc(r.nota)}</p>
+    <dl><dt>Filme</dt><dd>${esc(f?.meta.nome || 'Digital')}</dd></dl>
+    <div class="botoes"><button class="fecha">Fechar</button><button class="pri">Usar esta receita</button></div></div>`);
+  folhaEl.querySelector('.fecha').onclick = fechaFolha;
+  folhaEl.querySelector('.pri').onclick = () => { fechaFolha(); aplicaReceita(r); };
+}
+
+// ------------------------------------------------------------ minhas receitas: guardadas no aparelho (sem conta, sem internet)
+const CHAVE_MINHAS = 'revela.minhasReceitas';
+const FORA_DA_RECEITA = new Set(['semente', 'rosto', 'receita']);   // e o que é da foto (corte, assunto): POR_FOTO
+function lerMinhas() { try { const l = JSON.parse(localStorage.getItem(CHAVE_MINHAS) || '[]'); return Array.isArray(l) ? l : []; } catch { return []; } }
+function gravarMinhas(l) { try { localStorage.setItem(CHAVE_MINHAS, JSON.stringify(l)); return true; } catch { aviso('Não consegui guardar neste aparelho'); return false; } }
+function edicaoAtual() {   // só o que difere do padrão: a receita fica pequena e o código, curto
+  return Object.fromEntries(Object.keys(PADRAO).filter((k) => !FORA_DA_RECEITA.has(k) && !POR_FOTO.includes(k) && JSON.stringify(s[k]) !== JSON.stringify(PADRAO[k])).map((k) => [k, s[k]]));
+}
+function aplicaMinha(m) {
+  const daFoto = Object.fromEntries(POR_FOTO.map((k) => [k, s[k]]));   // o corte e o assunto desta foto ficam
+  s = { ...PADRAO, ...daFoto, semente: s.semente, ...valida(m.s), receita: 'm_' + m.id };
+  R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); desenha(); memoriza();
+  if (celular()) aviso(m.n);
+}
+function salvarMinha() {
+  if (!foto) { aviso('Abra uma foto e edite antes de salvar'); return; }
+  const l = lerMinhas(), nome = 'Minha receita ' + (l.length + 1);
+  folha(`<div class="ficha"><h3>Salvar esta edição</h3><p class="alma">Filme, ajustes e textura. O corte e o assunto marcado ficam só nesta foto.</p>
+    <input class="campo" maxlength="32" value="${esc(nome)}" aria-label="Nome da receita">
+    <div class="botoes"><button class="fecha">Cancelar</button><button class="pri">Salvar</button></div></div>`);
+  const inp = folhaEl.querySelector('input'); setTimeout(() => { inp.focus(); inp.select(); }, 50);
+  const ok = () => {
+    const n = inp.value.trim() || nome, id = Date.now().toString(36);
+    if (gravarMinhas([...l, { id, n, s: edicaoAtual() }])) { fechaFolha(); s.receita = 'm_' + id; catAtual = 'minhas'; montaCats(); montaFaixa(); memoriza(); aviso('Receita salva: ' + n); }
+  };
+  folhaEl.querySelector('.pri').onclick = ok; inp.onkeydown = (e) => { if (e.key === 'Enter') ok(); };
+  folhaEl.querySelector('.fecha').onclick = fechaFolha;
+}
+function fichaMinha(m) {
+  const cod = codigo(m);
+  folha(`<div class="ficha"><h3>Minha receita</h3>
+    <input class="campo" maxlength="32" value="${esc(m.n)}" aria-label="Nome da receita">
+    <p class="alma">Para passar adiante, copie o código e mande para quem quiser. No Revela da outra pessoa: Minhas › Colar código.</p>
+    <textarea class="campo codigo" readonly rows="2" aria-label="Código da receita">${esc(cod)}</textarea>
+    <div class="botoes"><button class="apaga">Apagar</button><button class="copia">Copiar código</button><button class="pri">Pronto</button></div></div>`);
+  const inp = folhaEl.querySelector('input');
+  folhaEl.querySelector('.pri').onclick = () => {
+    const l = lerMinhas().map((x) => (x.id === m.id ? { ...x, n: inp.value.trim() || x.n } : x)); gravarMinhas(l); fechaFolha(); montaFaixa();
+  };
+  folhaEl.querySelector('.copia').onclick = async () => {
+    const ta = folhaEl.querySelector('textarea');
+    try { await navigator.clipboard.writeText(cod); aviso('Código copiado'); } catch { ta.select(); document.execCommand?.('copy'); aviso('Código copiado'); }
+  };
+  folhaEl.querySelector('.apaga').onclick = () => {
+    const b = folhaEl.querySelector('.apaga');
+    if (!b.dataset.certeza) { b.dataset.certeza = 1; b.textContent = 'Apagar mesmo?'; return; }   // segundo toque confirma
+    gravarMinhas(lerMinhas().filter((x) => x.id !== m.id)); if (s.receita === 'm_' + m.id) s.receita = null; fechaFolha(); montaFaixa();
+  };
+}
+// código da receita: "RV1." + JSON em base64 (url). Ao colar, só entram campos conhecidos, com o tipo certo e dentro dos limites.
+function codigo(m) {
+  const j = JSON.stringify({ n: m.n, s: m.s }), b = btoa(unescape(encodeURIComponent(j)));
+  return 'RV1.' + b.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decodifica(txt) {
+  const m = String(txt).trim().match(/RV1\.([A-Za-z0-9_-]+)/); if (!m) return null;
+  try {
+    const b = m[1].replace(/-/g, '+').replace(/_/g, '/'), j = JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4)))));
+    if (!j || typeof j !== 'object') return null;
+    return { n: String(j.n || 'Receita recebida').slice(0, 32), s: valida(j.s || {}) };
+  } catch { return null; }
+}
+function valida(x) {   // nunca confia no que vem de fora: só chaves do padrão, com o tipo certo, dentro dos limites
+  const o = {}; if (!x || typeof x !== 'object') return o;
+  const num = (v, a, b) => (typeof v === 'number' && isFinite(v) ? Math.min(b, Math.max(a, v)) : null);
+  for (const [k, v] of Object.entries(x)) {
+    if (!(k in PADRAO) || FORA_DA_RECEITA.has(k) || POR_FOTO.includes(k)) continue;
+    if (k === 'filme') { if (v === null || filmes.some((f) => f.meta.id === v)) o.filme = v; continue; }
+    if (k === 'hsl') { if (Array.isArray(v) && v.length === 8) o.hsl = v.map((c) => (Array.isArray(c) ? [0, 1, 2].map((i) => num(c[i], -1, 1) ?? 0) : [0, 0, 0])); continue; }
+    if (k === 'curvas') {
+      if (v && typeof v === 'object') {
+        const c = {}; for (const ch of ['l', 'r', 'g', 'b']) { const pts = Array.isArray(v[ch]) ? v[ch].slice(0, 16).filter((p) => Array.isArray(p)).map((p) => [num(p[0], 0, 1) ?? 0, num(p[1], 0, 1) ?? 0]).sort((a, b) => a[0] - b[0]) : null; c[ch] = pts && pts.length >= 2 ? pts : CURVA0[ch]; }
+        o.curvas = c;
+      }
+      continue;
+    }
+    if (typeof PADRAO[k] === 'string') { if (typeof v === 'string' && v.length < 24) o[k] = v; continue; }
+    if (typeof PADRAO[k] === 'number') { const d = CTL[k]; const n = d ? num(v, d.min, d.max) : num(v, -1000, 1000); if (n !== null) o[k] = n; }
+  }
+  return o;
+}
+function colarCodigo() {
+  folha(`<div class="ficha"><h3>Colar código</h3><p class="alma">Cole o código de uma receita que alguém mandou para você.</p>
+    <textarea class="campo codigo" rows="3" placeholder="RV1.…" aria-label="Código da receita"></textarea>
+    <div class="botoes"><button class="fecha">Cancelar</button><button class="pri">Guardar receita</button></div></div>`);
+  const ta = folhaEl.querySelector('textarea'); setTimeout(() => ta.focus(), 50);
+  navigator.clipboard?.readText?.().then((x) => { if (/RV1\./.test(x) && !ta.value) ta.value = x.trim(); }).catch(() => {});
+  folhaEl.querySelector('.fecha').onclick = fechaFolha;
+  folhaEl.querySelector('.pri').onclick = () => {
+    const r = decodifica(ta.value); if (!r) { aviso('Esse código não é de uma receita do Revela'); return; }
+    const m = { id: Date.now().toString(36), n: r.n, s: r.s };
+    if (gravarMinhas([...lerMinhas(), m])) { fechaFolha(); catAtual = 'minhas'; montaCats(); if (foto) aplicaMinha(m); else montaFaixa(); aviso('Receita guardada: ' + m.n); }
+  };
 }
 
 // miniatura: a foto atual com cada filme (como no RNI, a escolha é vendo o resultado)
@@ -193,8 +357,8 @@ function miniatura(c, f, extra = null) {
 
 function atualizaNota() {
   const f = filmeAtual();
-  const rc = RECEITAS.find((r) => r.id === s.receita);
-  if (rc && catAtual === 'receitas') { $('nota').textContent = rc.nota; return; }
+  const rc = RECEITAS.find((r) => r.id === s.receita) || (catAtual === 'minhas' && String(s.receita).startsWith('m_') ? { nota: 'Minha receita: ' + (lerMinhas().find((m) => 'm_' + m.id === s.receita)?.n || '') } : null);
+  if (rc && (catAtual === 'receitas' || catAtual === 'minhas')) { $('nota').textContent = rc.nota; return; }
   $('nota').textContent = f ? `${f.meta.nota} · inspirado no ${f.meta.inspirado}` : 'Sem filme: a foto como saiu da câmera.';
 }
 
@@ -757,7 +921,7 @@ function desenha() {
     const k = Math.min((box.width - 28) / Q.W, (box.height - 18) / Q.H);   // tamanho na tela (CSS)
     const px = Math.min(k * dpr * zoom.z, 1);                                // pixels de verdade (mais com zoom): nunca acima da foto carregada
     const w = Math.max(1, Math.round(G.w * px)), h = Math.max(1, Math.round(G.h * px));
-    R.draw(original ? { ...st, moldura: 0 } : st, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
+    R.draw(original ? { ...st, moldura: 0 } : { ...st, cortina: modoCorte ? -1 : cortina }, w, h, Math.max(foto.bitmap.width, foto.bitmap.height), original);
     tela.style.width = Math.floor(Q.W * k) + 'px'; tela.style.height = Math.floor(Q.H * k) + 'px';
     anel(); posicionaSobreposicoes();
   });
@@ -833,7 +997,7 @@ let miraAtiva = false, horAtivo = false;
 function atualizaMira() {
   const ga = grupoAtivo['p-analogico'], noAnalog = aba === 'analogico' && !!foto && !modoCorte && !enquadrando;
   const usaFlash = pc.matches ? s.flash > 0 : ga === 'flash', usaAmpl = pc.matches ? !!(s.amplCeu || s.amplAssunto || s.amplEntorno) : ga === 'ampliacao';
-  miraAtiva = noAnalog && (usaFlash || usaAmpl);
+  miraAtiva = noAnalog && (usaFlash || usaAmpl) && !(cortina >= 0);
   horAtivo = miraAtiva && (pc.matches ? s.amplCeu > 0 : ga === 'ampliacao');
 }
 // o círculo mostra o tamanho real do efeito: na Ampliação, onde a máscara cai pela metade; no Flash, onde a luz cai pela metade
@@ -906,7 +1070,7 @@ const moldCorte = document.createElement('div'); moldCorte.id = 'moldCorte';
 moldCorte.innerHTML = '<div class="caixa"><i class="t1"></i><i class="t2"></i><i class="t3"></i><i class="t4"></i>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((h) => `<b data-h="${h}"></b>`).join('') + '</div>';
 $('palco').append(moldCorte);
 function posicionaSobreposicoes() {
-  posicionaMira();
+  posicionaMira(); if (typeof posicionaCortina === 'function') posicionaCortina();
   const p = $('palco').getBoundingClientRect(), r = fotoRect();
   moldCorte.style.display = modoCorte && foto ? 'block' : 'none';
   if (modoCorte && foto) {
@@ -1016,7 +1180,38 @@ const segura = (el) => {
   const off = () => { if (!original) return; original = false; $('selo').style.display = 'none'; desenha(); };
   el.addEventListener('pointerdown', on); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, off);
 };
-segura($('bComparar')); segura(tela);
+segura(tela);
+// botão comparar: segurar mostra a original inteira; um toque rápido liga a cortina (antes | depois, arrastando a linha)
+let cortina = -1;
+{
+  const b = $('bComparar'); let tm = 0, segurou = false;
+  b.addEventListener('pointerdown', (e) => {
+    if (!foto || modoCorte) return; e.preventDefault(); segurou = false;
+    tm = setTimeout(() => { segurou = true; original = true; $('selo').style.display = 'block'; desenha(); }, 230);
+  });
+  const solta = (ev) => {
+    clearTimeout(tm);
+    if (segurou) { segurou = false; original = false; $('selo').style.display = 'none'; desenha(); return; }
+    if (ev.type === 'pointerup' && foto && !modoCorte) { cortina = cortina < 0 ? 0.5 : -1; b.classList.toggle('on', cortina >= 0); posicionaCortina(); desenha(); }
+  };
+  b.addEventListener('pointerup', solta); b.addEventListener('pointerleave', (e) => { if (segurou) solta(e); else clearTimeout(tm); }); b.addEventListener('pointercancel', solta);
+}
+const cortinaEl = document.createElement('div'); cortinaEl.id = 'cortina';
+cortinaEl.innerHTML = '<span class="ant">ORIGINAL</span><span class="dep">REVELA</span><i></i>'; $('palco').append(cortinaEl);
+function posicionaCortina() {
+  const on = cortina >= 0 && foto && !modoCorte;
+  cortinaEl.style.display = on ? 'block' : 'none'; if (!on) return;
+  const p = $('palco').getBoundingClientRect(), r = fotoRect();
+  Object.assign(cortinaEl.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  cortinaEl.querySelector('i').style.left = cortina * 100 + '%';
+}
+{
+  let arr = false;
+  const pos = (e) => { const r = cortinaEl.getBoundingClientRect(); cortina = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); posicionaCortina(); desenha(); };
+  cortinaEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); arr = true; cortinaEl.setPointerCapture?.(e.pointerId); pos(e); });
+  cortinaEl.addEventListener('pointermove', (e) => { if (arr) { e.stopPropagation(); pos(e); } });
+  const fim = () => { arr = false; }; cortinaEl.addEventListener('pointerup', fim); cortinaEl.addEventListener('pointercancel', fim);
+}
 
 // ------------------------------------------------------------ abrir foto
 const reduz = (bmp, lado) => {
@@ -1104,18 +1299,46 @@ async function entrega(arqs) {
     setTimeout(() => URL.revokeObjectURL(l.href), 4000); await new Promise((r) => setTimeout(r, 350));
   }
 }
-$('bExportar').onclick = async () => {
+// exportar: a foto inteira em tamanho real, ou pronta para o Instagram (1080 px de largura, no máximo 4:5 em pé)
+$('bExportar').onclick = () => {
   if (!foto) return;
-  aviso('Revelando em tamanho real…');
+  const G = geometria(s, foto.bitmap.width, foto.bitmap.height), W = Math.round(G.w), H = Math.round(G.h);
+  const ig = tamInsta(W, H);
+  folha(`<div class="ficha"><h3>Exportar</h3>
+    <button class="opcao" data-o="inteira"><b>Foto inteira</b><small>${W} × ${H} · tamanho real, para guardar e imprimir</small></button>
+    <button class="opcao" data-o="insta"><b>Instagram</b><small>${ig.w} × ${ig.h}${ig.corta ? ' · corta o centro em 4:5, como o Instagram faria' : ''} · nítida no feed</small></button>
+    <div class="botoes"><button class="fecha">Cancelar</button></div></div>`);
+  folhaEl.querySelector('.fecha').onclick = fechaFolha;
+  folhaEl.querySelectorAll('.opcao').forEach((b) => b.onclick = () => { fechaFolha(); exporta(b.dataset.o); });
+};
+function tamInsta(W, H) {   // feed: 1080 de largura; em pé, no máximo 4:5 (mais alto que isso o Instagram corta)
+  const k = W / H, corta = k < 0.8, kk = Math.max(k, 0.8);
+  return { w: 1080, h: Math.round(1080 / Math.min(kk, 1.91)), corta };
+}
+async function exporta(modo) {
+  aviso(modo === 'insta' ? 'Preparando para o Instagram…' : 'Revelando em tamanho real…');
   try {
     const c = document.createElement('canvas'), E = new Render(c, { preserve: true });
-    const arq = await revela(E, foto.bitmap, s, foto.nome);
+    let arq = await revela(E, foto.bitmap, s, foto.nome);
+    if (modo === 'insta') arq = await paraInsta(c, foto.nome);
     const W = c.width, H = c.height;
     E.gl.getExtension('WEBGL_lose_context')?.loseContext();
     await entrega([arq]);
-    aviso(`Foto exportada (${W}×${H})`);
+    aviso(modo === 'insta' ? 'Pronta para o Instagram (1080 px)' : `Foto exportada (${W}×${H})`);
   } catch (err) { console.error(err); aviso('Falha ao exportar: ' + err.message); }
-};
+}
+// reduz em etapas (metade por vez) para não perder nitidez nem criar serrilhado; corta o centro se passar de 4:5
+async function paraInsta(src, nome) {
+  const t = tamInsta(src.width, src.height);
+  let sw = src.width, sh = src.height, sx = 0, sy = 0;
+  if (src.width / src.height < t.w / t.h) { sh = Math.round(src.width * t.h / t.w); sy = Math.round((src.height - sh) / 2); }
+  else if (src.width / src.height > t.w / t.h) { sw = Math.round(src.height * t.w / t.h); sx = Math.round((src.width - sw) / 2); }
+  let cur = document.createElement('canvas'); cur.width = sw; cur.height = sh; cur.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+  while (cur.width / 2 >= t.w) { const n = document.createElement('canvas'); n.width = Math.round(cur.width / 2); n.height = Math.round(cur.height / 2); const g = n.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, n.width, n.height); cur = n; }
+  const o = document.createElement('canvas'); o.width = t.w; o.height = t.h; const g = o.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, t.w, t.h);
+  const blob = await new Promise((r) => o.toBlob(r, 'image/jpeg', 0.92));
+  return new File([blob], `${nome}_revela_instagram.jpg`, { type: 'image/jpeg' });
+}
 
 // ------------------------------------------------------------ várias fotos (como no Lightroom: a mesma edição numa série)
 $('bLote').onclick = () => $('lote').click();
