@@ -9,7 +9,7 @@ node testes/grupos.js   FOTO PASTA         # altura do painel igual em todas as 
 node testes/medir_area.js FOTO PASTA nome  # quanto da tela a foto ocupa em cada aba (iPhone 15, Pixel 7)
 node testes/novas.js    PASTA_FOTOS PASTA  # Minhas receitas (inclusive código malicioso), ficha do filme, cortina, exportar
 node testes/sel.js      PASTA_FOTOS PASTA  # Seletivo: criar, ajustar, máscara, apagar, desfazer, foto nova sem pontos
-node testes/enq.js      FOTO PASTA         # Enquadrar: cortar, endireitar, perspectiva, lente, cancelar, aplicar, exportar
+node testes/enq.js      FOTO PASTA         # (FOTO em pé) Enquadrar: cortar, endireitar, perspectiva, lente, cancelar, aplicar, exportar
 node testes/formato.js  PASTA_FOTOS PASTA  # Exportar em JPEG e PNG, formato lembrado
 node testes/revgeral.js PASTA_FOTOS PASTA  # nada cortado ou transbordando em 320 px, iPhone e computador
 node testes/sessao.js FOTO [PASTA]               # o app é fechado no meio da edição e reaberto: foto, edição e desfazer voltam
