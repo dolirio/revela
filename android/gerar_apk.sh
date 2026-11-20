@@ -29,6 +29,9 @@ for f in os.listdir(d):
     if f != 'indice.json' and f.split('.')[0] not in ids: os.remove(os.path.join(d, f))
 PY
 [ -d android ] || npx cap add android
+# o nome que aparece no celular vem da configuração (a pasta android pode ter sido criada com um nome antigo)
+NOME=$(python3 -c "import json;print(json.load(open('capacitor.config.json'))['appName'])")
+sed -i "s#<string name=\"app_name\">[^<]*</string>#<string name=\"app_name\">$NOME</string>#; s#<string name=\"title_activity_main\">[^<]*</string>#<string name=\"title_activity_main\">$NOME</string>#" android/app/src/main/res/values/strings.xml
 M=android/app/src/main/AndroidManifest.xml
 grep -q WRITE_EXTERNAL "$M" || sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />#' "$M"
 python3 - "$RAIZ/icone-desenho-512.png" "$RAIZ/icone-512.png" <<'PY'
