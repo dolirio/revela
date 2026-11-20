@@ -1282,14 +1282,15 @@ async function salvaNoAparelho(arq) {
   }
 }
 
-// revela uma foto em tamanho real com a edição st e devolve o arquivo JPEG
-async function revela(E, bitmap, st, nome) {
+// revela uma foto em tamanho real com a edição st e devolve o arquivo (JPEG, ou PNG sem perda)
+async function revela(E, bitmap, st, nome, fmt = 'jpeg') {
   const src = reduz(bitmap, Math.min(E.maxTex, 8192));
   E.setImage(src); E.setFilm(filmeAtual());
   const G = geometria(st, src.width, src.height);
   E.draw(st, Math.max(1, Math.round(G.w)), Math.max(1, Math.round(G.h)), Math.max(bitmap.width, bitmap.height));
-  const blob = await new Promise((r) => E.canvas.toBlob(r, 'image/jpeg', 0.95));
-  return new File([blob], `${nome}_revela${st.filme ? '_' + st.filme : ''}.jpg`, { type: 'image/jpeg' });
+  const png = fmt === 'png', tipo = png ? 'image/png' : 'image/jpeg';
+  const blob = await new Promise((r) => E.canvas.toBlob(r, tipo, png ? undefined : 0.95));
+  return new File([blob], `${nome}_revela${st.filme ? '_' + st.filme : ''}.${png ? 'png' : 'jpg'}`, { type: tipo });
 }
 // entrega os arquivos: app Android grava em Imagens › Revela; celular abre o compartilhar; computador baixa
 async function entrega(arqs) {
@@ -1302,45 +1303,62 @@ async function entrega(arqs) {
     setTimeout(() => URL.revokeObjectURL(l.href), 4000); await new Promise((r) => setTimeout(r, 350));
   }
 }
-// exportar: a foto inteira em tamanho real, ou pronta para o Instagram (1080 px de largura, no máximo 4:5 em pé)
+// exportar: escolher o formato (JPEG ou PNG) e o destino: salvar no aparelho ou compartilhar com outro app
+// (Instagram, WhatsApp, e-mail…, pelo menu do próprio sistema). O Revela entrega a foto; para onde ela vai é escolha sua.
+const nativo = () => !!window.Capacitor?.isNativePlatform?.();
+const podeCompartilhar = () => nativo() || !!navigator.canShare?.({ files: [new File([new Blob(['x'], { type: 'image/jpeg' })], 'x.jpg', { type: 'image/jpeg' })] });
+let formato = 'jpeg'; try { formato = localStorage.getItem('revela.formato') === 'png' ? 'png' : 'jpeg'; } catch { /* sem armazenamento */ }
 $('bExportar').onclick = () => {
   if (!foto) return;
   const G = geometria(s, foto.bitmap.width, foto.bitmap.height), W = Math.round(G.w), H = Math.round(G.h);
-  const ig = tamInsta(W, H);
-  folha(`<div class="ficha"><h3>Exportar</h3>
-    <button class="opcao" data-o="inteira"><b>Foto inteira</b><small>${W} × ${H} · tamanho real, para guardar e imprimir</small></button>
-    <button class="opcao" data-o="insta"><b>Instagram</b><small>${ig.w} × ${ig.h}${ig.corta ? ' · corta o centro em 4:5, como o Instagram faria' : ''} · nítida no feed</small></button>
-    <div class="botoes"><button class="fecha">Cancelar</button></div></div>`);
-  folhaEl.querySelector('.fecha').onclick = fechaFolha;
-  folhaEl.querySelectorAll('.opcao').forEach((b) => b.onclick = () => { fechaFolha(); exporta(b.dataset.o); });
+  folha(`<div class="ficha"><h3>Exportar</h3><p class="alma">${W} × ${H} pixels, o tamanho real da foto. Sai sem a localização (GPS) e sem nada além da imagem.</p>
+    <div class="formatos" role="radiogroup" aria-label="Formato">
+      <button role="radio" data-f="jpeg"><b>JPEG</b><small>leve, para postar e mandar</small></button>
+      <button role="radio" data-f="png"><b>PNG</b><small>sem perda, para guardar e imprimir</small></button>
+    </div>
+    <div class="botoes">${podeCompartilhar() ? '<button class="comp">Compartilhar…</button>' : ''}<button class="pri salva">Salvar</button></div></div>`);
+  const marca = () => folhaEl.querySelectorAll('.formatos button').forEach((b) => { b.classList.toggle('on', b.dataset.f === formato); b.setAttribute('aria-checked', b.dataset.f === formato); });
+  folhaEl.querySelectorAll('.formatos button').forEach((b) => b.onclick = () => { formato = b.dataset.f; try { localStorage.setItem('revela.formato', formato); } catch { /* ok */ } marca(); });
+  marca();
+  folhaEl.querySelector('.salva').onclick = () => { fechaFolha(); exporta('salvar'); };
+  const c = folhaEl.querySelector('.comp'); if (c) c.onclick = () => { fechaFolha(); exporta('compartilhar'); };
 };
-function tamInsta(W, H) {   // feed: 1080 de largura; em pé, no máximo 4:5 (mais alto que isso o Instagram corta)
-  const k = W / H, corta = k < 0.8, kk = Math.max(k, 0.8);
-  return { w: 1080, h: Math.round(1080 / Math.min(kk, 1.91)), corta };
-}
-async function exporta(modo) {
-  aviso(modo === 'insta' ? 'Preparando para o Instagram…' : 'Revelando em tamanho real…');
+async function exporta(destino) {
+  aviso('Revelando em tamanho real…');
   try {
     const c = document.createElement('canvas'), E = new Render(c, { preserve: true });
-    let arq = await revela(E, foto.bitmap, s, foto.nome);
-    if (modo === 'insta') arq = await paraInsta(c, foto.nome);
+    const arq = await revela(E, foto.bitmap, s, foto.nome, formato);
     const W = c.width, H = c.height;
     E.gl.getExtension('WEBGL_lose_context')?.loseContext();
-    await entrega([arq]);
-    aviso(modo === 'insta' ? 'Pronta para o Instagram (1080 px)' : `Foto exportada (${W}×${H})`);
+    if (destino === 'compartilhar') await compartilha([arq]); else { await salva([arq]); }
+    if (destino !== 'compartilhar') aviso(nativo() ? 'Salvo em Imagens › Revela' : `Foto salva (${W}×${H}, ${formato.toUpperCase()})`);
   } catch (err) { console.error(err); aviso('Falha ao exportar: ' + err.message); }
 }
-// reduz em etapas (metade por vez) para não perder nitidez nem criar serrilhado; corta o centro se passar de 4:5
-async function paraInsta(src, nome) {
-  const t = tamInsta(src.width, src.height);
-  let sw = src.width, sh = src.height, sx = 0, sy = 0;
-  if (src.width / src.height < t.w / t.h) { sh = Math.round(src.width * t.h / t.w); sy = Math.round((src.height - sh) / 2); }
-  else if (src.width / src.height > t.w / t.h) { sw = Math.round(src.height * t.w / t.h); sx = Math.round((src.width - sw) / 2); }
-  let cur = document.createElement('canvas'); cur.width = sw; cur.height = sh; cur.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
-  while (cur.width / 2 >= t.w) { const n = document.createElement('canvas'); n.width = Math.round(cur.width / 2); n.height = Math.round(cur.height / 2); const g = n.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, n.width, n.height); cur = n; }
-  const o = document.createElement('canvas'); o.width = t.w; o.height = t.h; const g = o.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, t.w, t.h);
-  const blob = await new Promise((r) => o.toBlob(r, 'image/jpeg', 0.92));
-  return new File([blob], `${nome}_revela_instagram.jpg`, { type: 'image/jpeg' });
+// salvar: app Android grava em Imagens › Revela; no navegador, baixa o arquivo
+async function salva(arqs) {
+  if (nativo()) { for (const a of arqs) await salvaNoAparelho(a); return; }
+  for (const a of arqs) {
+    const l = document.createElement('a'); l.href = URL.createObjectURL(a); l.download = a.name; l.click();
+    setTimeout(() => URL.revokeObjectURL(l.href), 4000); await new Promise((r) => setTimeout(r, 350));
+  }
+}
+// compartilhar: o menu do sistema (Instagram, WhatsApp, e-mail, Drive…); se não der, salva
+async function compartilha(arqs) {
+  if (nativo()) {
+    const C = window.Capacitor, P = C.Plugins || {};
+    const Filesystem = P.Filesystem || C.registerPlugin('Filesystem'), Share = P.Share || C.registerPlugin('Share');
+    const uris = [];
+    for (const a of arqs) {
+      const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(a); });
+      uris.push((await Filesystem.writeFile({ path: a.name, data, directory: 'CACHE' })).uri);
+    }
+    try { await Share.share({ title: 'Revela', files: uris }); } catch { aviso('Compartilhamento cancelado'); }
+    return;
+  }
+  if (navigator.canShare?.({ files: arqs })) {
+    try { await navigator.share({ files: arqs }); return; } catch (e) { if (e?.name === 'AbortError') { aviso('Compartilhamento cancelado'); return; } }
+  }
+  await salva(arqs);
 }
 
 // ------------------------------------------------------------ várias fotos (como no Lightroom: a mesma edição numa série)
