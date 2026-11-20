@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:IS;src:url(InstrumentSerif-400.woff2)} @font-face{font-family:PM;src:url(IBMPlexMono-400.woff2)}
+body{margin:0;background:#0b0a09;color:#EEE7DC;font-family:PM,monospace;padding:28px;width:1500px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.c{background:#161412;border-radius:18px;padding:22px}
+.c h3{font:26px IS,serif;margin:0 0 2px}.c p{margin:0 0 14px;color:#A39A8D;font-size:12px;letter-spacing:.04em;min-height:30px}
+.l{display:flex;align-items:flex-end;gap:16px}
+.ic{width:200px;height:200px;border-radius:44px;overflow:hidden;flex:none;box-shadow:0 0 0 1px #2a2723}
+.p{width:48px;height:48px;border-radius:11px;overflow:hidden;flex:none;box-shadow:0 0 0 1px #2a2723}
+.cl{width:200px;height:200px;border-radius:44px;overflow:hidden}
+svg{display:block;width:100%;height:100%}
+.wm{margin-top:14px;display:flex;align-items:center;gap:10px;font:42px IS,serif}
+</style></head><body><div class="g" id="g"></div>
+<script>
+const BG='#141210', IV='#EEE7DC', AM='#E2A257';
+// a foto saindo da linha: o papel fica acima da linha (a parte de baixo ainda "dentro" da impressora)
+const foto = (o) => {
+  const {x=290, w=444, top=196, base=664, borda=30, rx=20, tilt=0, fg, ac, bg, cena='por', moldura='cheia'} = o;
+  const h = base - top, id = 'c' + Math.random().toString(36).slice(2);
+  const ix = x + borda, iw = w - 2 * borda, iy = top + borda, ih = h - borda;
+  let dentro = '';
+  if (cena === 'noite') dentro = `<rect x="${ix}" y="${iy}" width="${iw}" height="${ih + 60}" fill="${bg}"/><circle cx="${ix + iw * 0.7}" cy="${iy + ih * 0.3}" r="${iw * 0.1}" fill="${ac}"/><path d="M${ix} ${iy + ih + 60} L${ix} ${iy + ih * 0.92} L${ix + iw * 0.34} ${iy + ih * 0.48} L${ix + iw * 0.6} ${iy + ih * 0.8} L${ix + iw * 0.78} ${iy + ih * 0.6} L${ix + iw} ${iy + ih * 0.9} L${ix + iw} ${iy + ih + 60}Z" fill="${fg}"/>`;
+  if (cena === 'por') dentro = `<rect x="${ix}" y="${iy}" width="${iw}" height="${ih + 60}" fill="${ac}"/><circle cx="${ix + iw * 0.68}" cy="${iy + ih * 0.34}" r="${iw * 0.12}" fill="${fg}"/><path d="M${ix} ${iy + ih + 60} L${ix} ${iy + ih * 0.92} L${ix + iw * 0.34} ${iy + ih * 0.5} L${ix + iw * 0.6} ${iy + ih * 0.8} L${ix + iw * 0.78} ${iy + ih * 0.62} L${ix + iw} ${iy + ih * 0.9} L${ix + iw} ${iy + ih + 60}Z" fill="${bg}"/>`;
+  if (cena === 'nascer') dentro = `<rect x="${ix}" y="${iy}" width="${iw}" height="${ih + 60}" fill="${bg}"/><circle cx="${ix + iw / 2}" cy="${iy + ih}" r="${iw * 0.3}" fill="${ac}"/>`;
+  if (cena === 'linha') dentro = `<circle cx="${ix + iw * 0.7}" cy="${iy + ih * 0.3}" r="${iw * 0.1}" fill="${ac}"/><path d="M${ix + 4} ${iy + ih + 8} L${ix + iw * 0.34} ${iy + ih * 0.48} L${ix + iw * 0.6} ${iy + ih * 0.8} L${ix + iw * 0.78} ${iy + ih * 0.6} L${ix + iw - 4} ${iy + ih + 8}" fill="none" stroke="${fg}" stroke-width="26" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const papel = moldura === 'traco' ? `<rect x="${x}" y="${top}" width="${w}" height="${h + 80}" rx="${rx}" fill="none" stroke="${fg}" stroke-width="28"/>` : `<rect x="${x}" y="${top}" width="${w}" height="${h + 80}" rx="${rx}" fill="${fg}"/>`;
+  return `<clipPath id="${id}"><rect x="0" y="0" width="1024" height="${base}"/></clipPath><g clip-path="url(#${id})" transform="rotate(${tilt} 512 ${base})">${papel}${dentro}</g>`;
+};
+const linha = (fg, y = 664) => `<rect x="196" y="${y}" width="632" height="38" rx="19" fill="${fg}"/>`;
+const L = {
+ 'Pôr do sol': ['a cópia em papel saindo da linha: céu âmbar, montanha escura, sol claro', (fg,ac,bg)=>foto({fg,ac,bg})+linha(fg)],
+ 'Pôr do sol inclinada': ['a mesma, com um leve giro, como se acabasse de sair', (fg,ac,bg)=>foto({fg,ac,bg,tilt:-6})+linha(fg)],
+ 'Sol nascendo': ['dentro da cópia, o sol nascendo na base: herdeiro do ícone atual', (fg,ac,bg)=>foto({fg,ac,bg,cena:'nascer'})+linha(fg)],
+ 'Noite': ['céu escuro, montanha clara e sol âmbar (a 1ª versão, maior)', (fg,ac,bg)=>foto({fg,ac,bg,cena:'noite'})+linha(fg)],
+ 'Traço': ['moldura e montanha em traço, sol âmbar: mais leve', (fg,ac,bg)=>foto({fg,ac,bg,moldura:'traco',cena:'linha',top:220})+linha(fg)],
+ 'Pôr do sol alta': ['em pé, mais vertical: a foto quase toda fora', (fg,ac,bg)=>foto({fg,ac,bg,x:330,w:364,top:150,borda:26})+linha(fg, 690)],
+};
+const svg=(f,bg,fg,ac)=>`<svg viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="${bg}"/>${f(fg,ac,bg)}</svg>`;
+for (const [n,[desc,f]] of Object.entries(L)) {
+  const c=document.createElement('div'); c.className='c';
+  c.innerHTML=`<h3>${n}</h3><p>${desc}</p><div class="l"><div class="ic">${svg(f,BG,IV,AM)}</div><div class="p">${svg(f,BG,IV,AM)}</div><div class="cl">${svg(f,'#F2EDE4','#141210',AM)}</div></div>
+   <div class="wm"><span style="display:inline-block;width:40px;height:40px;border-radius:9px;overflow:hidden">${svg(f,BG,IV,AM)}</span>Revela</div>`;
+  document.getElementById('g').append(c);
+}
+</script></body></html>

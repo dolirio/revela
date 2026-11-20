@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:IS;src:url(InstrumentSerif-400.woff2)} @font-face{font-family:IS;font-style:italic;src:url(InstrumentSerif-400i.woff2)} @font-face{font-family:PM;src:url(IBMPlexMono-400.woff2)}
+body{margin:0;background:#0b0a09;color:#EEE7DC;font-family:PM,monospace;padding:28px;width:1500px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.c{background:#161412;border-radius:18px;padding:22px}
+.c h3{font:26px IS,serif;margin:0 0 2px}.c p{margin:0 0 14px;color:#A39A8D;font-size:12px;letter-spacing:.04em}
+.l{display:flex;align-items:flex-end;gap:16px}
+.ic{width:200px;height:200px;border-radius:44px;overflow:hidden;flex:none}
+.p{width:48px;height:48px;border-radius:11px;overflow:hidden;flex:none}
+.cl{width:200px;height:200px;border-radius:44px;overflow:hidden;background:#F2EDE4}
+svg{display:block;width:100%;height:100%}
+.wm{margin-top:14px;display:flex;align-items:center;gap:10px;font:42px IS,serif;letter-spacing:.01em}
+.wm svg{width:40px;height:40px}
+</style></head><body><div class="g" id="g"></div>
+<script>
+const BG='#141210', IV='#EEE7DC', AM='#E2A257';
+const L = {
+ 'Sol na bandeja': ['o atual, refinado: a luz surgindo da linha, como a imagem na bandeja do revelador', (fg,ac)=>`<path d="M300 600 a212 212 0 0 1 424 0z" fill="${ac}"/><rect x="236" y="628" width="552" height="34" rx="17" fill="${fg}"/>`],
+ 'Quadro': ['um quadro de filme com um ponto de luz', (fg,ac)=>`<rect x="262" y="302" width="500" height="420" rx="54" fill="none" stroke="${fg}" stroke-width="44"/><circle cx="512" cy="512" r="88" fill="${ac}"/>`],
+ 'Lápis de cera': ['o círculo que o fotógrafo faz em volta da foto boa na folha de contato', (fg,ac)=>`<rect x="352" y="382" width="320" height="260" rx="22" fill="${fg}"/><path d="M286 468 C 300 300, 690 270, 760 430 C 820 570, 700 760, 500 752 C 330 745, 248 640, 290 520 C 312 470, 360 440, 420 430" fill="none" stroke="${ac}" stroke-width="40" stroke-linecap="round"/>`],
+ 'R editorial': ['o R em formas geométricas, com um ponto de luz', (fg,ac)=>`<path d="M352 760 V264 H520 a150 150 0 0 1 0 300 H352" fill="none" stroke="${fg}" stroke-width="56" stroke-linejoin="round"/><path d="M520 564 L690 760" stroke="${fg}" stroke-width="56" stroke-linecap="round"/><circle cx="700" cy="300" r="52" fill="${ac}"/>`],
+ 'Surgir': ['a foto aparecendo no revelador: faixas que acendem', (fg,ac)=>`<clipPath id="k"><circle cx="512" cy="512" r="250"/></clipPath><g clip-path="url(#k)"><rect x="262" y="262" width="500" height="125" fill="${ac}" opacity="1"/><rect x="262" y="387" width="500" height="125" fill="${ac}" opacity=".62"/><rect x="262" y="512" width="500" height="125" fill="${ac}" opacity=".34"/><rect x="262" y="637" width="500" height="125" fill="${ac}" opacity=".14"/></g><circle cx="512" cy="512" r="250" fill="none" stroke="${fg}" stroke-width="10" opacity=".5"/>`],
+ 'Diafragma': ['as lâminas do diafragma num traço só, com a luz no centro', (fg,ac)=>{ let d=''; for(let i=0;i<6;i++){const a=i*Math.PI/3, a2=a+Math.PI/3; const x1=512+250*Math.cos(a), y1=512+250*Math.sin(a), x2=512+110*Math.cos(a2+0.5), y2=512+110*Math.sin(a2+0.5); d+=`M${x1.toFixed(0)} ${y1.toFixed(0)} L${x2.toFixed(0)} ${y2.toFixed(0)} `;} return `<circle cx="512" cy="512" r="250" fill="none" stroke="${fg}" stroke-width="36"/><path d="${d}" stroke="${fg}" stroke-width="28" stroke-linecap="round"/><circle cx="512" cy="512" r="70" fill="${ac}"/>`; }],
+};
+const svg=(f,bg,fg,ac)=>`<svg viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="${bg}"/>${f(fg,ac)}</svg>`;
+for (const [n,[desc,f]] of Object.entries(L)) {
+  const c=document.createElement('div'); c.className='c';
+  c.innerHTML=`<h3>${n}</h3><p>${desc}</p><div class="l"><div class="ic">${svg(f,BG,IV,AM)}</div><div class="p">${svg(f,BG,IV,AM)}</div><div class="cl">${svg(f,'#F2EDE4','#141210',AM)}</div></div>
+   <div class="wm"><span style="display:inline-block;width:40px;height:40px;border-radius:9px;overflow:hidden">${svg(f,BG,IV,AM)}</span>Revela</div>`;
+  document.getElementById('g').append(c);
+}
+</script></body></html>

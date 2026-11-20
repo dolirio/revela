@@ -105,11 +105,13 @@
   .cores button.on { outline-color: var(--text); }
   .cores { align-items: center; gap: 9px; } .cores button { width: 22px; height: 22px; }
   .cores .qual { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
-  /* aba Filmes: Intensidade · Puxar · Vencido numa linha; o controle numa linha só (o nome já está na ferramenta) */
+  /* ferramenta de um controle só (Exposição, Brilho, Intensidade…): o nome já está na linha de ferramentas,
+     então a barra e o valor ficam numa linha só, sem repetir o nome */
   #cIntensidade .ferramentas { padding-top: 2px; }
-  #cIntensidade .ctl { display: flex; align-items: center; gap: 10px; padding: 2px 18px 4px; }
-  #cIntensidade .ctl label { display: none; } #cIntensidade .ctl input { order: -1; flex: 1; min-width: 0; }
-  #cIntensidade .ctl output { min-width: 46px; text-align: right; }
+  .grupo.unico .ctl { display: flex; align-items: center; gap: 10px; padding: 10px 18px 4px; }
+  #cIntensidade .grupo.unico .ctl { padding: 2px 18px 4px; }
+  .grupo.unico .ctl label { display: none; } .grupo.unico .ctl input { order: -1; flex: 1; min-width: 0; }
+  .grupo.unico .ctl output { min-width: 46px; text-align: right; }
   .cores button.mudou::after { content: ''; position: absolute; top: -5px; right: -5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
   .canais, .acoes { display: flex; gap: 6px; padding: 8px 18px 4px; overflow-x: auto; scrollbar-width: none; }
   .canais::-webkit-scrollbar, .acoes::-webkit-scrollbar, .props div::-webkit-scrollbar { display: none; }
@@ -233,7 +235,7 @@
   #nota { display: none; }   /* celular: a descrição do filme aparece de passagem ao escolher (economiza a altura) */
   .cats { padding: 6px 16px 6px; }
   .film { width: 66px; } .film canvas, .film .ph { width: 66px; height: 66px; }
-  .conteudo { min-height: 225px; }   /* a altura da aba Filmes: trocar de aba ou de ferramenta não mexe na foto */
+  .conteudo { min-height: 227px; }   /* a altura da aba Filmes: trocar de aba ou de ferramenta não mexe na foto */
   #g_retrato .escolha { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 2px 18px; }
   #g_retrato .ctl { padding: 1px 18px; }
   #g_retrato .escolha button { flex: none; padding: 5px 14px; }
@@ -265,7 +267,7 @@
     #folha { left: auto; right: 0; width: 360px; border-left: 1px solid var(--line); border-radius: 16px 0 0 0; }
     body.enquadrando #enq { min-height: 0; justify-content: flex-start; gap: 18px; padding-top: 10px; }
     #nota { display: block; } .film { width: 74px; } .film canvas, .film .ph { width: 74px; height: 74px; }
-    #cIntensidade .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } #cIntensidade .ctl label { display: block; } #cIntensidade .ctl input { order: 0; grid-column: 1 / -1; }
+    .grupo.unico .ctl, #cIntensidade .grupo.unico .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } .grupo.unico .ctl label { display: block; } .grupo.unico .ctl input { order: 0; grid-column: 1 / -1; }
     #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
     .acoes, .props div { flex-wrap: wrap; overflow: visible; }
     #g_curvas .dica { display: none; }
@@ -275,13 +277,69 @@
     #e_luzTipo div { flex-wrap: wrap; overflow: visible; }
     .faixa { flex-wrap: wrap; overflow: visible; row-gap: 12px; }   /* computador: todos os filmes à vista, sem rolar */
   }
+
+  /* ================= Identidade (20/11/2026): Laboratório + Folha de contato =================
+     Quarto escuro quente, um único acento âmbar (a luz de segurança), nomes em serifa clássica como nas caixas de
+     papel fotográfico, números em letra de máquina como as marcas na borda do filme; na faixa, cada filme é um quadro
+     numerado da folha de contato, e o escolhido ganha o círculo de lápis de cera. */
+  @font-face { font-family: 'Revela Serif'; src: url(fontes/InstrumentSerif-400.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: 'Revela Serif'; font-style: italic; src: url(fontes/InstrumentSerif-400i.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: 'Revela Mono'; src: url(fontes/IBMPlexMono-400.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: 'Revela Mono'; font-weight: 500; src: url(fontes/IBMPlexMono-500.woff2) format('woff2'); font-display: swap; }
+  :root { --marca: #b5121b;   /* vermelho Valentino: a marcação do item escolhido, como o lápis de cera vermelho da folha de contato */
+    --bg: #0f0e0d; --panel: #151311; --raise: #1f1c19; --line: #2a2723; --text: #eee7dc; --muted: #a39a8d; --faint: #8a8173; --accent: #e2a257;
+    --serif: 'Revela Serif', 'Iowan Old Style', Georgia, serif; --mono: 'Revela Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+  .exportar { background: var(--text); color: #15120f; }
+  /* abas: as três etapas do laboratório, numeradas */
+  .abas { gap: 22px; }
+  .abas button { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; display: flex; align-items: baseline; gap: 6px; }
+  .abas button b { font-weight: 500; font-size: 9.5px; color: var(--faint); letter-spacing: .04em; }
+  .abas button.on b { color: var(--accent); }
+  /* folha de contato: cada filme é um quadro numerado; o escolhido ganha o círculo de lápis de cera */
+  .faixa { counter-reset: quadro; }
+  .film:not(.rotulo):not(.acao) { position: relative; counter-increment: quadro; }
+  .film:not(.rotulo):not(.acao)::before { content: '▸' counter(quadro); position: absolute; left: 3px; top: 3px; z-index: 1; padding: 1px 4px; border-radius: 4px;
+    font: 500 9px var(--mono); letter-spacing: .02em; color: #f2e9dc; background: #0009; pointer-events: none; }
+  .film.on canvas, .film.on .ph { outline-color: transparent; }
+  .film.on::after { content: ''; position: absolute; left: -7px; top: -6px; width: calc(100% + 14px); aspect-ratio: 1; pointer-events: none;
+    background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M18 30 C 22 8, 82 4, 92 30 C 100 56, 88 94, 50 93 C 18 92, 4 70, 8 46 C 10 34, 20 24, 34 20' fill='none' stroke='%23b5121b' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .film span { font-family: var(--serif); font-size: 14px; letter-spacing: .01em; line-height: 1.15; }
+  .film { gap: 4px; }   /* faixa mais baixa: a foto ganha espaço */
+  .film:not(:has(.ref)) span { line-height: 1.02; }   /* receitas: nome de até 3 linhas na mesma altura dos filmes */
+  .film .ref { font-size: 10px; letter-spacing: .01em; }   /* letra comum, maior: precisa ser lida */
+  .cats .insp { margin-left: auto; align-self: center; color: var(--faint); font-size: 10.5px; line-height: 1.05; text-align: right; white-space: normal; max-width: 78px; }
+  /* área de toque maior nas ferramentas (a linha toda vira botão), sem mudar a altura do painel */
+  .ferramentas { padding-top: 0; padding-bottom: 0; } .ferramentas button { padding: 11px 0 9px; }
+  .ferramentas button.mudou::after { top: 8px; }
+  #cIntensidade .ferramentas button { padding: 8px 0 6px; } #cIntensidade .ferramentas button.mudou::after { top: 5px; }
+  .film.rotulo span { font-family: var(--mono); font-size: 9px; }
+  .cats button { font-family: var(--serif); font-size: 16px; }
+  /* números e valores em letra de máquina; o número grande sobre a foto em serifa */
+  .ctl output, .ctl.linha output, .regua output, .selAcoes .dica { font-family: var(--mono); font-size: 11px; letter-spacing: .02em; }
+  #numero { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 76px; }
+  #numero small { font-family: var(--mono); font-style: normal; font-size: 10px; letter-spacing: .2em; }
+  .sec, .film.rotulo { font-family: var(--mono); }
+  .ferramentas button.on { box-shadow: inset 0 -1.5px 0 var(--accent); }
+  input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--accent) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  input[type=range]::-moz-range-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--accent) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  .ficha h3 { font-family: var(--serif); font-size: 26px; font-weight: 400; }
+  .ficha dt { font-family: var(--mono); }
+  /* boas-vindas */
+  #vazio h1 { font-family: var(--serif); font-weight: 400; font-size: 64px; letter-spacing: .005em; line-height: 1; }
+  #vazio .borda { font: 500 10px var(--mono); letter-spacing: .22em; color: var(--accent); opacity: .85; }
+  #vazio button { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; border-color: var(--accent); color: var(--text); }
+  .versao { font-family: var(--mono); letter-spacing: .06em; }
+  .marca { font-family: var(--serif); font-weight: 400; letter-spacing: .02em; font-size: 22px; color: var(--text); text-transform: none; }
+  body:not(.com-foto) .marca { visibility: hidden; }
+  .marca { display: inline-flex; align-items: center; gap: 8px; } .marca img { display: block; width: 26px; height: auto; }
+  #vazio .simbolo { width: 112px; height: auto; margin: 4px 0 -6px; }   /* nas boas-vindas o nome já está grande no centro */
 </style>
 </head>
 <body>
 <header>
   <div class="grp">
     <button class="ib" id="bAbrir" title="Abrir foto" aria-label="Abrir foto"></button>
-    <span class="marca">REVELA</span>
+    <span class="marca"><img src="icone-desenho.svg" alt="" width="26" height="22">Revela</span>
   </div>
   <div class="grp">
     <button class="ib" id="bDesfazer" title="Desfazer" aria-label="Desfazer" disabled></button>
@@ -295,10 +353,12 @@
 <main id="palco">
   <canvas id="tela"></canvas>
   <div id="vazio">
-    <h1>REVELA</h1>
+    <span class="borda">REVELA 400 &nbsp;▸ 1 &nbsp;▸ 2 &nbsp;▸ 3</span>
+    <img class="simbolo" src="icone-desenho.svg" alt="">
+    <h1>Revela</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão 49.1 · 20/11/2026</small>
+    <small class="versao">versão 49.2 · 20/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
@@ -307,9 +367,9 @@
 
 <section id="painel">
   <nav class="abas">
-    <button data-p="filmes" class="on">Filmes</button>
-    <button data-p="ajustes">Ajustes</button>
-    <button data-p="analogico">Analógico</button>
+    <button data-p="filmes" class="on"><b>01</b>Filmes</button>
+    <button data-p="ajustes"><b>02</b>Ajustes</button>
+    <button data-p="analogico"><b>03</b>Analógico</button>
   </nav>
   <div class="conteudo">
     <div class="pag on" id="p-filmes">
