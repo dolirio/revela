@@ -1369,11 +1369,26 @@ async function salvaNoAparelho(arq) {
 }
 
 // revela uma foto em tamanho real com a edição st e devolve o arquivo (JPEG, ou PNG sem perda)
+// limite de pixels da imagem final: o Safari (iPhone/iPad) não gera imagens acima de ~16,7 MP (sai em branco ou trava);
+// nos outros, a placa de vídeo do aparelho decide, e conferimos depois de desenhar
+const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const MAX_PIX = ehIOS ? 16e6 : 64e6;
 async function revela(E, bitmap, st, nome, fmt = 'jpeg') {
-  const src = reduz(bitmap, Math.min(E.maxTex, 8192));
+  let lado = Math.min(E.maxTex, 8192);
+  const prop = Math.max(bitmap.width, bitmap.height) / Math.min(bitmap.width, bitmap.height);
+  lado = Math.min(lado, Math.floor(Math.sqrt(MAX_PIX * prop)));   // o lado maior que cabe no limite de pixels
+  let src = reduz(bitmap, lado);
   E.setImage(src); E.setFilm(filmeAtual());
-  const G = geometria(st, src.width, src.height);
-  E.draw(st, Math.max(1, Math.round(G.w)), Math.max(1, Math.round(G.h)), Math.max(bitmap.width, bitmap.height));
+  let G = geometria(st, src.width, src.height), W = Math.max(1, Math.round(G.w)), H = Math.max(1, Math.round(G.h));
+  E.draw(st, W, H, Math.max(bitmap.width, bitmap.height));
+  // a placa de vídeo pode aceitar menos do que pedimos (sem avisar): se for o caso, reduz só o necessário e desenha de novo
+  const gl = E.gl;
+  if (gl.drawingBufferWidth < W || gl.drawingBufferHeight < H) {
+    const k = Math.min(gl.drawingBufferWidth / W, gl.drawingBufferHeight / H) * 0.98;
+    src = reduz(bitmap, Math.floor(Math.max(src.width, src.height) * k));
+    E.setImage(src); G = geometria(st, src.width, src.height); W = Math.max(1, Math.round(G.w)); H = Math.max(1, Math.round(G.h));
+    E.draw(st, W, H, Math.max(bitmap.width, bitmap.height));
+  }
   const png = fmt === 'png', tipo = png ? 'image/png' : 'image/jpeg';
   const blob = await new Promise((r) => E.canvas.toBlob(r, tipo, png ? undefined : 0.95));
   return new File([blob], `${nome}_revela${st.filme ? '_' + st.filme : ''}.${png ? 'png' : 'jpg'}`, { type: tipo });
