@@ -284,7 +284,8 @@
   @font-face { font-family: 'Revela Serif'; font-style: italic; src: url(fontes/InstrumentSerif-400i.woff2) format('woff2'); font-display: swap; }
   @font-face { font-family: 'Revela Mono'; src: url(fontes/IBMPlexMono-400.woff2) format('woff2'); font-display: swap; }
   @font-face { font-family: 'Revela Mono'; font-weight: 500; src: url(fontes/IBMPlexMono-500.woff2) format('woff2'); font-display: swap; }
-  :root { --bg: #0f0e0d; --panel: #151311; --raise: #1f1c19; --line: #2a2723; --text: #eee7dc; --muted: #a39a8d; --faint: #6e665c; --accent: #e2a257;
+  :root { --marca: #b5121b;   /* vermelho Valentino: a marcação do item escolhido, como o lápis de cera vermelho da folha de contato */
+    --bg: #0f0e0d; --panel: #151311; --raise: #1f1c19; --line: #2a2723; --text: #eee7dc; --muted: #a39a8d; --faint: #6e665c; --accent: #e2a257;
     --serif: 'Revela Serif', 'Iowan Old Style', Georgia, serif; --mono: 'Revela Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
   .exportar { background: var(--text); color: #15120f; }
   /* abas: as três etapas do laboratório, numeradas */
@@ -299,7 +300,7 @@
     font: 500 9px var(--mono); letter-spacing: .02em; color: #f2e9dc; background: #0009; pointer-events: none; }
   .film.on canvas, .film.on .ph { outline-color: transparent; }
   .film.on::after { content: ''; position: absolute; left: -7px; top: -6px; width: calc(100% + 14px); aspect-ratio: 1; pointer-events: none;
-    background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M18 30 C 22 8, 82 4, 92 30 C 100 56, 88 94, 50 93 C 18 92, 4 70, 8 46 C 10 34, 20 24, 34 20' fill='none' stroke='%23e2a257' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+    background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M18 30 C 22 8, 82 4, 92 30 C 100 56, 88 94, 50 93 C 18 92, 4 70, 8 46 C 10 34, 20 24, 34 20' fill='none' stroke='%23b5121b' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E"); }
   .film span { font-family: var(--serif); font-size: 14px; letter-spacing: .01em; }
   .film .ref { font-family: var(--mono); font-size: 8.5px; letter-spacing: .03em; }
   .film.rotulo span { font-family: var(--mono); font-size: 9px; }
