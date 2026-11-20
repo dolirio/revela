@@ -3,452 +3,327 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e0d0c">
+<meta name="theme-color" content="#0b0b0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Revela</title>
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone-180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#141210">
 <style>
   :root {
-    --bg: #0e0d0c; --dock: #161412; --raise: #201d1a; --line: #2a2622; --text: #efe9de; --muted: #8f877b;
-    --accent: #93c45e; --accent-ink: #13200a;
-    --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+    --bg: #0b0b0a; --panel: #121211; --raise: #1c1b19; --line: #262522; --text: #f1ece3; --muted: #8d877d; --faint: #5d5850;
+    --accent: #e8dcc6; --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; }
+    font: 14px/1.4 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; }
   body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; overflow: hidden; }
+  header, #palco, #painel, .conteudo, .pag { min-width: 0; }
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
   button:disabled { opacity: .3; cursor: default; }
-  svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; display: block; }
+  svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; display: block; }
 
-  /* topo */
-  header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: calc(8px + var(--safe-t)) 10px 8px; }
-  header .l { display: flex; gap: 2px; } header .r { display: flex; justify-content: flex-end; gap: 6px; }
-  .ib { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--text); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: calc(10px + var(--safe-t)) 14px 6px; gap: 8px; }
+  header .grp { display: flex; gap: 4px; align-items: center; }
+  .ib { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; }
   .ib:active { background: var(--raise); }
-  .mid { display: flex; gap: 2px; }
-  .export { background: var(--accent); color: var(--accent-ink); font-weight: 650; padding: 9px 16px; border-radius: 999px; }
-
-  /* foto */
-  #stage { position: relative; display: grid; place-items: center; overflow: hidden; padding: 6px 12px 12px; touch-action: none; min-width: 0; }
-  #view { max-width: 100%; max-height: 100%; display: none; user-select: none; -webkit-user-select: none; }
-  #empty { text-align: center; color: var(--muted); max-width: 290px; display: grid; gap: 14px; justify-items: center; }
-  #empty .big { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--raise); color: var(--accent); }
-  #empty .big svg { width: 30px; height: 30px; }
-  #empty b { color: var(--text); font-size: 16px; font-weight: 600; }
-  #badge { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #000b; color: #fff; font-size: 12px;
-    padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .04em; }
-
-  /* dock */
-  #dock { background: var(--dock); padding-bottom: var(--safe-b); min-width: 0; }
-  .ctx { min-height: 158px; max-height: 66vh; position: relative; overflow: hidden auto; scrollbar-width: none; }
-  [hidden] { display: none !important; }
-  .ctx::-webkit-scrollbar { display: none; }
-  .more { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
-  /* a folha aberta entra no fluxo: o painel cresce até caber tudo (antes cortava em cima e embaixo em telas baixas) */
-  #dock:not(.tall) .sheet.on { position: relative; inset: auto; min-height: inherit; padding-top: 8px; padding-bottom: 2px; }
-  .mode, .sheet { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; }
-  .mode.on, .sheet.on { display: flex; }
-  .scrollx { display: flex; overflow-x: auto; scrollbar-width: none; padding: 0 14px; gap: 6px; }
-  .scrollx::-webkit-scrollbar { display: none; }
-
-  /* filmes */
-  .cats { display: flex; gap: 18px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; }
-  .cats button { color: var(--muted); font-size: 13px; letter-spacing: .02em; white-space: nowrap; padding: 2px 0; }
-  .cats button.on { color: var(--text); font-weight: 600; }
-  #strip { gap: 8px; padding-top: 5px; } /* espaço para o contorno verde da miniatura escolhida não ser cortado */
-  .film { flex: 0 0 auto; width: 76px; text-align: center; font-size: 11px; color: var(--muted); position: relative; }
-  .film canvas, .film .ph { width: 76px; height: 76px; border-radius: 6px; display: block; background: #26221e; }
-  .film .nm { display: block; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .film[aria-pressed="true"] { color: var(--text); }
-  .film[aria-pressed="true"] canvas { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .film .knob { position: absolute; left: 50%; top: 38px; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%;
-    background: #000a; display: none; place-items: center; color: #fff; }
-  .film[aria-pressed="true"]:not([data-id="none"]) .knob { display: grid; }
-  .film .knob svg { width: 16px; height: 16px; }
-  .film .star { position: absolute; top: 3px; right: 5px; color: var(--accent); font-size: 11px; text-shadow: 0 1px 2px #000; display: none; }
-  .film.fav .star { display: block; }
-  .film.add .ph { display: grid; place-items: center; color: var(--muted); border: 1px dashed #3a352f; background: none; }
-
-  /* ferramentas */
-  .tools { gap: 4px; align-items: flex-start; }
-  .tool { flex: 0 0 auto; width: 68px; display: grid; justify-items: center; gap: 6px; font-size: 11px; color: var(--muted); position: relative; }
-  .tool .ring { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--raise); color: var(--text); }
-  .tool.set .ring { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
-  .tool span { white-space: nowrap; }
-  .tool.on .ring { background: var(--accent); color: var(--accent-ink); }
-
-  /* folha de um ajuste */
-  .sheet { background: var(--dock); padding: 0 18px; gap: 6px; }
-  .sheet .head { display: flex; justify-content: center; align-items: baseline; gap: 10px; }
-  .sheet .val { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 300; min-width: 54px; text-align: center; }
-  .sheet .reset { color: var(--muted); font-size: 12px; }
-  .foot { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; margin-top: 4px; }
-  .foot .t { text-align: center; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 36px; background: transparent; margin: 0; }
-  input[type=range] { --a: 0%; --b: 0%; }
-  input[type=range]::-webkit-slider-runnable-track { height: 2px; border-radius: 2px;
-    background: linear-gradient(90deg, #4a443c var(--a), var(--accent) var(--a), var(--accent) var(--b), #4a443c var(--b)); }
-  input[type=range]::-moz-range-track { height: 2px; border-radius: 2px;
-    background: linear-gradient(90deg, #4a443c var(--a), var(--accent) var(--a), var(--accent) var(--b), #4a443c var(--b)); }
-  .rw { position: relative; }
-  .rw.bi::before { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 12px; margin: -6px 0 0 -1px; background: var(--muted); border-radius: 1px; pointer-events: none; }
-  .ends { display: none; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -6px; letter-spacing: .03em; }
-  .ends.on { display: flex; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--text); margin-top: -10px; box-shadow: 0 1px 4px #0008; }
-  input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--text); border: 0; }
-  .mini { display: grid; grid-template-columns: 84px minmax(0, 1fr) 34px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-  .mini output { text-align: right; font-variant-numeric: tabular-nums; }
-  .mini input[type=range] { height: 28px; }
-  .dots { display: flex; gap: 10px; justify-content: center; padding: 2px 0 4px; }
-  .dots button { width: 22px; height: 22px; border-radius: 50%; }
-  .dots button.on { box-shadow: 0 0 0 2px var(--dock), 0 0 0 4px var(--text); }
-  .pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-  .pills button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
-  .pills button.on { border-color: var(--accent); color: var(--accent); }
-  .sheet .pills { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; justify-content: safe center; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
-  .sheet .pills::-webkit-scrollbar { display: none; }
-  .sheet .pills button { flex: 0 0 auto; white-space: nowrap; }
-  /* arrastar com o mouse nas faixas que rolam para o lado */
-  .dragging, .dragging * { cursor: grabbing !important; user-select: none; }
-  /* painel com vários controles (grão, brilho, halo, nitidez) */
-  #dock.med .ctx { min-height: 236px; }
-  #dock:has(#m-tex.on) .ctx { min-height: 262px; }   /* Cópia: ferramentas, tamanho e moldura à vista */
-  #pBody { display: grid; gap: 4px; }
-  #pBody .plinks { justify-content: center; margin: 4px 0 0; }
-  #pBody .note { margin: 2px 0 0; }
-  .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; flex: 0 0 auto; }
-  .seg button { flex: 1; padding: 7px 4px; font-size: 12.5px; color: var(--muted); position: relative; }
-  .seg button + button { border-left: 1px solid var(--line); }
-  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-  .seg button.set:not(.on)::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-  .ruler { position: relative; height: 52px; margin: 0 -18px; touch-action: none; cursor: ew-resize; outline: none; flex: 0 0 auto; }
-  .ruler canvas { width: 100%; height: 100%; display: block; }
-  .ruler:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
-  #paperTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
-  #paperTypes::-webkit-scrollbar { display: none; }
-  #paperTypes button { flex: 0 0 auto; }
-  #gfxRows { display: grid; gap: 2px; }
-  #gfxTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
-  #gfxTypes::-webkit-scrollbar { display: none; }
-  #gfxTypes button { flex: 0 0 auto; }
-  .swatches { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 4px 18px; flex: 0 0 auto; }
-  .swatches::-webkit-scrollbar { display: none; }
-  .swatches .sw { flex: 0 0 auto; width: 44px; height: 26px; border-radius: 7px; box-shadow: inset 0 0 0 1px #ffffff22; }
-  .swatches .sw.on { box-shadow: 0 0 0 2px var(--dock), 0 0 0 4px var(--accent); }
-  #pBody .prow, #gfxRows .prow { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-  #gfxRows .prow output, #pBody .prow output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
-  #gfxRows .prow input[type=range], #pBody .prow input[type=range] { height: 30px; }
-  #dustTypes { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; flex: 0 0 auto; }
-  #dustTypes::-webkit-scrollbar { display: none; }
-  #dustTypes button { flex: 0 0 auto; }
-  .dicerow { display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px; align-items: center; gap: 8px; }
-  .dicerow output { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
-  .dice { width: 40px; height: 40px; border-radius: 50%; background: var(--raise); display: grid; place-items: center; color: var(--text); }
-  .dice svg { width: 22px; height: 22px; }
-  .dice:active { transform: rotate(-25deg); }
-  #bigVal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; pointer-events: none;
-    color: #fff; text-shadow: 0 1px 12px #000a, 0 0 2px #0008; opacity: 0; transition: opacity .25s; }
-  #bigVal.on { opacity: 1; transition: opacity .05s; }
-  #bigVal b { font-size: 64px; font-weight: 200; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-  #bigVal small { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .85; margin-bottom: 4px; }
-  #curveSheet { flex-direction: column; gap: 8px; }
-  /* curva grande: o ponto precisa caber embaixo do dedo (antes eram 140 px e o ponto pegava num raio de ~10 px) */
-  #curveSheet .cwrap { position: relative; align-self: center; width: min(100%, 42vh, 380px); aspect-ratio: 1; flex: 0 0 auto; }
-  #curve { width: 100%; height: 100%; display: block; touch-action: none; background: var(--raise); border-radius: 8px; }
-  #curveRead { position: absolute; left: 10px; top: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; }
-  #curveSheet .hint { text-align: center; margin: 0; }
-
-  /* painéis com rolagem (corte, receitas) */
-  .panel { overflow-y: auto; justify-content: flex-start !important; padding: 10px 16px; gap: 10px; }
-  .panel h4 { margin: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
-  .panel .pills { justify-content: flex-start; }
-  #m-tex .pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; flex: 0 0 auto; }
-  #m-tex .pills::-webkit-scrollbar { display: none; }
-  #m-tex .pills button { flex: 0 0 auto; }
-  .rowb { display: flex; gap: 8px; flex-wrap: wrap; }
-  .rowb button, .btn { border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 13px; }
-  .rowb button.on { border-color: var(--accent); color: var(--accent); }
-  /* 16px: abaixo disso o Safari do iPhone dá zoom ao tocar no campo */
-  input[type=text] { font: inherit; font-size: 16px; color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; flex: 1; }
-  .item { display: flex; align-items: center; gap: 8px; background: var(--raise); border-radius: 8px; padding: 6px 8px 6px 12px; }
-  .item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; }
-  .hint { color: var(--muted); font-size: 12px; margin: 0; }
-  a { color: var(--accent); }
-
-  /* barra inferior */
-  nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); }
-  nav button { display: grid; justify-items: center; gap: 3px; padding: 9px 0 8px; font-size: 10.5px; color: var(--muted); letter-spacing: .03em; }
-  nav button.on { color: var(--text); }
-  nav button.on svg { color: var(--accent); }
-
-  #toast { position: fixed; left: 50%; top: calc(64px + var(--safe-t)); transform: translateX(-50%); background: #000d; color: #fff;
-    padding: 8px 16px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9; max-width: 90vw; text-align: center; }
-  #toast.on { opacity: 1; }
-
-
-  /* corte livre, grade e lupa */
-  #cropBox { position: absolute; display: none; box-shadow: 0 0 0 200vmax rgba(8,7,6,.62); outline: 1px solid #fff9; touch-action: none; cursor: move; }
-  #cropBox.on { display: block; }
-  #cropBox .g { position: absolute; background: #ffffff40; pointer-events: none; }
-  #cropBox .h { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; touch-action: none; }
-  #cropBox .h::after { content: ""; position: absolute; inset: 9px; border: 3px solid #fff; }
-  #cropBox .h[data-c="0"] { left: 0; top: 0; cursor: nwse-resize; } #cropBox .h[data-c="0"]::after { border-right: 0; border-bottom: 0; }
-  #cropBox .h[data-c="1"] { left: 100%; top: 0; cursor: nesw-resize; } #cropBox .h[data-c="1"]::after { border-left: 0; border-bottom: 0; }
-  #cropBox .h[data-c="2"] { left: 0; top: 100%; cursor: nesw-resize; } #cropBox .h[data-c="2"]::after { border-right: 0; border-top: 0; }
-  #cropBox .h[data-c="3"] { left: 100%; top: 100%; cursor: nwse-resize; } #cropBox .h[data-c="3"]::after { border-left: 0; border-top: 0; }
-  #gridOv { position: absolute; display: none; pointer-events: none; }
-  #gridOv.on { display: block; }
-  #zoomTag { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: #000b; color: #fff; font-size: 12px;
-    padding: 4px 12px; border-radius: 999px; display: none; pointer-events: none; white-space: nowrap; }
-
-  /* menu do topo */
-  #menu { position: fixed; top: calc(54px + var(--safe-t)); right: 10px; background: var(--raise); border: 1px solid var(--line); border-radius: 12px;
-    padding: 6px; display: none; z-index: 8; min-width: 210px; box-shadow: 0 10px 30px #0009; }
-  #menu.on { display: grid; }
-  #menu button, #menu a { text-align: left; padding: 10px 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 14px; }
-  #menu button:hover, #menu a:hover { background: #ffffff0d; }
-
-  /* filmes */
-  @media (max-width: 420px) { .cats { gap: 14px; } }
-  .finfo { margin: 6px 16px 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 15px; }
-  .finfo b { color: var(--text); font-weight: 600; margin-right: 4px; }
-  .prow.off { opacity: .35; }
-  .note { margin: 0; text-align: center; color: var(--muted); font-size: 13px; }
-  #askNote.diag { text-align: left; white-space: pre-line; font: 12px/1.45 ui-monospace, Menlo, monospace; max-height: 46vh; overflow: auto; user-select: text; -webkit-user-select: text; }
-  .rowb.center { justify-content: center; align-items: center; }
-  #dock.tall .ctx { height: min(56vh, 460px); }
-
-  @media (min-width: 900px) {
-    #dock { width: 100%; max-width: 760px; justify-self: center; border-radius: 14px 14px 0 0; }
-    .ctx { min-height: 170px; }
+  .marca { font-weight: 600; letter-spacing: .32em; font-size: 12px; color: var(--muted); padding-left: 4px; }
+  .exportar { background: var(--accent); color: #17140f; font-weight: 600; padding: 9px 18px; border-radius: 999px; font-size: 14px; }
+  /* celular estreito (ex.: Moto Edge 50 Neo, 360–400 px): com a foto aberta, o nome sai do topo para tudo caber */
+  @media (max-width: 480px) {
+    body.com-foto .marca { display: none; }
+    header .grp { gap: 0; }
+    .ib { width: 38px; }
+    .exportar { padding: 9px 14px; }
   }
 
-  /* deitado (celular na horizontal), tablet deitado e computador: foto à esquerda, painel à direita */
-  @media (orientation: landscape) and (max-height: 600px), (min-width: 1000px) and (min-aspect-ratio: 5/4) {
-    body { grid-template-columns: minmax(0, 1fr) min(420px, 46vw); grid-template-rows: auto minmax(0, 1fr); }
-    header { grid-column: 1; padding-left: calc(10px + env(safe-area-inset-left, 0px)); }
-    #stage { grid-column: 1; grid-row: 2; padding-left: calc(12px + env(safe-area-inset-left, 0px)); }
-    #dock, #dock.med, #dock.tall { grid-column: 2; grid-row: 1 / span 2; max-width: none; width: auto; justify-self: stretch;
-      border-radius: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line);
-      padding: var(--safe-t) env(safe-area-inset-right, 0px) var(--safe-b) 0; }
-    #dock .ctx, #dock.med .ctx, #dock.tall .ctx { height: auto; flex: 1; min-height: 0; max-height: none; }
-    #dock:not(.tall) .sheet.on, #dock.tall .sheet.on { position: absolute; inset: 0; min-height: 0; overflow-y: auto; }
-    /* controles perto da barra de abas, onde o polegar alcança */
-    .mode, .sheet { justify-content: flex-end; padding-bottom: 10px; }
-    #menu { right: calc(min(420px, 46vw) + 10px); }
-    #toast { left: calc((100vw - min(420px, 46vw)) / 2); }
+  #palco { position: relative; display: grid; place-items: center; overflow: hidden; padding: 4px 14px 14px; touch-action: none; min-height: 0; }
+  #tela { max-width: 100%; max-height: 100%; display: none; box-shadow: 0 8px 40px #0008; }
+  #vazio { text-align: center; color: var(--muted); max-width: 300px; display: grid; gap: 16px; justify-items: center; }
+  #vazio h1 { margin: 0; font-weight: 500; font-size: 30px; letter-spacing: .28em; color: var(--text); }
+  #vazio p { margin: 0; }
+  #vazio button { border: 1px solid var(--line); padding: 12px 22px; border-radius: 999px; color: var(--text); }
+  #anel { position: absolute; display: none; border: 1.5px dashed #fff9; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 1px #0006; }
+  #selo { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: #000a; color: #fff; font-size: 12px;
+    padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .06em; }
+  .versao { display: block; margin-top: 18px; color: var(--faint); font-size: 11px; letter-spacing: .06em; }
+  #pergunta { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: none; align-items: center; gap: 14px;
+    background: var(--raise); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 16px; font-size: 13px; width: max-content; max-width: calc(100% - 32px); box-shadow: 0 8px 30px #0008;  z-index: 12; }
+  #pergunta div { display: flex; gap: 6px; } #pergunta button { padding: 9px 14px; border-radius: 10px; color: var(--muted); font-size: 13px; }
+  #pergunta button.on { background: var(--text); color: var(--bg, #111); font-weight: 600; }
+  #aviso { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px;
+    border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%; text-align: center; }
+
+  body:not(.com-foto) #painel, body:not(.com-foto) header .grp:last-child { visibility: hidden; }   /* antes da foto: só as boas-vindas */
+  #painel { background: var(--panel); padding-bottom: calc(6px + var(--safe-b)); border-top: 1px solid var(--line); }
+  .abas { display: flex; justify-content: center; gap: 28px; padding: 10px 0 2px; }
+  .abas button { color: var(--faint); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; padding: 6px 0; }
+  .abas button.on { color: var(--text); }
+  .conteudo { min-height: 170px; }
+  .pag { display: none; } .pag.on { display: block; }
+
+  .cats { display: flex; gap: 18px; padding: 8px 16px 10px; overflow-x: auto; scrollbar-width: none; }
+  .cats::-webkit-scrollbar, .faixa::-webkit-scrollbar { display: none; }
+  .cats button { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .cats button.on { color: var(--text); }
+  .faixa { display: flex; gap: 10px; overflow-x: auto; padding: 5px 16px 8px; scrollbar-width: none; }   /* 5 px em cima: a borda do filme escolhido fica 4 px para fora e não pode ser cortada */
+  .film { flex: 0 0 auto; width: 74px; display: grid; gap: 6px; justify-items: center; color: var(--muted); font-size: 11.5px; }
+  .film canvas, .film .ph { width: 74px; height: 74px; border-radius: 6px; object-fit: cover; background: var(--raise); display: block; outline: 2px solid transparent; outline-offset: 2px; }
+  .film.on { color: var(--text); } .film.on canvas, .film.on .ph { outline-color: var(--accent); }
+  .film .ph { display: grid; place-items: center; color: var(--faint); font-size: 11px; }
+  .nota { overflow-wrap: anywhere; padding: 2px 18px 0; color: var(--muted); font-size: 12px; min-height: 18px; }
+
+  .ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 18px; }
+  .ctl label { font-size: 13px; color: var(--text); }
+  .ctl output { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctl input { grid-column: 1 / -1; width: 100%; }
+  .escolha { padding: 8px 18px; display: grid; gap: 6px; } .escolha small { color: var(--muted); font-size: 11.5px; }
+  .escolha div { display: flex; gap: 6px; } .escolha button { flex: 1; padding: 7px 4px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .escolha button.on { color: var(--text); border-color: var(--accent); }
+  .escolha label { font-size: 13px; color: var(--text); }
+  /* barra (como no RNI): o trecho entre o zero e o botão fica aceso; nas barras de dois lados, um pontinho marca o zero */
+  input[type=range].bi { background: radial-gradient(circle at calc(9px + (100% - 18px) * var(--z, .5)) 50%, var(--muted) 0 2.5px, transparent 3px) no-repeat; }
+  .dado { width: 32px; height: 32px; margin: -6px 0; display: grid; place-items: center; border-radius: 8px; color: var(--muted); }
+  .dado:hover, .dado:active { color: var(--text); background: var(--raise); }
+  .sec { padding: 10px 18px 0; color: var(--faint); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+  .rolar { max-height: 38vh; overflow-y: auto; padding-bottom: 6px; }
+  /* ferramentas: no celular, uma linha de nomes e só o controle escolhido (o painel não cresce e a foto não encolhe) */
+  .ferramentas { display: flex; gap: 20px; padding: 6px 18px 2px; overflow-x: auto; scrollbar-width: none; }
+  .ferramentas::-webkit-scrollbar { display: none; }
+  .ferramentas button { position: relative; flex: 0 0 auto; color: var(--muted); font-size: 13px; white-space: nowrap; padding: 6px 0; }
+  .ferramentas button.on { color: var(--text); box-shadow: inset 0 -1px 0 var(--text); }
+  .ferramentas button.mudou::after { content: ''; position: absolute; top: 3px; right: -6px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .grupo { display: none; } .grupo.on { display: block; }
+  .ferramentas button.fam { margin-left: 10px; } .ferramentas button.fam::before { content: ''; position: absolute; left: -16px; top: 9px; bottom: 9px; width: 1px; background: var(--line); }
+  .ctl.linha { grid-template-columns: 84px minmax(0, 1fr) 54px; align-items: center; padding: 2px 18px; }
+  .ctl.linha input { grid-column: auto; } .ctl.linha output { text-align: right; }
+  .cores { display: flex; gap: 12px; padding: 8px 18px 4px; }
+  .cores button { position: relative; width: 26px; height: 26px; border-radius: 50%; flex: none; outline: 2px solid transparent; outline-offset: 2px; }
+  .cores button.on { outline-color: var(--text); }
+  .cores { align-items: center; gap: 9px; } .cores button { width: 22px; height: 22px; }
+  .cores .qual { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  /* aba Filmes: Intensidade · Puxar · Vencido numa linha; o controle numa linha só (o nome já está na ferramenta) */
+  #cIntensidade .ferramentas { padding-top: 2px; }
+  #cIntensidade .ctl { display: flex; align-items: center; gap: 10px; padding: 2px 18px 4px; }
+  #cIntensidade .ctl label { display: none; } #cIntensidade .ctl input { order: -1; flex: 1; min-width: 0; }
+  #cIntensidade .ctl output { min-width: 46px; text-align: right; }
+  .cores button.mudou::after { content: ''; position: absolute; top: -5px; right: -5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .canais, .acoes { display: flex; gap: 6px; padding: 8px 18px 4px; overflow-x: auto; scrollbar-width: none; }
+  .canais::-webkit-scrollbar, .acoes::-webkit-scrollbar, .props div::-webkit-scrollbar { display: none; }
+  .canais button, .acoes button { flex: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .canais button.on, .acoes button.on { color: var(--text); border-color: var(--accent); }
+  .canais .zerar { margin-left: auto; border-color: transparent; }
+  .dica { display: block; padding: 4px 18px; color: var(--muted); font-size: 11.5px; }
+  .props div { overflow-x: auto; scrollbar-width: none; } .props button { flex: 0 0 auto; padding: 6px 12px; white-space: nowrap; }
+  #g_corte .escolha { padding: 4px 18px; }
+  .so-pc { display: none; }
+  /* Enquadrar: o painel vira a ferramenta (ícones, proporções ou régua, ✕ e ✓) */
+  #enq { display: none; }
+  body.enquadrando .abas, body.enquadrando .conteudo { display: none; }
+  body.enquadrando #enq { display: flex; flex-direction: column; justify-content: space-between; min-height: 255px; }
+  .enq-ferr { display: flex; justify-content: space-between; padding: 12px 12px 4px; gap: 2px; }
+  .enq-ferr button { position: relative; flex: 1; display: grid; justify-items: center; gap: 4px; padding: 6px 0; color: var(--muted); font-size: 11px; border-radius: 10px; }
+  .enq-ferr button.on { color: var(--text); background: var(--raise); }
+  .enq-ferr button.mudou::after { content: ''; position: absolute; top: 4px; right: calc(50% - 18px); width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .enq-meio { padding: 6px 0; }
+  .enq-props { display: flex; gap: 6px; padding: 4px 16px; overflow-x: auto; scrollbar-width: none; } .enq-props::-webkit-scrollbar { display: none; }
+  .enq-props button { flex: none; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .enq-props button.on { color: var(--text); border-color: var(--accent); }
+  .enq-props .deita { margin-left: auto; font-size: 16px; padding: 4px 12px; }
+  .regua { display: grid; justify-items: center; gap: 2px; }
+  .regua output { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; min-height: 18px; }
+  .regua .trilho { position: relative; width: 100%; height: 44px; overflow: hidden; touch-action: none; cursor: ew-resize;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); }
+  .regua .marcas { position: absolute; top: 0; left: 0; height: 100%; }
+  .regua .marcas i { position: absolute; top: 4px; width: 1px; height: 9px; background: var(--faint); }
+  .regua .marcas i.g { height: 16px; background: var(--muted); }
+  .regua .marcas b { position: absolute; top: 24px; transform: translateX(-50%); font-weight: 400; font-size: 10px; color: var(--faint); }
+  .regua .agulha { position: absolute; left: 50%; top: 0; width: 2px; height: 22px; margin-left: -1px; background: var(--accent); }
+  .enq-fim { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px calc(4px + var(--safe-b)); border-top: 1px solid var(--line); }
+  .enq-fim button { min-width: 56px; height: 44px; font-size: 20px; color: var(--text); }
+  .enq-fim .restaura { font-size: 13px; color: var(--muted); }
+  #moldCorte .caixa.fina { background-image: linear-gradient(#fff3 1px, transparent 1px), linear-gradient(90deg, #fff3 1px, transparent 1px); background-size: 12.5% 12.5%; }
+  #curva { display: block; width: 100%; aspect-ratio: 1; touch-action: none; }
+  #curva.na-foto { position: absolute; aspect-ratio: auto; background: #0005; z-index: 3; }
+  #curva .grade line { stroke: #fff3; stroke-width: 1; } #curva polyline { fill: none; stroke-width: 2; } #curva .outra { stroke-width: 1; opacity: .55; }
+  #curva circle { fill: #0009; stroke-width: 2; }
+  #g_curvas > #curva { display: none; }
+  /* Seletivo: os pontos sobre a foto e o painel */
+  #pontos { position: absolute; display: none; z-index: 3; touch-action: none; }
+  #pontos .pt { position: absolute; width: 0; height: 0; }
+  #pontos .pt b { position: absolute; left: -12px; top: -12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600;
+    background: #000a; color: #fff; border: 1.5px solid #fffc; box-shadow: 0 0 0 1px #0006; }
+  #pontos .pt.sel b { background: var(--accent); color: #111; border-color: #fff; }
+  #pontos .aro { position: absolute; left: 0; top: 0; border-radius: 50%; border: 1.5px solid #fffd; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
+  #pontos .aro::before { content: ''; position: absolute; right: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #0007; }
+  .selParams { display: flex; gap: 6px; padding: 6px 18px 2px; overflow-x: auto; scrollbar-width: none; } .selParams::-webkit-scrollbar { display: none; }
+  .selParams button { position: relative; flex: none; padding: 6px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .selParams button.on { color: var(--text); border-color: var(--accent); } .selParams button:disabled { opacity: .45; }
+  .selParams button.mudou::after { content: ''; position: absolute; top: 3px; right: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .selAcoes { display: flex; align-items: center; gap: 8px; padding: 2px 18px 4px; }
+  .selAcoes button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .selAcoes button.on { color: var(--text); border-color: var(--accent); } .selAcoes .apaga { color: #e58a7a; border-color: transparent; }
+  .selAcoes .dica { padding: 0; }
+  #g_sel .ctl.linha { padding: 4px 18px; }
+  .grupo[data-g=flash] .ctl { padding-top: 3px; padding-bottom: 3px; } #e_flashEstilo { padding: 4px 18px; } #e_flashEstilo button { padding: 5px 4px; }
+  #e_flashEstilo small { display: none; }   /* no celular o nome do estilo basta (o painel não cresce) */
+  /* rótulo da família, entre os grupos de receitas */
+  .film.rotulo { width: 22px; align-self: stretch; display: grid; place-items: center; color: var(--faint); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+  .film.rotulo span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+  /* dica de primeira vez */
+  #dica { position: absolute; left: 50%; top: 14px; transform: translate(-50%, -8px); z-index: 11; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(calc(100vw - 40px), 440px);
+    background: var(--raise); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 14px; font-size: 13px; line-height: 1.35;
+    box-shadow: 0 8px 30px #0008; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  #dica.on { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+  #dica button { flex: none; color: var(--accent); font-size: 13px; padding: 6px 8px; }
+  /* folha: sobe por cima dos controles (não muda a altura da tela) */
+  #veu { position: fixed; inset: 0; background: #0007; z-index: 20; display: none; }
+  #folha { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+    padding: 18px 18px calc(16px + var(--safe-b)); transform: translateY(105%); transition: transform .22s ease; max-height: 80vh; overflow-y: auto; }
+  body.com-folha #veu { display: block; } body.com-folha #folha { transform: none; }
+  .ficha h3 { margin: 0 0 6px; font-weight: 500; font-size: 20px; letter-spacing: .01em; }
+  .ficha .alma { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .ficha dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 13px; }
+  .ficha dt { color: var(--faint); text-transform: uppercase; letter-spacing: .1em; font-size: 11px; padding-top: 2px; } .ficha dd { margin: 0; color: var(--text); }
+  .ficha .campo { width: 100%; box-sizing: border-box; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font: inherit; font-size: 15px; padding: 10px 12px; margin-bottom: 12px; }
+  .ficha .codigo { font-family: ui-monospace, Menlo, monospace; font-size: 12px; resize: none; word-break: break-all; }
+  .ficha .botoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .ficha .botoes button { min-height: 44px; padding: 0 16px; border-radius: 10px; font-size: 14px; color: var(--text); border: 1px solid var(--line); }
+  .ficha .botoes .pri { background: var(--text); color: var(--bg, #111); border-color: transparent; font-weight: 600; }
+  .ficha .botoes .apaga { margin-right: auto; color: #e58a7a; border-color: transparent; }
+  .ficha .formatos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .ficha .formatos button { display: grid; gap: 3px; text-align: left; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); }
+  .ficha .formatos button b { font-weight: 500; font-size: 15px; color: var(--text); } .ficha .formatos button small { font-size: 12px; }
+  .ficha .formatos button.on { border-color: var(--accent); }
+  .ficha .opcao { display: grid; gap: 3px; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); }
+  .ficha .opcao b { font-weight: 500; font-size: 15px; } .ficha .opcao small { color: var(--muted); font-size: 12.5px; }
+  .ficha .opcao:hover { border-color: var(--accent); }
+  .film.acao .ph { font-size: 30px; font-weight: 200; color: var(--muted); border: 1px dashed var(--line); background: transparent; }
+  /* cortina: antes | depois */
+  #cortina { position: absolute; display: none; z-index: 4; touch-action: none; cursor: ew-resize; }
+  #cortina i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 0 1px #0005; }
+  #cortina i::after { content: '‹ ›'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #111;
+    display: grid; place-items: center; font-size: 15px; letter-spacing: 2px; box-shadow: 0 1px 8px #0006; }
+  #cortina span { position: absolute; top: 8px; font-size: 10.5px; letter-spacing: .14em; color: #fff; text-shadow: 0 1px 4px #000b; pointer-events: none; }
+  #cortina .ant { left: 10px; } #cortina .dep { right: 10px; }
+  #bComparar.on { color: var(--accent); }
+  /* mira: o assunto (círculo) e a linha do horizonte, sobre a foto */
+  #mira { position: absolute; display: none; z-index: 3; touch-action: none; cursor: crosshair; }
+  #mira .alvo { position: absolute; width: 46px; height: 46px; margin: -23px; border-radius: 50%; border: 1.5px solid #fffd; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
+  #mira .alvo::before { content: ''; position: absolute; right: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #0007; }   /* alça: arrastar a borda muda o tamanho */
+  #mira .alvo::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #fff; }
+  #mira .horizonte { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px dashed #fffc; box-shadow: 0 0 0 .5px #0005; cursor: ns-resize; }
+  #mira .horizonte span { position: absolute; right: 6px; top: -20px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 4px #000a; }
+  #g_ampl .ctl.linha { padding: 1px 18px; }
+  #moldCorte { position: absolute; display: none; z-index: 3; touch-action: none; }   /* sem cortar as alças da borda: o escurecido em volta fica no palco */
+  #moldCorte .caixa { position: absolute; box-shadow: 0 0 0 9999px #000a; outline: 1px solid #fffd; cursor: move; }
+  #moldCorte i { position: absolute; background: #fff5; pointer-events: none; }
+  #moldCorte .t1, #moldCorte .t2 { top: 0; bottom: 0; width: 1px; } #moldCorte .t1 { left: 33.33%; } #moldCorte .t2 { left: 66.67%; }
+  #moldCorte .t3, #moldCorte .t4 { left: 0; right: 0; height: 1px; } #moldCorte .t3 { top: 33.33%; } #moldCorte .t4 { top: 66.67%; }
+  #moldCorte b { position: absolute; width: 28px; height: 28px; margin: -14px; }
+  #moldCorte b::after { content: ''; position: absolute; inset: 10px; background: #fff; border-radius: 2px; }
+  #moldCorte b[data-h=n] { left: 50%; top: 0; cursor: ns-resize; } #moldCorte b[data-h=s] { left: 50%; top: 100%; cursor: ns-resize; }
+  #moldCorte b[data-h=e] { left: 100%; top: 50%; cursor: ew-resize; } #moldCorte b[data-h=w] { left: 0; top: 50%; cursor: ew-resize; }
+  #moldCorte b[data-h=nw] { left: 0; top: 0; cursor: nwse-resize; } #moldCorte b[data-h=se] { left: 100%; top: 100%; cursor: nwse-resize; }
+  #moldCorte b[data-h=ne] { left: 100%; top: 0; cursor: nesw-resize; } #moldCorte b[data-h=sw] { left: 0; top: 100%; cursor: nesw-resize; }
+  .grupo .sec { display: none; }
+  #nota { display: none; }   /* celular: a descrição do filme aparece de passagem ao escolher (economiza a altura) */
+  .cats { padding: 6px 16px 6px; }
+  .film { width: 66px; } .film canvas, .film .ph { width: 66px; height: 66px; }
+  .conteudo { min-height: 213px; }   /* a altura da aba Filmes: trocar de aba ou de ferramenta não mexe na foto */
+  #g_retrato .escolha { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 2px 18px; }
+  #g_retrato .ctl { padding: 1px 18px; }
+  #g_retrato .escolha button { flex: none; padding: 5px 14px; }
+  #g_retrato .escolha small, #e_luzTipo small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #e_luzTipo div { overflow-x: auto; scrollbar-width: none; } #e_luzTipo div::-webkit-scrollbar { display: none; }
+  #e_luzTipo button { flex: 0 0 auto; padding: 6px 12px; white-space: nowrap; }
+  #e_graoTipo { padding: 2px 18px 4px; gap: 4px; } #e_graoTipo small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #e_graoTipo button { padding: 5px 4px; }
+  .grupo[data-g=grao] .ctl { padding-top: 3px; padding-bottom: 3px; }
+
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 26px; background: transparent; margin: 0; touch-action: pan-y; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  input[type=range]::-moz-range-track { height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  /* o número grande sobre a foto enquanto arrasta */
+  #numero { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; pointer-events: none; color: #fff; font-size: 64px; font-weight: 200;
+    letter-spacing: .02em; text-shadow: 0 2px 18px #0009; opacity: 0; transition: opacity .25s; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #numero small { display: block; text-align: center; font-size: 13px; font-weight: 400; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--text); margin-top: -8px; border: 0; }
+  input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--text); border: 0; }
+
+  @media (min-width: 900px) {
+    body { grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
+    header { grid-column: 1 / -1; }
+    #painel { border-top: 0; border-left: 1px solid var(--line); overflow-y: auto; }
+    .rolar { max-height: none; }
+    .ferramentas { display: none; }
+    .grupo, .grupo .sec { display: block; }
+    .so-pc { display: inline-block; }
+    #folha { left: auto; right: 0; width: 360px; border-left: 1px solid var(--line); border-radius: 16px 0 0 0; }
+    body.enquadrando #enq { min-height: 0; justify-content: flex-start; gap: 18px; padding-top: 10px; }
+    #nota { display: block; } .film { width: 74px; } .film canvas, .film .ph { width: 74px; height: 74px; }
+    #cIntensidade .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } #cIntensidade .ctl label { display: block; } #cIntensidade .ctl input { order: 0; grid-column: 1 / -1; }
+    #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
+    .acoes, .props div { flex-wrap: wrap; overflow: visible; }
+    #g_curvas .dica { display: none; }
+    #g_retrato .escolha small, #e_luzTipo small, #e_graoTipo small, #e_flashEstilo small { white-space: normal; }
+    #e_flashEstilo small { display: block; }
+    .selParams { flex-wrap: wrap; overflow: visible; }
+    #e_luzTipo div { flex-wrap: wrap; overflow: visible; }
+    .faixa { flex-wrap: wrap; overflow: visible; row-gap: 12px; }   /* computador: todos os filmes à vista, sem rolar */
   }
 </style>
 </head>
 <body>
 <header>
-  <div class="l">
-    <button class="ib" id="btnOpen" title="Abrir foto" aria-label="Abrir foto"></button>
-    <button class="ib" id="btnLut" title="Importar LUT .cube" aria-label="Importar LUT"></button>
+  <div class="grp">
+    <button class="ib" id="bAbrir" title="Abrir foto" aria-label="Abrir foto"></button>
+    <span class="marca">REVELA</span>
   </div>
-  <div class="mid">
-    <button class="ib" id="btnUndo" title="Desfazer" aria-label="Desfazer" disabled></button>
-    <button class="ib" id="btnRedo" title="Refazer" aria-label="Refazer" disabled></button>
-    <button class="ib" id="btnCompare" title="Segure para ver o original" aria-label="Comparar com o original"></button>
+  <div class="grp">
+    <button class="ib" id="bDesfazer" title="Desfazer" aria-label="Desfazer" disabled></button>
+    <button class="ib" id="bRefazer" title="Refazer" aria-label="Refazer" disabled></button>
+    <button class="ib" id="bComparar" title="Segure para ver a foto original" aria-label="Comparar com a original" disabled></button>
+    <button class="ib" id="bLote" title="Aplicar esta edição a várias fotos" aria-label="Aplicar esta edição a várias fotos" disabled></button>
+    <button class="exportar" id="bExportar" disabled>Exportar</button>
   </div>
-  <div class="r"><button class="ib" id="btnMenu" title="Mais opções" aria-label="Mais opções"></button><button class="export" id="btnExport" disabled>Exportar</button></div>
-  <input id="fileImg" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" hidden>
-  <input id="filePrint" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
-  <input id="fileContact" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
-  <input id="fileBatch" type="file" accept="image/*,.heic,.heif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.pef,.srw" multiple hidden>
-  <input id="fileLut" type="file" accept=".cube" multiple hidden>
-  <input id="fileBackup" type="file" accept=".json,application/json,text/plain" hidden>
 </header>
 
-<main id="stage">
-  <div id="empty">
-    <button class="big" id="btnOpen2" aria-label="Abrir foto"></button>
-    <b>Escolha uma foto</b>
-    <div>JPEG, PNG, HEIC ou RAW. Tudo é processado no seu aparelho; nada é enviado.</div>
+<main id="palco">
+  <canvas id="tela"></canvas>
+  <div id="vazio">
+    <h1>REVELA</h1>
+    <p>Sua foto digital, revelada em filme.</p>
+    <button id="bAbrir2">Abrir uma foto</button>
+    <small class="versao">versão 49 · 20/11/2026</small>
   </div>
-  <canvas id="view" aria-label="Prévia da foto"></canvas>
-  <div id="badge">ORIGINAL</div>
-  <canvas id="gridOv"></canvas>
-  <div id="cropBox"><div class="g" style="left:33.33%;top:0;bottom:0;width:1px"></div><div class="g" style="left:66.66%;top:0;bottom:0;width:1px"></div>
-    <div class="g" style="top:33.33%;left:0;right:0;height:1px"></div><div class="g" style="top:66.66%;left:0;right:0;height:1px"></div>
-    <div class="h" data-c="0"></div><div class="h" data-c="1"></div><div class="h" data-c="2"></div><div class="h" data-c="3"></div></div>
-  <div id="zoomTag"></div>
-  <div id="bigVal" aria-hidden="true"><small></small><b></b></div>
+  <div id="selo">ORIGINAL</div>
+  <div id="aviso"></div>
+  <div id="pergunta" role="dialog" aria-live="polite"><span>Usar a mesma edição da foto anterior?</span><div><button id="pNao">Não</button><button id="pSim" class="on">Usar</button></div></div>
 </main>
 
-<section id="dock">
-  <div class="ctx">
-    <!-- modos -->
-    <div class="mode on" id="m-films">
-      <div class="cats" id="cats"></div>
-      <div class="scrollx" id="strip"></div>
-      <p class="finfo" id="filmInfo"></p>
-    </div>
-    <div class="mode" id="m-adjust"><div class="scrollx tools" id="t-adjust"></div></div>
-    <div class="mode panel" id="m-tex">
-      <div class="scrollx tools" id="t-tex" style="padding:0;margin:0 -6px;flex:0 0 auto"></div>
-      <h4>Tamanho da cópia</h4><div class="pills" id="prints"></div>
-      <h4>Moldura</h4><div class="pills" id="frames"></div>
-    </div>
-    <div class="mode" id="m-fx"><div class="scrollx tools" id="t-fx"></div></div>
-    <div class="mode panel" id="m-crop">
-      <div class="scrollx tools" id="t-crop" style="padding:0;margin:0 -6px;flex:0 0 auto"></div>
-      <h4>Proporção</h4><div class="pills" id="aspects"></div>
-    </div>
-
-    <!-- folhas de edição -->
-    <div class="sheet" id="sliderSheet">
-      <div class="head"><span class="val" id="sVal">0</span><button class="reset" id="sReset">zerar</button></div>
-      <div class="rw" id="sWrap"><input type="range" id="sRange"></div>
-      <div class="ends" id="sEnds"><span></span><span></span></div>
-      <div class="foot"><button class="ib" id="sCancel" aria-label="Cancelar"></button><div class="t" id="sTitle"></div><button class="ib" id="sOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="filmSheet">
-      <div class="head"><span class="val" id="fVal">100</span><button class="reset" id="fSave">+ salvar como meu</button></div>
-      <input type="range" id="fRange" min="0" max="100">
-      <div class="mini"><span>Tom</span><div class="rw bi"><input type="range" id="fTone" min="-100" max="100" aria-label="Tom do filme"></div><output id="fToneV">0</output></div>
-      <div class="mini"><span>Cor</span><div class="rw bi"><input type="range" id="fCol" min="-100" max="100" aria-label="Cor do filme"></div><output id="fColV">0</output></div>
-      <p class="note" id="fNote">Tom: expor o negativo a mais (+, claro e pastel) ou a menos (−, denso e com mais grão). Cor: filtro quente (+) ou frio (−) na frente da lente. Para corrigir a luz da cena, use Revelar › Luz da cena.</p>
-      <div class="foot"><button class="ib" id="fCancel" aria-label="Cancelar"></button><div class="t" id="fTitle"></div><button class="ib" id="fOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="hslSheet">
-      <div class="dots" id="hslDots"></div>
-      <div class="mini"><span>Matiz</span><input type="range" id="hsl-h" min="-100" max="100"><output></output></div>
-      <div class="mini"><span>Saturação</span><input type="range" id="hsl-s" min="-100" max="100"><output></output></div>
-      <div class="mini"><span>Luminância</span><input type="range" id="hsl-l" min="-100" max="100"><output></output></div>
-      <div class="foot"><button class="ib" id="hCancel" aria-label="Cancelar"></button><div class="t">Cor</div><button class="ib" id="hOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="curveSheet">
-      <div class="pills" id="curveCh"><button data-c="m" class="on">RGB</button><button data-c="r">R</button><button data-c="g">G</button><button data-c="b">B</button></div>
-      <div class="cwrap"><canvas id="curve" width="720" height="720" aria-label="Curva de tons"></canvas><output id="curveRead"></output></div>
-      <p class="hint">Toque na linha para criar um ponto e arraste. Para remover, arraste o ponto para fora ou dê dois toques.</p>
-      <div class="foot"><button class="ib" id="cCancel" aria-label="Cancelar"></button><button class="reset" id="curveReset">zerar canal</button><button class="ib" id="cOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="leakSheet">
-      <div class="pills" id="leakTypes"></div>
-      <p class="note" id="leakNote"></p>
-      <div class="dicerow"><button class="dice" id="leakSeed" aria-label="Sortear outro vazamento" title="Sortear outro vazamento"></button>
-        <div class="rw"><input type="range" id="leakRange" min="0" max="100"></div><output id="leakVal">0</output></div>
-      <div class="foot"><button class="ib" id="lCancel" aria-label="Cancelar"></button><div class="t">Light leak</div><button class="ib" id="lOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="scrSheet">
-      <div class="seg markseg"><button data-to="dustSheet">Poeira</button><button class="on" data-to="scrSheet">Riscos</button></div>
-      <div class="pills" id="scrTypes"></div>
-      <p class="note" id="scrNote"></p>
-      <div class="dicerow"><button class="dice" id="scrSeed" aria-label="Sortear outros arranhões" title="Sortear outros arranhões"></button>
-        <div class="rw bi"><input type="range" id="scrRange" min="-100" max="100"></div><output id="scrVal">0</output></div>
-      <div class="ends on" style="padding-left:52px"><span>◂ escuros</span><span>claros ▸</span></div>
-      <div class="foot"><button class="ib" id="scCancel" aria-label="Cancelar"></button><div class="t">Poeira e riscos</div><button class="ib" id="scOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="chrSheet">
-      <div class="pills" id="chrTypes"></div>
-      <p class="note" id="chrNote"></p>
-      <div class="mini"><span>Intensidade</span><input type="range" id="chrRange" min="0" max="100"><output></output></div>
-      <div class="foot"><button class="ib" id="chCancel" aria-label="Cancelar"></button><div class="t">Aberração</div><button class="ib" id="chOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="ageSheet">
-      <div class="pills" id="ageTypes"></div>
-      <p class="note" id="ageNote"></p>
-      <div class="dicerow"><button class="dice" id="ageSeed" aria-label="Sortear outro envelhecimento" title="Sortear outra variação"></button>
-        <div class="rw"><input type="range" id="ageRange" min="0" max="100" aria-label="Quanto tempo passou"></div><output id="ageVal">0</output></div>
-      <div class="ends on" style="padding-left:52px"><span>◂ recente</span><span>antiga ▸</span></div>
-      <div class="foot"><button class="ib" id="agCancel" aria-label="Cancelar"></button><div class="t">Envelhecer</div><button class="ib" id="agOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="panelSheet">
-      <div id="pBody"></div>
-      <div class="foot"><button class="ib" id="pCancel" aria-label="Cancelar"></button><div class="t" id="pTitle"></div><button class="ib" id="pOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="dustSheet">
-      <div class="seg markseg"><button class="on" data-to="dustSheet">Poeira</button><button data-to="scrSheet">Riscos</button></div>
-      <div class="pills" id="dustTypes"></div>
-      <div class="dicerow"><button class="dice" id="uSeed" aria-label="Sortear outra poeira" title="Sortear outra poeira"></button>
-        <div class="rw bi"><input type="range" id="uRange" min="-100" max="100"></div><output id="uVal">0</output></div>
-      <div class="ends on" style="padding-left:52px"><span>◂ escura</span><span>clara ▸</span></div>
-      <div class="foot"><button class="ib" id="uCancel" aria-label="Cancelar"></button><div class="t">Poeira e riscos</div><button class="ib" id="uOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="paperSheet">
-      <div class="pills" id="paperTypes"></div>
-      <p class="note" id="ppNote"></p>
-      <div class="dicerow"><button class="dice" id="ppSeed" aria-label="Sortear outra variação do papel" title="Sortear outra variação"></button>
-        <div class="rw"><input type="range" id="ppRange" min="0" max="100" aria-label="Intensidade do papel"></div><output id="ppVal">0</output></div>
-      <div id="ppMore">
-        <div class="mini"><span>Tom</span><input type="range" id="ppTone" min="-100" max="100" aria-label="Tom do papel"><output></output></div>
-        <div class="mini"><span>Cor</span><input type="range" id="ppCol" min="-100" max="100" aria-label="Cor do papel"><output></output></div>
-        <div class="mini"><span>Temperatura</span><input type="range" id="ppWarm" min="-100" max="100" aria-label="Temperatura do papel: frio ou quente"><output></output></div>
-      </div>
-      <div class="foot"><button class="ib" id="ppCancel" aria-label="Cancelar"></button><div class="t">Papel</div><button class="ib" id="ppOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="geoSheet">
-      <div class="seg" id="geoTabs" role="tablist" aria-label="Correção"></div>
-      <div class="head"><span class="val" id="gVal">0</span><button class="reset" id="gReset">zerar</button></div>
-      <div class="ruler" id="rulerBox" tabindex="0" role="slider" aria-label="Valor da correção"><canvas id="ruler"></canvas></div>
-      <div class="foot"><button class="ib" id="gCancel" aria-label="Cancelar"></button><div class="t">Ajustar</div><button class="ib" id="gOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="gfxSheet">
-      <div class="pills" id="gfxTypes"></div>
-      <div class="swatches" id="gfxSw"></div>
-      <div id="gfxRows"></div>
-      <p class="note" id="gfxNote">Transforma a foto em impressão gráfica: meio-tom de jornal, retícula em cores ou duas e três tintas.</p>
-      <div class="foot"><button class="ib" id="gfxCancel" aria-label="Cancelar"></button><div class="t">Gráfico</div><button class="ib" id="gfxOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="askSheet">
-      <p class="note" id="askNote"></p>
-      <div class="rowb center" id="askRow"><input type="text" id="askInput" maxlength="32" autocomplete="off" enterkeyhint="done" aria-label="Nome"></div>
-      <div class="foot"><button class="ib" id="askCancel" aria-label="Cancelar"></button><div class="t" id="askTitle"></div><button class="ib" id="askOk" aria-label="Confirmar"></button></div>
-    </div>
-    <div class="sheet" id="prSheet">
-      <div class="pills" id="prSizes"></div>
-      <div class="seg" id="prFin" role="group" aria-label="Acabamento"><button data-v="brilho">Brilho</button><button data-v="lustre">Lustre</button><button data-v="fosco">Fosco</button></div>
-      <div class="seg" id="prMar" role="group" aria-label="Margem"><button data-v="1">Com margem</button><button data-v="0">Sem margem</button></div>
-      <p class="note" id="prNote"></p>
-      <div class="rowb center"><button id="prOne">Esta foto</button><button id="prMany">Escolher fotos…</button></div>
-      <div class="foot"><button class="ib" id="prCancel" aria-label="Cancelar"></button><div class="t">Imprimir</div><span></span></div>
-    </div>
-    <div class="sheet" id="igSheet">
-      <p class="note" id="igNote"></p>
-      <div class="rowb center"><button id="igPad">Com bordas brancas</button><button id="igCrop">Recortar o centro</button></div>
-      <div class="foot"><button class="ib" id="igCancel" aria-label="Cancelar"></button><div class="t">Instagram</div><span></span></div>
-    </div>
-    <div class="sheet" id="recSheet">
-      <p class="note" id="rNote"></p>
-      <div class="rowb center"><button id="rRen">Renomear</button><button id="rUpd">Atualizar com a edição atual</button><button id="rDel">Excluir</button></div>
-      <div class="foot"><span></span><div class="t" id="rTitle"></div><button class="ib" id="rOk" aria-label="Fechar"></button></div>
-    </div>
-    <div class="sheet" id="dateSheet">
-      <div class="rowb center"><button id="dOn">Ligar data</button><input type="text" id="dText" maxlength="14" style="max-width:150px;flex:0 1 150px"><button id="dToday">Hoje</button></div>
-      <p class="note">Números, espaço, ponto, traço e apóstrofo. Sai gravada na foto, como nas câmeras compactas antigas.</p>
-      <div class="foot"><button class="ib" id="dCancel" aria-label="Cancelar"></button><div class="t">Data</div><button class="ib" id="dOk" aria-label="Confirmar"></button></div>
-    </div>
-  </div>
-  <nav id="nav">
-    <button data-m="films" class="on"></button>
-    <button data-m="adjust"></button>
-    <button data-m="tex"></button>
-    <button data-m="fx"></button>
-    <button data-m="crop"></button>
+<section id="painel">
+  <nav class="abas">
+    <button data-p="filmes" class="on">Filmes</button>
+    <button data-p="ajustes">Ajustes</button>
+    <button data-p="analogico">Analógico</button>
   </nav>
+  <div class="conteudo">
+    <div class="pag on" id="p-filmes">
+      <div class="cats" id="cats"></div>
+      <div class="faixa" id="faixa"></div>
+      <div class="nota" id="nota"></div>
+      <div class="ctl" id="cIntensidade"></div>
+    </div>
+    <div class="pag rolar" id="p-ajustes"></div>
+    <div class="pag rolar" id="p-analogico"></div>
+  </div>
 </section>
-<div id="menu" role="menu">
-  <button id="btnCopy">Copiar ajustes</button>
-  <button id="btnPaste">Colar ajustes</button>
-  <button id="btnPrint">Preparar para imprimir…</button>
-  <button id="btnIg">Exportar para Instagram</button>
-  <button id="btnBatch">Editar várias fotos…</button>
-  <button id="btnContact">Folha de contato…</button>
-  <button id="btnGfx">Gráfico…</button>
-  <button id="btnShelf">Mostrar itens guardados</button>
-  <button id="btnResetAll">Redefinir tudo</button>
-  <button id="btnBackup">Fazer backup</button>
-  <button id="btnDiag">Diagnóstico</button>
-  <button id="btnRestore">Restaurar backup…</button>
-  <a href="lab.html">Laboratório de filmes</a>
-</div>
-<div id="toast" role="status"></div>
+
+<input type="file" id="arquivo" accept="image/*,.heic,.heif,.dng,.raf,.cr2,.cr3,.nef,.arw,.orf,.rw2" hidden>
+<input type="file" id="lote" accept="image/*,.heic,.heif,.dng,.raf,.cr2,.cr3,.nef,.arw,.orf,.rw2" multiple hidden>
 <script type="module" src="app.js"></script>
 </body>
 </html>

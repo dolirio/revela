@@ -3,7 +3,7 @@ const { chromium, devices } = require('playwright');
   const b = await chromium.launch({ args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader'] });
   for (const [nome, ctx] of [['Pixel 7', devices['Pixel 7']], ['360', { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true }]]) {
     const p = await (await b.newContext(ctx)).newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-    await p.goto('http://127.0.0.1:8765/novo/'); await p.waitForTimeout(1500);
+    await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(1500);
     await p.setInputFiles('#arquivo', process.argv[2]); await p.waitForTimeout(2500);
     await p.locator('.film').nth(1).tap(); await p.waitForTimeout(800);   // escolhe um filme
     const r = {};

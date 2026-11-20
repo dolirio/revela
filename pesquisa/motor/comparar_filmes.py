@@ -1,4 +1,4 @@
-"""Aplica os pacotes de filme do app (novo/filmes/*.bin) a uma foto, do mesmo jeito que o shader do app,
+"""Aplica os pacotes de filme do app (filmes/*.bin) a uma foto, do mesmo jeito que o shader do app,
 e monta uma folha de comparação. Testa o próprio pacote que vai para o app.
 
 Uso: python3 pesquisa/motor/comparar_filmes.py <foto.jpg> [exposicao]
@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-FILMES = os.path.join(AQUI, '..', '..', 'novo', 'filmes')
+FILMES = os.path.join(AQUI, '..', '..', 'filmes')
 FIG = os.path.join(AQUI, '..', 'figuras')
 
 

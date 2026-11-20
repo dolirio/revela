@@ -28,3 +28,6 @@ Sugestões aceitas (19/11, depois do estudo do RNI):
 
 20/11: ✅ (48.19) Seletivo, Céu com proteção e estilos de flash (pedidos do usuário depois do teste da Ampliação e do Flash).
 Próximos: reconhecimento leve no aparelho (rosto, pessoa, céu) e lançamento (identidade visual, trocar a v47, Play Store).
+
+20/11 (v49): ✅ Revela como app e site principal; ✅ limpeza do código; ✅ dicas de primeira vez; ✅ receitas por família.
+Identidade visual: o layout fica comigo (estilo dos editores do iOS e do Android e do RNI); o logo vai ser explorado com outra IA a partir de `referencias/PROMPT-LOGO.md`, e a opção escolhida é redesenhada em vetor (SVG) para o app e o APK.

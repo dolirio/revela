@@ -2,7 +2,7 @@ const { chromium, devices } = require('playwright');
 (async () => {
   const [F, out] = process.argv.slice(2); const b = await chromium.launch({ args: ['--use-gl=swiftshader'] }); const r = {}, errs = [];
   const p = await (await b.newContext(devices['Pixel 7'])).newPage(); p.on('pageerror', (e) => errs.push(e.message));
-  await p.goto('http://127.0.0.1:8765/novo/'); await p.waitForTimeout(1500); await p.setInputFiles('#arquivo', F + '/24.jpg'); await p.waitForTimeout(2500);
+  await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(1500); await p.setInputFiles('#arquivo', F + '/24.jpg'); await p.waitForTimeout(2500);
   await p.locator('.film', { hasText: 'Portrait 400' }).first().tap(); await p.waitForTimeout(300);
   await p.locator('.abas button[data-p="ajustes"]').tap(); const ch = p.locator('#p-ajustes .ferramentas button[data-g="seletivo"]'); await ch.scrollIntoViewIfNeeded(); await ch.tap(); await p.waitForTimeout(400);
   r.painel = Math.round((await p.locator('#painel').boundingBox()).height);

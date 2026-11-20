@@ -3,7 +3,7 @@ const { chromium, devices } = require('playwright');
   const [F, out] = process.argv.slice(2); const b = await chromium.launch({ args: ['--use-gl=swiftshader'] }); const res = {};
   for (const [nome, ctx] of [['320', { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 }], ['iphone', devices['iPhone 15']], ['pc', { viewport: { width: 1280, height: 760 } }]]) {
     const p = await (await b.newContext(ctx)).newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
-    await p.goto('http://127.0.0.1:8765/novo/'); await p.waitForTimeout(1500);
+    await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(1500);
     const r = { vazio: await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1) };
     await p.setInputFiles('#arquivo', F + '/p31.jpg'); await p.waitForTimeout(2500);
     const clica = (sel) => nome === 'pc' ? p.locator(sel).first().click() : p.locator(sel).first().tap();

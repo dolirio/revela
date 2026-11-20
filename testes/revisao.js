@@ -8,7 +8,7 @@ const { chromium, devices } = require('playwright');
     const set = (k, v) => p.$eval('#r_' + k, (el, v) => { el.value = v; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }, v);
     const ferr = async (pag, g) => { if (await p.locator('#' + pag + ' .ferramentas').isVisible()) await clica('#' + pag + ' .ferramentas button[data-g="' + g + '"]'); };
     const r = {}; const t0 = Date.now();
-    await p.goto('http://127.0.0.1:8765/novo/index.html'); await p.waitForTimeout(2500);
+    await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(2500);
     r.vazio = await p.isVisible('#vazio');
     await p.setInputFiles('#arquivo', o + '/teste_rosto.jpg'); await p.waitForTimeout(3500);
     r.filmes = (await p.locator('.film span').allTextContents()).length;
