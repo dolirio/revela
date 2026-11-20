@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Gera o APK de TESTE do Revela novo (app separado: "Revela (teste)", app.revela.teste; não substitui o Revela instalado).
+# Gera o APK do Revela (nome "Revela"; identificador app.revela.teste, o mesmo das versões de teste, para instalar por cima).
 # Requisitos: Node 20+, Java 21. Baixa o SDK do Android na primeira vez (~1 GB).
-# Uso: novo/android/gerar_apk.sh [pasta-de-trabalho]   -> <pasta>/Revela-teste.apk
+# Uso: android/gerar_apk.sh [pasta-de-trabalho]   -> <pasta>/Revela-teste.apk
 set -euo pipefail
-RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
+RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 W="${1:-$RAIZ/../revela-apk}"; mkdir -p "$W"; cd "$W"
 export ANDROID_HOME="$W/sdk"
 if [ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
@@ -16,22 +16,22 @@ fi
 mkdir -p proj && cd proj
 [ -f package.json ] || echo '{ "name": "revela-teste", "private": true }' > package.json
 npm i -s @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/filesystem@7 @capacitor/share@7
-cp "$RAIZ/novo/android/capacitor.config.json" .
-# o app: novo/ + os módulos que ele importa da raiz
-rm -rf www && mkdir www && cp -r "$RAIZ/novo" www/novo && rm -rf www/novo/android www/novo/sw.js
+cp "$RAIZ/android/capacitor.config.json" .
+# o app: os arquivos da raiz que ele usa (sem o service worker, o app clássico, a pesquisa e os testes)
+rm -rf www && mkdir www
+cp "$RAIZ"/index.html "$RAIZ"/app.js "$RAIZ"/render.js "$RAIZ"/core.js "$RAIZ"/icons.js "$RAIZ"/manifest.webmanifest "$RAIZ"/icone.svg "$RAIZ"/icone-*.png www/
+cp -r "$RAIZ/filmes" www/filmes && cp -r "$RAIZ/vendor" www/vendor
 # só os filmes do índice (as tabelas antigas ficam no repositório, mas não vão no APK)
-python3 - www/novo/filmes <<'PY'
+python3 - www/filmes <<'PY'
 import json, os, sys
 d = sys.argv[1]; ids = json.load(open(os.path.join(d, 'indice.json')))
 for f in os.listdir(d):
     if f != 'indice.json' and f.split('.')[0] not in ids: os.remove(os.path.join(d, f))
 PY
-cp "$RAIZ/core.js" "$RAIZ/icons.js" www/ && cp -r "$RAIZ/vendor" www/vendor
-echo '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=novo/index.html"><title>Revela</title>' > www/index.html
 [ -d android ] || npx cap add android
 M=android/app/src/main/AndroidManifest.xml
 grep -q WRITE_EXTERNAL "$M" || sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />#' "$M"
-python3 - "$RAIZ/novo/icone-desenho-512.png" "$RAIZ/novo/icone-512.png" <<'PY'
+python3 - "$RAIZ/icone-desenho-512.png" "$RAIZ/icone-512.png" <<'PY'
 import sys, glob
 from PIL import Image
 desenho = Image.open(sys.argv[1]).convert('RGBA'); cheio = Image.open(sys.argv[2]).convert('RGBA')

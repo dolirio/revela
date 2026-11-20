@@ -4,7 +4,7 @@ const { chromium, devices } = require('playwright');
   const out = {};
   for (const [nome, ctx] of [['pixel', { ...devices['Pixel 7'], acceptDownloads: true }], ['pc', { viewport: { width: 1366, height: 860 }, acceptDownloads: true }]]) {
     const p = await (await b.newContext(ctx)).newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-    await p.goto('http://127.0.0.1:8765/novo/'); await p.waitForTimeout(1500);
+    await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(1500);
     await p.setInputFiles('#arquivo', process.argv[2]); await p.waitForTimeout(2500);
     const clica = (sel) => nome === 'pixel' ? p.locator(sel).first().tap() : p.locator(sel).first().click();
     const st = () => p.evaluate(() => 0);

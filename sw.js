@@ -1,15 +1,27 @@
-// Cache do app para funcionar offline. Mude a versão ao atualizar arquivos.
-const CACHE = 'revela-v47';
-const FILES = ['./', 'index.html', 'app.js', 'looks.js', 'looks-data.js', 'renderer.js', 'core.js', 'icons.js', 'recipes.js', 'climas.js', 'films.js', 'film-looks.js', 'vendor/libheif-bundle.mjs', 'lab.html', 'lab.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
-// cache: 'reload' / 'no-cache' passam por cima do cache HTTP do navegador, para a versão nova chegar na primeira abertura
-self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())));
-self.addEventListener('activate', (e) => e.waitUntil(
-  caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
+// Revela: funciona sem internet. Rede primeiro (a versão nova chega na hora), cache quando estiver sem rede.
+// Mude a versão a cada publicação.
+const CACHE = 'revela-49a';
+const BASE = ['./', 'index.html', 'app.js', 'render.js', 'manifest.webmanifest', 'icone.svg', 'icone-192.png', 'icone-512.png',
+  'core.js', 'icons.js', 'vendor/libheif-bundle.mjs', 'filmes/indice.json'];
+self.addEventListener('install', (e) => e.waitUntil((async () => {
+  const c = await caches.open(CACHE);
+  await c.addAll(BASE.map((f) => new Request(f, { cache: 'reload' })));
+  const ids = await (await fetch('filmes/indice.json', { cache: 'reload' })).json();
+  await c.addAll(ids.flatMap((id) => [`filmes/${id}.json`, `filmes/${id}.bin`]).map((f) => new Request(f, { cache: 'reload' })));
+  await self.skipWaiting();
+})()));
+self.addEventListener('activate', (e) => e.waitUntil((async () => {
+  // apaga os caches das versões anteriores (inclusive o do app antigo que ficava na raiz); o do Clássico fica
+  for (const k of await caches.keys()) if (k !== CACHE && !k.startsWith('revela-classico')) await caches.delete(k);
+  await self.clients.claim();
+})()));
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  const same = new URL(e.request.url).origin === location.origin;
-  e.respondWith(fetch(same ? new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : e.request).then((r) => {
-    if (r.ok) { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
-    return r;
-  }).catch(() => caches.match(e.request)));
+  e.respondWith((async () => {
+    try {
+      const r = await fetch(e.request);
+      if (r.ok && new URL(e.request.url).origin === location.origin) (await caches.open(CACHE)).put(e.request, r.clone());
+      return r;
+    } catch { return (await caches.match(e.request, { ignoreSearch: true })) || Response.error(); }
+  })());
 });

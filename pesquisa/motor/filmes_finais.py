@@ -9,7 +9,7 @@ import numpy as np
 AQUI = os.path.dirname(os.path.abspath(__file__)); RAIZ = os.path.join(AQUI, '..', '..')
 sys.path.insert(0, os.path.join(RAIZ, 'pesquisa', 'ferramentas')); sys.path.insert(0, os.path.join(RAIZ, 'referencias'))
 import conferir_assinatura as CA  # noqa: E402
-F = os.path.join(RAIZ, 'novo', 'filmes')
+F = os.path.join(RAIZ, 'filmes')
 dec = lambda v: np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4)
 enc = lambda v: np.where(v <= 0.0031308, 12.92 * v, 1.055 * np.clip(v, 0, None) ** (1 / 2.4) - 0.055)
 M = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]]); Mi = np.linalg.inv(M); W = M.sum(1)

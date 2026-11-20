@@ -1,7 +1,7 @@
 """Confere os filmes do app novo contra a assinatura medida nas câmeras (Ricoh e Fuji).
 
 Passa os quadros da cartela (cores de projeto, em luz linear, cinza médio = 0,18) pela tabela de cada filme
-(novo/filmes/*.bin), do mesmo jeito que o shader (log2 da luz / 0,18 -> tabela 3D -> sRGB), com o equilíbrio
+(filmes/*.bin), do mesmo jeito que o shader (log2 da luz / 0,18 -> tabela 3D -> sRGB), com o equilíbrio
 automático do laboratório ligado. Compara com a mesma cartela sem filme.
 
 Uso: python3 pesquisa/ferramentas/conferir_assinatura.py
@@ -23,9 +23,9 @@ dec = lambda v: np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4)
 
 
 def carrega(fid):
-    meta = json.load(open(os.path.join(RAIZ, 'novo/filmes', fid + '.json'), encoding='utf-8'))
+    meta = json.load(open(os.path.join(RAIZ, 'filmes', fid + '.json'), encoding='utf-8'))
     t = meta['tabela']; n = t['n']
-    lut = np.fromfile(os.path.join(RAIZ, 'novo/filmes', fid + '.bin'), '<u2').astype(np.float64).reshape(n, n, n, 3) / 65535  # [b][g][r]
+    lut = np.fromfile(os.path.join(RAIZ, 'filmes', fid + '.bin'), '<u2').astype(np.float64).reshape(n, n, n, 3) / 65535  # [b][g][r]
     return meta, lut, t
 
 
@@ -49,7 +49,7 @@ def main():
     cc = dec(np.array([Q[k]['srgb'] for k in range(24)], float) / 255)
     cena = cc * (0.18 / (cc[21] @ medir.SRGB_XYZ[1]))          # cinza 5 do ColorChecker = cinza médio
     ref = lch(cena[:18])
-    ids = json.load(open(os.path.join(RAIZ, 'novo/filmes/indice.json')))
+    ids = json.load(open(os.path.join(RAIZ, 'filmes/indice.json')))
     linhas = []
     for fid in ids:
         meta, lut, t = carrega(fid)

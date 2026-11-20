@@ -13,12 +13,12 @@ const FS = `#version 300 es
 precision highp float; precision highp sampler3D;
 in vec2 vUv; out vec4 o;
 uniform sampler2D uImg; uniform sampler3D uLut;
-uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uLong, uTex, uOut, uHasFilm, uBypass, uAuto;
+uniform float uLutN, uLutMin, uLutMax, uMix, uExp, uHalo, uGrain, uGrainSize, uSoft, uSeed, uTex, uOut, uHasFilm, uBypass, uAuto;
 uniform float uRet, uSep, uPele6, uPele5, uFaceLod; uniform vec4 uFace;
 uniform vec3 uPre, uPost, uSoftCh, uG0;
 uniform vec2 uRes;
-uniform float uDust, uScratch, uLeak, uDustSeed, uScrSeed, uLeakSeed, uLeakType, uFr;
-uniform vec4 uLeakP, uFrm; uniform vec2 uCan;
+uniform float uDust, uLeak, uDustSeed, uLeakSeed, uLeakType;
+uniform vec4 uLeakP;
 uniform float uPush, uVenc, uGrainMul; uniform vec3 uVencCor;
 // ajustes finos (18/11/2026): agem DEPOIS do filme, na foto como você a vê (como ajustar o scan no laboratório)
 uniform float uBri, uCon, uRea, uSom, uBra, uPre2, uSat, uVib, uPele, uFade, uVig, uNit, uClar, uDif, uTemCurva, uTemHsl;
@@ -158,26 +158,6 @@ float dustOf(vec2 q){   // como no RNI: poucos e espalhados, de tamanhos bem dif
   a = max(a, fio(q, 11.0, 0.14, 17.0));
   return a;
 }
-float lineAA(float d, float w, float px){ float ww = max(w, px); return (1.0 - smoothstep(ww * 0.5, ww * 0.5 + px, d)) * min(1.0, w / max(px, 1e-4)); }
-// riscos longos no sentido em que o filme corre (o lado maior da foto), como os da câmera
-float scratchOf(vec2 iu){
-  float sd = uScrSeed; bool land = uRes.x >= uRes.y; vec2 P = iu * uRes;
-  float A = land ? P.x : P.y, B = land ? P.y : P.x, LA = land ? uRes.x : uRes.y, LB = land ? uRes.y : uRes.x, sh = min(uRes.x, uRes.y);
-  float pxB = max(fwidth(B), 1e-3), a = 0.0;
-  for (int i = 0; i < 6; i++) {
-    float fi = float(i);
-    if (hash(vec2(fi, sd + 9.0)) > 0.5) continue;   // poucos riscos
-    float pos = LB * (0.06 + 0.88 * hash(vec2(fi, sd + 1.0)));
-    float wob = (gnoise(vec2(A / LA * 1.7 + fi * 7.0, sd)) - 0.5) * sh * 0.008;
-    float wd = (0.35 + 0.8 * hash(vec2(fi, sd + 2.0))) * (0.6 + 0.8 * gnoise(vec2(A / LA * 9.0, fi + sd))) * max(1.0, sh / 1500.0);   // finos como fio de cabelo
-    float seg = smoothstep(0.22, 0.42, gnoise(vec2(A / LA * 3.5 + fi * 3.3, sd + 5.0)));
-    float st = LA * hash(vec2(fi, sd + 3.0)) * 0.6 * step(0.55, hash(vec2(fi, sd + 4.0)));
-    float l = lineAA(abs(B - pos - wob), wd, pxB) * seg * step(st, A);
-    if (hash(vec2(fi, sd + 6.0)) > 0.6) l = max(l, 0.7 * lineAA(abs(B - pos - wob - (3.0 + 4.0 * hash(vec2(fi, sd + 7.0))) * max(1.0, sh / 1500.0)), wd * 0.6, pxB) * seg * step(st, A));
-    a = max(a, l);
-  }
-  return clamp(a, 0.0, 1.0);
-}
 // luz vazada: fraca = vermelha, média = laranja, forte = amarela, queimada = quase branca
 vec3 leakRamp(float x, float warm, float cool){
   vec3 r = mix(vec3(0.72, 0.05, 0.04), vec3(0.92, 0.22, 0.05), warm), o = mix(vec3(1.0, 0.36, 0.07), vec3(1.0, 0.56, 0.12), warm);
@@ -193,7 +173,7 @@ vec3 leakRamp(float x, float warm, float cool){
 float leakField(vec2 iu, out float cool){
   cool = 0.0;
   int t = int(uLeakType + 0.5); float sd = uLeakSeed, bit = uLeakP.x; bool land = uRes.x >= uRes.y;
-  bool longEdge = t == 0 || t == 5 || t == 7 || (t == 4 && hash(vec2(sd, 4.0)) > 0.5);
+  bool longEdge = t == 0 || t == 7 || (t == 4 && hash(vec2(sd, 4.0)) > 0.5);
   int side = longEdge ? (land ? (bit > 0.5 ? 2 : 3) : (bit > 0.5 ? 0 : 1)) : (land ? (bit > 0.5 ? 0 : 1) : (bit > 0.5 ? 2 : 3));
   float d, s;
   if (side == 0) { d = iu.x; s = iu.y; } else if (side == 1) { d = 1.0 - iu.x; s = iu.y; } else if (side == 2) { d = iu.y; s = iu.x; } else { d = 1.0 - iu.y; s = iu.x; }
@@ -235,22 +215,7 @@ float leakField(vec2 iu, out float cool){
     vec2 c = vec2(dn, (bit > 0.5 ? sn : lenS / sh - sn)); float dist = length(c);
     return 1.5 * exp(-dist / (0.55 + 0.6 * w)) * (0.8 + 0.3 * fbm2(c * 1.8 + sd));
   }
-  vec2 rel = vec2(dn, sn - tp); float ang = atan(rel.y, rel.x + 1e-4), dist = length(rel);
-  float rays = smoothstep(0.42, 0.9, gnoise(vec2(ang * 2.6 + sd, sd * 0.37))), soft = 0.35 + 0.65 * gnoise(vec2(dist * 3.0 + sd, ang * 1.5));
-  return 1.1 * rays * soft * exp(-dist / (0.3 + 0.45 * w)) + 1.2 * exp(-dist * dist / (0.02 + 0.03 * w));
-}
-// moldura do negativo escaneado (35 mm): borda preta e os furos, por onde a luz do scanner passa
-float rbox(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
-vec3 moldura(vec2 P){
-  vec2 q = P - uFrm.xy; float sh = min(uFrm.z, uFrm.w); bool land = uFrm.z >= uFrm.w;
-  float A = land ? q.x : q.y;                                        // ao longo do filme
-  float dTop = land ? -q.y : -q.x, dBot = land ? q.y - uFrm.w : q.x - uFrm.z;
-  float d = max(dTop, dBot);                                         // distância da borda da foto, do lado dos furos
-  float pitch = 0.198 * sh;
-  vec2 hp = vec2(mod(A, pitch) - pitch * 0.5, d - 0.146 * sh);
-  float hole = 1.0 - smoothstep(-1.0, 1.0, rbox(hp, vec2(0.058, 0.041) * sh, 0.016 * sh));
-  vec3 base = vec3(0.03, 0.026, 0.022) + (hash(floor(P * 0.5)) - 0.5) * 0.012;
-  return mix(base, vec3(0.93, 0.91, 0.87), hole * step(0.0, d));
+  return 0.0;
 }
 // semelhança com o ponto tocado, no estilo dos "U Points" (Nik/Snapseed): compara a cor e o brilho da foto levemente
 // desfocada (o pelo, o grão e as texturas não fazem a máscara piscar) com os do lugar tocado. 1 = igual, 0 = bem diferente.
@@ -265,12 +230,6 @@ float semelhancaEm(vec2 uv, vec2 alvo){
 float semelhanca(vec2 uv){ return semelhancaEm(uv, uAlvo); }
 void main(){
   vec2 uv = vUv;
-  if (uFr > 0.5) {
-    vec2 P = vUv * uCan, q = P - uFrm.xy;
-    float sh = min(uFrm.z, uFrm.w);
-    if (rbox(q - uFrm.zw * 0.5, uFrm.zw * 0.5, 0.012 * sh) > 0.0) { o = vec4(moldura(P), 1.0); return; }   // janela de cantos levemente arredondados
-    uv = q / uFrm.zw;
-  }
   vec2 fu = uv;                                   // posição no quadro final (vinheta, luz vazada, poeira)
   uv = geoUv(uv);                                 // corte, giro, endireitar, perspectiva e lente -> posição na foto
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { o = vec4(0.07, 0.066, 0.06, 1.0); return; }   // fora da foto (só aparece enquanto corta)
@@ -478,7 +437,7 @@ void main(){
     col = mix(col, max(col, avg / 24.0), uDif * 0.4);
     col = col * (1.0 - uDif * 0.05) + uDif * vec3(0.035, 0.03, 0.024);
   }
-  // ---------- tempo: luz vazada (exposta no filme), poeira e riscos (na hora de escanear)
+  // ---------- tempo: luz vazada (exposta no filme) e poeira (na hora de escanear)
   if (uLeak > 0.0) {
     float cool, x = leakField(fu, cool) * uLeak * 1.15;
     vec3 lk = leakRamp(min(x, 1.25), hash(vec2(uLeakSeed, 7.0)), cool);
@@ -506,10 +465,6 @@ void main(){
   if (uDust != 0.0) {   // direita (+) = poeira branca, como no negativo escaneado; esquerda (−) = preta, como na cópia em papel
     float d = dustOf(fu * vec2(uRes.x / uRes.y, 1.0));
     if (d > 0.0) col = mix(col, uDust > 0.0 ? 1.0 - (1.0 - col) * 0.06 : col * 0.06, d * min(1.0, abs(uDust)) * 0.95);   // clareia o que está embaixo
-  }
-  if (uScratch > 0.0) {
-    float sa = scratchOf(fu);
-    if (sa > 0.0) col = mix(col, 1.0 - (1.0 - col) * 0.35, clamp(sa * uScratch * 0.6, 0.0, 1.0));   // risco na base: clareia, não pinta
   }
   if (uFade != 0.0) col = col * (1.0 - 0.22 * uFade) + 0.09 * uFade;   // esmaecer: o preto vira cinza, como cópia velha
   if (uVig != 0.0) {   // vinheta: bordas mais escuras (+) ou mais claras (−), no formato da foto
@@ -555,7 +510,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor', 'uCort', 'uFlashP', 'uFlashCor', 'uFlashAmb', 'uFlashR', 'uPtA', 'uPtB', 'uPtC', 'uNPt', 'uVerMasc'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uLeak', 'uDustSeed', 'uLeakSeed', 'uLeakType', 'uLeakP', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor', 'uCort', 'uFlashP', 'uFlashCor', 'uFlashAmb', 'uFlashR', 'uPtA', 'uPtB', 'uPtC', 'uNPt', 'uVerMasc'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -587,17 +542,15 @@ export class Render {
   }
 
   // s: estado da edição; longSide: lado maior da foto ORIGINAL (o grão e a halação seguem a foto, não a tela)
-  // outW×outH = tamanho da FOTO; com a moldura do filme o quadro cresce em volta (ver quadro())
+  // outW×outH = tamanho da imagem final (o corte, na resolução pedida). longSide: lado maior da foto original (não usado hoje)
   draw(s, outW, outH, longSide, bypass = false) {
     const gl = this.gl, u = this.u;
-    const Q = quadro(s, outW, outH), CW = Q.W, CH = Q.H;
-    if (this.canvas.width !== CW || this.canvas.height !== CH) { this.canvas.width = CW; this.canvas.height = CH; }
-    gl.viewport(0, 0, CW, CH);
-    this.janela = [Q.x / CW, Q.y / CH, outW / CW, outH / CH];   // onde a foto fica dentro do quadro (para tocar no rosto)
-    gl.uniform1f(u.uFr, Q.moldura && !bypass ? 1 : 0); gl.uniform2f(u.uCan, CW, CH); gl.uniform4f(u.uFrm, Q.x, Q.y, outW, outH);
+    if (this.canvas.width !== outW || this.canvas.height !== outH) { this.canvas.width = outW; this.canvas.height = outH; }
+    gl.viewport(0, 0, outW, outH);
+    this.janela = [0, 0, 1, 1];
     const sorte = s.sorte ?? 7, sl = s.sorteLuz ?? 3, lp = leakParams(sl);
-    gl.uniform1f(u.uDust, bypass ? 0 : s.poeira || 0); gl.uniform1f(u.uScratch, bypass ? 0 : s.riscos || 0); gl.uniform1f(u.uLeak, bypass ? 0 : s.luzVazada || 0);
-    gl.uniform1f(u.uDustSeed, sorte % 97); gl.uniform1f(u.uScrSeed, (sorte * 1.7) % 89); gl.uniform1f(u.uLeakSeed, (sl * 2.3) % 83);
+    gl.uniform1f(u.uDust, bypass ? 0 : s.poeira || 0); gl.uniform1f(u.uLeak, bypass ? 0 : s.luzVazada || 0);
+    gl.uniform1f(u.uDustSeed, sorte % 97); gl.uniform1f(u.uLeakSeed, (sl * 2.3) % 83);
     gl.uniform1f(u.uLeakType, +(s.luzTipo ?? 0));
     // revelação: puxar (−1 a +3 pontos) e vencido (0 a 1, tom do rolo sorteado)
     const pu = bypass ? 0 : s.puxar || 0, ve = bypass ? 0 : s.vencido || 0, rv = rnd((s.sorteVenc ?? 5) + 0.5);
@@ -613,7 +566,7 @@ export class Render {
     gl.uniform3fv(u.uG0, g0);
     gl.uniform1f(u.uHasFilm, m ? 1 : 0); gl.uniform1f(u.uAuto, s.labAuto ?? 1); gl.uniform1f(u.uBypass, bypass ? 1 : 0);
     gl.uniform1f(u.uMix, s.intensidade); gl.uniform1f(u.uExp, s.exposicao);
-    gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, m?.cat === 'pb' ? [1, 1, 1] : wb(s.labTemp, s.labMatiz));   // P&B: o scan é cinza, não há o que equilibrar
+    gl.uniform3fv(u.uPre, wb(s.cenaTemp, s.cenaMatiz)); gl.uniform3fv(u.uPost, [1, 1, 1]);   // P&B: o scan é cinza, não há o que equilibrar
     gl.uniform1f(u.uHalo, s.halacao); gl.uniform1f(u.uGrain, s.grao); gl.uniform1f(u.uGrainSize, s.graoTamanho);
     const gt = TIPOS_GRAO[s.graoTipo] || TIPOS_GRAO.classico; gl.uniform4fv(u.uGrainT, gt); gl.uniform1f(u.uGrainCor, s.graoTipo === 'colorido' ? 1 : 0); gl.uniform1f(u.uGrainCrom, m?.cat === 'pb' ? 0 : 0.3);
     gl.uniform1f(u.uSoft, m ? s.caraterFilme : 0); gl.uniform3fv(u.uSoftCh, a.nitidez_canal ? a.nitidez_canal.map((v) => 1 - v) : [0, 0, 0]);
@@ -670,22 +623,16 @@ export class Render {
     gl.uniform4f(u.uCorte, G.corte.x, G.corte.y, G.corte.w, G.corte.h); gl.uniform2f(u.uQ, G.QW, G.QH);
     gl.uniform2f(u.uRotCS, G.p.co, G.p.si); gl.uniform2f(u.uPer, G.p.pv, G.p.ph); gl.uniform1f(u.uLen, G.p.k); gl.uniform1f(u.uEsp, s.espelho ? 1 : 0);
     this.geo = G;
-    gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uLong, longSide); gl.uniform1f(u.uTex, Math.max(this.w, this.h)); gl.uniform1f(u.uOut, Math.max(outW, outH)); gl.uniform2f(u.uRes, outW, outH);
+    gl.uniform1f(u.uSeed, s.semente); gl.uniform1f(u.uTex, Math.max(this.w, this.h)); gl.uniform1f(u.uOut, Math.max(outW, outH)); gl.uniform2f(u.uRes, outW, outH);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }
 
-// moldura do negativo 35 mm: furos nas bordas longas (24 mm de foto, 5,5 mm de filme de cada lado) e a divisa entre fotos
-export function quadro(s, w, h) {
-  if (!s.moldura) return { W: w, H: h, x: 0, y: 0, moldura: false };
-  const sh = Math.min(w, h), b1 = Math.round(0.23 * sh), b2 = Math.round(0.07 * sh);
-  return w >= h ? { W: w + 2 * b2, H: h + 2 * b1, x: b2, y: b1, moldura: true } : { W: w + 2 * b1, H: h + 2 * b2, x: b1, y: b2, moldura: true };
-}
 // luz vazada sorteada: [lado, posição ao longo da borda, largura, variação, tipo]
 function rnd(seed) { let x = Math.sin(seed * 9301 + 49297) * 233280; return () => { x = Math.sin(x) * 10000; return x - Math.floor(x); }; }
 export function leakParams(seed) {
   const r = rnd(seed + 1);
-  return [r() > 0.5 ? 1 : 0, 0.15 + 0.7 * r(), r(), r(), [0, 0, 1, 2, 5][Math.floor(r() * 5)]];
+  return [r() > 0.5 ? 1 : 0, 0.15 + 0.7 * r(), r(), r()];
 }
 
 // temperatura (−1 frio .. +1 quente) e matiz (−1 verde .. +1 magenta) -> multiplicadores RGB em luz linear

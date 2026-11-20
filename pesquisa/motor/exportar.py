@@ -1,4 +1,4 @@
-"""Exporta um filme do motor espectral para o formato que o app novo carrega (novo/filmes/).
+"""Exporta um filme do motor espectral para o formato que o app novo carrega (filmes/).
 
 Uso: python3 pesquisa/motor/exportar.py
 
@@ -57,7 +57,7 @@ class ReceitaLindbergh:
         return float(np.interp(alvo, v, x))
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-DESTINO = os.path.join(AQUI, '..', '..', 'novo', 'filmes')
+DESTINO = os.path.join(AQUI, '..', '..', 'filmes')
 N, MIN, MAX = 33, -9.0, 7.0
 
 # Interação entre camadas (DIR, 4º número depois do tamanho do grão): a ficha não publica. Valor provisório pela

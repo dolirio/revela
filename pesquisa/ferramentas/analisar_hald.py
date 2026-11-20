@@ -1,5 +1,5 @@
 """Lê imagens Hald filtradas por outros apps (ver referencias/COMO-PASSAR-HALD.md) e mede o que cada filtro faz,
-lado a lado com os filmes do app novo (novo/filmes). Serve para ESTUDO e COMPARAÇÃO: nada daqui vai para o app.
+lado a lado com os filmes do app novo (filmes). Serve para ESTUDO e COMPARAÇÃO: nada daqui vai para o app.
 
 Uso: python3 pesquisa/ferramentas/analisar_hald.py <pasta-com-as-hald> [saida.json]
 
@@ -69,7 +69,7 @@ def main(pasta, saida=None):
     for f in sorted(glob.glob(os.path.join(pasta, '*.jp*g')) + glob.glob(os.path.join(pasta, '*.png'))):
         lut = carrega_hald(f)
         res[os.path.splitext(os.path.basename(f))[0]] = mede(lambda x, l=lut: aplica(l, enc(np.clip(x, 0, 1))))
-    for fid in json.load(open(os.path.join(RAIZ, 'novo/filmes/indice.json'))):
+    for fid in json.load(open(os.path.join(RAIZ, 'filmes/indice.json'))):
         meta, lut, t = CA.carrega(fid)
         g = CA.filme(np.full(3, 0.18), lut, t); bal = (g @ [0.2126, 0.7152, 0.0722]) / g
         res['Revela_' + meta['nome'].replace(' ', '')] = mede(lambda x, l=lut, t=t, b=bal: CA.filme(x, l, t) * b)

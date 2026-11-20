@@ -1,5 +1,6 @@
-# Revela · versão de teste 48.20 (20/11/2026)
+# Revela · versão 49 (20/11/2026)
 
+49: o Revela novo é o app e o site principal (https://dolirio.github.io/revela/; o anterior em /classico/). Limpeza do código. Dicas de primeira vez para os gestos escondidos (aparecem uma vez cada). Receitas agrupadas por família. APK com o nome "Revela".
 48.20: correção importante para iPhone: fotos de 24 MP ou 48 MP (padrão dos iPhones 15 e 16) podiam sair em branco ou travar ao exportar, porque o Safari não gera imagens acima de ~16,7 MP. Agora, no iPhone/iPad, a exportação fica em até 16 MP (proporção mantida); e em qualquer aparelho o app confere se a placa de vídeo aceitou o tamanho e, se não, reduz só o necessário. Os testes automáticos agora ficam no projeto (novo/testes).
 48.19: Seletivo (Ajustes, como no Snapseed): até 4 pontos com Luz, Contraste, Saturação, Calor, Estrutura e Entorno; a máscara abraça o assunto; enquanto mexe, a área aparece em vermelho. Celular: toque vazio cria ponto; toque no ponto escolhe; arraste move; a alça (ou pinça) muda o tamanho. Computador: "+ Ponto" e clique. Os pontos são desta foto. Céu (Analógico, no lugar da Ampliação): só a queima do céu a partir do horizonte, agora protegendo o que não é céu (pessoa, montanha, prédio). Flash com estilos: Anos 90, Compacta digital e Festa; receita nova Portrait 400 · Compacta. Correções: a pergunta "Usar a mesma edição?" ficava coberta pelos pontos; tocar na borda do círculo mudava o tamanho sem querer (agora só pela alça).
 48.18: Exportar refeito (pedido do usuário): escolha o formato (JPEG, leve; PNG, sem perda) e o destino: Salvar (Android: Imagens › Revela; navegador: baixa) ou Compartilhar… (o menu do próprio sistema: Instagram, WhatsApp, e-mail, Drive…). Sai a opção Instagram. O app lembra o último formato. A foto sai no tamanho real e sem localização (GPS).
@@ -25,7 +26,7 @@
 
 48.1: tela inicial só com as boas-vindas; a foto abre em Digital, sem nada aplicado.
 
-**Web:** https://dolirio.github.io/revela/novo/ · **Android:** APK "Revela (teste)" (`novo/android/gerar_apk.sh`), instala ao lado do Revela publicado.
+**Web:** https://dolirio.github.io/revela/ (o app anterior fica em /classico/) · **Android:** APK "Revela" (`android/gerar_apk.sh`).
 
 ## O que está nesta versão
 - **9 filmes, por família:** Portrait 400, Portrait 160, Editorial 100 · Chrome 100, Chrome 64 · Pro 400 · Tungsten 800 · Silver 400, Silver Portrait.

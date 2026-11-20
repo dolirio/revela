@@ -6,56 +6,40 @@ Editor de fotos com aparência de filme fotográfico analógico. Você fotografa
 
 ## Como o app se organiza
 
-As abas seguem a ordem de um laboratório fotográfico:
-
 | Aba | O que faz |
 |---|---|
-| **Filme** | Escolhe o filme (negativo, retrato, cinema, slide, P&B, vencido) ou um *Clima* (receita pronta). Tocar no filme de novo abre intensidade, Tom e Cor. |
-| **Revelar** | Luz, tons, curvas, temperatura e cor por faixa (HSL). |
-| **Cópia** | A foto impressa: papel, nitidez, grão, difusão, halação, lente, moldura. |
-| **Tempo** | O que os anos fazem: álbum, sol, caixa, P&B antiga, instantânea, poeira, riscos, light leak. |
-| **Corte** | Recorte, proporção, rotação, perspectiva e lente. |
+| **Filmes** | 12 filmes (cada um nasce do motor espectral, com uma identidade por cima), **Receitas** por família (preto e branco, cor, noite e flash) e **Minhas** receitas. Embaixo: Intensidade · Puxar · Vencido. Toque e segure um filme para ver a ficha. |
+| **Ajustes** | Luz (exposição, brilho, contraste, realces, sombras, brancos, pretos, esmaecer, curvas), Cor (calor, matiz, saturação, vibração, tom de pele, cores HSL), Detalhe (clareza, nitidez com cópia em papel, vinheta), **Seletivo** (pontos com a máscara que abraça o assunto) e **Enquadrar** (corte, girar, endireitar, perspectiva, lente). |
+| **Analógico** | Textura (grão por tipo, poeira), Luz (halação, difusão, luz vazada, flash com estilos) e Laboratório (céu queimado a partir do horizonte). |
 
-Saídas: JPEG em tamanho real, Instagram, cópia pronta para imprimir (300 ppp), folha de contato e backup das receitas.
-
-## Direção do produto (novembro de 2026)
-
-O Revela passa a se concentrar nos **filmes**: reproduzir cada um com a fidelidade de um app como o RNI Films, com interface limpa e poucos toques.
-
-- **Fica e ganha profundidade:** os filmes, os ajustes básicos e o analógico essencial (grão, halação, difusão, poeira e riscos).
-- **Guardado para depois** (continua no histórico, a partir da v47): papéis e cópia, Tempo, Climas, Gráfico, molduras, preparar para imprimir, folha de contato e exportar para Instagram.
-- **Grão:** a quantidade é sempre do usuário (mais ou menos, conforme a foto e a intenção), mas o **caráter é sempre de filme real**: aglomerados irregulares de vários tamanhos, mais fortes nos tons médios. Aumentar ou diminuir muda a quantidade, nunca transforma o grão em ruído digital. O primeiro modelo está em `referencias/lindbergh/lindbergh.py` (`grao_organico`).
-- A pesquisa que sustenta os filmes novos está em [`pesquisa/`](pesquisa/README.md).
-- **O Revela novo está sendo construído em [`novo/`](novo/)**, sem mexer no app publicado. Cada filme vem do motor espectral (`pesquisa/motor/exportar.py`) com a física do filme dentro: a exposição e a temperatura agem **antes** do filme, o equilíbrio do laboratório **depois**. Ele substitui o app atual quando o primeiro conjunto de filmes estiver pronto.
-- A v47 fica guardada no histórico no commit `d057ed9`.
+Exportar: JPEG ou PNG em tamanho real (sem localização), salvar no aparelho ou compartilhar com outro app. Várias fotos de uma vez com a mesma edição. Comparar: segurar mostra a original; um toque abre a cortina.
 
 ## Arquivos
 
 | Arquivo | Papel |
 |---|---|
 | `index.html` | Tela do app (estrutura e estilos) |
-| `app.js` | Interface: abas, painéis, histórico, exportação, backup |
-| `renderer.js` | Processamento da imagem na placa de vídeo (WebGL2) |
-| `core.js` | Parâmetros, abertura de arquivos (JPEG, HEIC, RAW pela prévia embutida), molduras |
-| `films.js`, `film-looks.js` | Os filmes e o caráter de cada um (grão, halação…) |
-| `looks.js`, `looks-data.js` | Geração das LUTs 3D (tabelas de cor) dos filmes |
-| `climas.js` | Climas: receitas prontas a partir dos filmes |
-| `recipes.js` | Conversão de receitas salvas |
+| `app.js` | Interface: abas, ferramentas, gestos sobre a foto, receitas, histórico, exportação |
+| `render.js` | Processamento na placa de vídeo (WebGL2): filme (tabela 3D), ajustes, seletivo, céu, flash, grão, poeira, luz vazada, geometria |
+| `core.js` | Abertura de arquivos (JPEG, HEIC, RAW pela prévia embutida) |
 | `icons.js` | Ícones da interface |
-| `lab.html`, `lab.js` | Laboratório: ferramenta interna para criar e calibrar filmes |
-| `sw.js` | Service worker (guarda o app para uso offline) |
+| `filmes/` | Os filmes: tabela 3D (`.bin`) e ficha (`.json`) de cada um; `indice.json` diz quais aparecem |
+| `sw.js`, `manifest.webmanifest` | Funciona sem internet e instala na tela do celular |
+| `android/` | APK (Capacitor): `android/gerar_apk.sh` |
+| `testes/` | Testes automáticos (Playwright); veja `testes/README.md` |
 | `vendor/` | Decodificador HEIC (libheif, LGPL-3.0) |
-| `pesquisa/` | Pesquisa dos filmes: dossiês, dados das fichas técnicas, figuras e ferramentas (não é carregada pelo app) |
+| `classico/` | O app anterior (v47), guardado e ainda acessível em `/classico/` |
+| `novo/` | Endereço antigo do app novo: leva ao principal e desliga o cache antigo |
+| `pesquisa/` | Pesquisa dos filmes: motor espectral, fichas técnicas, ferramentas (não é carregada pelo app) |
+| `referencias/` | Referências de estilo e estudos (não é carregada pelo app) |
 
 ## Como rodar
 
-Qualquer servidor estático serve. Por exemplo:
-
-```sh
-python3 -m http.server 8000
+```bash
+python3 -m http.server 8000     # na raiz; abra http://localhost:8000/
+android/gerar_apk.sh            # gera o APK (baixa o SDK do Android na primeira vez)
 ```
-
-Depois abra `http://localhost:8000`.
+Os filmes são gerados por `pesquisa/motor/filmes_finais.py` (depois de `pesquisa/motor/exportar.py`). Próximos passos em `PROXIMOS.md`; o que testar em cada versão em `TESTE.md`.
 
 ## Regra de atualização
 
@@ -84,6 +68,7 @@ A cada versão nova:
 | v48.18 (teste) | 2026-11-20 | **Exportar**: formato (JPEG ou PNG, lembrado) e destino (Salvar ou Compartilhar… pelo menu do sistema; no APK, plugin Share). A opção Instagram saiu: o Revela entrega a foto, o destino é escolha da pessoa. |
 | v48.19 (teste) | 2026-11-20 | **Seletivo** (até 4 pontos; Luz, Contraste, Saturação, Calor, Estrutura, Entorno; máscara que abraça com miolo menor, sem halo; máscara visível em vermelho), **Céu** com proteção do que não é céu (semelhança com a cor do céu no alto e perto do horizonte), **estilos de Flash** (Anos 90, Compacta digital, Festa). A Ampliação virou Céu; assunto e entorno foram para o Seletivo. Correções: pergunta coberta pelos pontos; tamanho só pela alça. |
 | v48.20 (teste) | 2026-11-20 | **Exportação segura em fotos grandes**: limite de 16 MP no Safari do iPhone/iPad (acima disso sai em branco) e conferência do tamanho aceito pela placa de vídeo em qualquer aparelho. **Testes automáticos** guardados em `novo/testes/` (as fotos de teste ficam fora do repositório). |
+| **v49** | 2026-11-20 | **O Revela novo vira o app e o site principal** (o anterior vai para `/classico/`; `/novo/` leva ao principal e desliga o cache antigo; APK com o nome "Revela"). **Limpeza do código** (sem moldura do filme, riscos longos, luz vazada Raios, escolhas de laboratório e filtro, chave liga/desliga). **Dicas de primeira vez** para os gestos escondidos. **Receitas por família** (preto e branco, cor, noite e flash). |
 | v48.4 (teste) | 2026-11-18 | **Filmes mais fiéis** (comparação com as curvas do VSCO, `pesquisa/vsco_curvas.md`): luzes mais claras nos filmes coloridos (brancos não ficam acinzentados) e Pro 400 mais macio e arejado, como o 400H. **Revelação** (aba Analógico, qualquer filme): **Puxar** (−1 a +3 pontos: mais contraste e grão) e **Vencido** (véu, cor desbotada, menos sensibilidade e o tom de cada rolo, com dado). |
 | v48.3 (teste) | 2026-11-17 | Borda do filme escolhido não sai mais cortada em cima (a faixa ganhou espaço para ela). |
 | v48.2 (teste) | 2026-11-17 | **Topo cabe em celular estreito** (visto no Moto Edge 50 Neo: "Exportar" cortado): com a foto aberta, o nome sai do topo e os botões ficam mais próximos; conferido de 320 a 412 px. |
