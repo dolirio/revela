@@ -50,7 +50,7 @@
     padding: 4px 12px; border-radius: 999px; display: none; letter-spacing: .06em; }
   .versao { display: block; margin-top: 18px; color: var(--faint); font-size: 11px; letter-spacing: .06em; }
   #pergunta { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: none; align-items: center; gap: 14px;
-    background: var(--raise); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 16px; font-size: 13px; width: max-content; max-width: calc(100% - 32px); box-shadow: 0 8px 30px #0008; }
+    background: var(--raise); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 16px; font-size: 13px; width: max-content; max-width: calc(100% - 32px); box-shadow: 0 8px 30px #0008;  z-index: 12; }
   #pergunta div { display: flex; gap: 6px; } #pergunta button { padding: 9px 14px; border-radius: 10px; color: var(--muted); font-size: 13px; }
   #pergunta button.on { background: var(--text); color: var(--bg, #111); font-weight: 600; }
   #aviso { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px;
@@ -156,6 +156,25 @@
   #curva .grade line { stroke: #fff3; stroke-width: 1; } #curva polyline { fill: none; stroke-width: 2; } #curva .outra { stroke-width: 1; opacity: .55; }
   #curva circle { fill: #0009; stroke-width: 2; }
   #g_curvas > #curva { display: none; }
+  /* Seletivo: os pontos sobre a foto e o painel */
+  #pontos { position: absolute; display: none; z-index: 3; touch-action: none; }
+  #pontos .pt { position: absolute; width: 0; height: 0; }
+  #pontos .pt b { position: absolute; left: -12px; top: -12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600;
+    background: #000a; color: #fff; border: 1.5px solid #fffc; box-shadow: 0 0 0 1px #0006; }
+  #pontos .pt.sel b { background: var(--accent); color: #111; border-color: #fff; }
+  #pontos .aro { position: absolute; left: 0; top: 0; border-radius: 50%; border: 1.5px solid #fffd; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
+  #pontos .aro::before { content: ''; position: absolute; right: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #0007; }
+  .selParams { display: flex; gap: 6px; padding: 6px 18px 2px; overflow-x: auto; scrollbar-width: none; } .selParams::-webkit-scrollbar { display: none; }
+  .selParams button { position: relative; flex: none; padding: 6px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .selParams button.on { color: var(--text); border-color: var(--accent); } .selParams button:disabled { opacity: .45; }
+  .selParams button.mudou::after { content: ''; position: absolute; top: 3px; right: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .selAcoes { display: flex; align-items: center; gap: 8px; padding: 2px 18px 4px; }
+  .selAcoes button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .selAcoes button.on { color: var(--text); border-color: var(--accent); } .selAcoes .apaga { color: #e58a7a; border-color: transparent; }
+  .selAcoes .dica { padding: 0; }
+  #g_sel .ctl.linha { padding: 4px 18px; }
+  .grupo[data-g=flash] .ctl { padding-top: 3px; padding-bottom: 3px; } #e_flashEstilo { padding: 4px 18px; } #e_flashEstilo button { padding: 5px 4px; }
+  #e_flashEstilo small { display: none; }   /* no celular o nome do estilo basta (o painel não cresce) */
   /* folha: sobe por cima dos controles (não muda a altura da tela) */
   #veu { position: fixed; inset: 0; background: #0007; z-index: 20; display: none; }
   #folha { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
@@ -246,7 +265,9 @@
     #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
     .acoes, .props div { flex-wrap: wrap; overflow: visible; }
     #g_curvas .dica { display: none; }
-    #g_retrato .escolha small, #e_luzTipo small, #e_graoTipo small { white-space: normal; }
+    #g_retrato .escolha small, #e_luzTipo small, #e_graoTipo small, #e_flashEstilo small { white-space: normal; }
+    #e_flashEstilo small { display: block; }
+    .selParams { flex-wrap: wrap; overflow: visible; }
     #e_luzTipo div { flex-wrap: wrap; overflow: visible; }
     .faixa { flex-wrap: wrap; overflow: visible; row-gap: 12px; }   /* computador: todos os filmes à vista, sem rolar */
   }
@@ -273,7 +294,7 @@
     <h1>REVELA</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão de teste 48.18 · 20/11/2026</small>
+    <small class="versao">versão de teste 48.19 · 20/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>

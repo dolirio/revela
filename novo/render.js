@@ -28,6 +28,10 @@ uniform sampler2D uCurva; uniform mat3 uGeo; uniform vec2 uTexel;
 uniform vec4 uCorte; uniform vec2 uQ, uRotCS, uPer; uniform float uLen, uEsp;
 // assunto marcado (fração do quadro final), ampliação (céu, assunto, entorno, tamanho), horizonte e flash (força, alcance)
 uniform vec2 uAlvo, uFlash; uniform vec4 uAmpl; uniform float uHor, uCort;
+// estilo do flash: x = assunto (paradas), y = fundo (paradas), z = brilho na pele, w = contraste; cor do flash e do ambiente
+uniform vec4 uFlashP; uniform vec3 uFlashCor, uFlashAmb; uniform float uFlashR;
+// Seletivo: até 4 pontos. A = (x, y, tamanho, -), B = (luz, contraste, saturação, calor), C = (estrutura, entorno)
+uniform vec4 uPtA[4]; uniform vec4 uPtB[4]; uniform vec2 uPtC[4]; uniform int uNPt, uVerMasc;
 // distância ao assunto em unidades do lado menor da foto (um círculo é círculo em qualquer formato)
 vec2 aoAlvo(vec2 fu){ return (fu - uAlvo) * uRes / min(uRes.x, uRes.y); }
 vec2 geoUv(vec2 uv){   // mesma conta de mapeia() no JavaScript
@@ -250,14 +254,15 @@ vec3 moldura(vec2 P){
 }
 // semelhança com o ponto tocado, no estilo dos "U Points" (Nik/Snapseed): compara a cor e o brilho da foto levemente
 // desfocada (o pelo, o grão e as texturas não fazem a máscara piscar) com os do lugar tocado. 1 = igual, 0 = bem diferente.
-float semelhanca(vec2 uv){
+float semelhancaEm(vec2 uv, vec2 alvo){
   float lod = max(0.0, log2(uTex * 0.011));   // compara regiões, não pixels: a máscara não se parte em manchas
-  vec3 a = textureLod(uImg, uv, lod).rgb, b = textureLod(uImg, geoUv(uAlvo), lod + 0.5).rgb;
+  vec3 a = textureLod(uImg, uv, lod).rgb, b = textureLod(uImg, geoUv(alvo), lod + 0.5).rgb;
   float ya = luma(a), yb = luma(b);
   vec2 ca = vec2(a.b - ya, a.r - ya), cb = vec2(b.b - yb, b.r - yb);
   float dy = (ya - yb) / 0.2, dc = length(ca - cb) / 0.1;      // tolerância: brilho e cor
   return exp(-0.5 * (dy * dy + dc * dc));
 }
+float semelhanca(vec2 uv){ return semelhancaEm(uv, uAlvo); }
 void main(){
   vec2 uv = vUv;
   if (uFr > 0.5) {
@@ -312,15 +317,15 @@ void main(){
     // longe (o fundo) cai até −2,2 paradas, porque a luz do flash some rápido com a distância
     // sem saber a distância de cada coisa, usa a composição típica da foto de flash: o que está ao lado e abaixo do
     // assunto (as pessoas do lado, a mesa, o corpo) costuma estar perto; o que está acima costuma ser o fundo
-    float k = uFlash.x, R = mix(0.2, 0.75, uFlash.y);
+    float k = uFlash.x, R = mix(0.2, 0.75, uFlash.y) * uFlashR;
     vec2 q = aoAlvo(fu); q.y *= q.y < 0.0 ? 1.5 : 0.75; q.x *= 0.85;
     float F = 1.0 / (1.0 + 3.0 * dot(q, q) / (R * R));
     F *= max(exp(-6.0 * dot(q, q) / (R * R)), mix(0.65, 1.0, semelhanca(uv)));   // perto do assunto, luz cheia; o fundo diferente recebe menos
-    float gS = exp2(0.7 * k), gB = exp2(-2.2 * k), l0 = luma(x);
-    vec3 cor = mix(vec3(1.05, 1.0, 0.88), vec3(0.96, 1.0, 1.06), F);                 // ambiente quente, flash frio
+    float gS = exp2(uFlashP.x * k), gB = exp2(uFlashP.y * k), l0 = luma(x);
+    vec3 cor = mix(uFlashAmb, uFlashCor, F);                                          // cor do ambiente e do flash (pelo estilo)
     x *= mix(gB, gS, F) * mix(vec3(1.0), cor, k);
-    x += x * F * k * smoothstep(0.3, 1.5, l0) * 1.1;                                  // brilho duro na pele e no que é claro
-    x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 + 0.2 * k * F));               // luz dura: mais contraste no assunto
+    x += x * F * k * smoothstep(0.3, 1.5, l0) * uFlashP.z;                            // brilho duro na pele e no que é claro
+    x = 0.18 * pow(max(x, vec3(1e-7)) / 0.18, vec3(1.0 + uFlashP.w * k * F));         // luz dura: mais contraste no assunto
   }
   // ---------- revelação: puxar/segurar e filme vencido agem na LUZ que chega ao filme, e a curva do próprio filme
   // faz o resto (o pé esmaga as sombras, o ombro segura as luzes)
@@ -435,6 +440,30 @@ void main(){
   if (uTemCurva > 0.5) col = vec3(texture(uCurva, vec2(col.r * 255.0 / 256.0 + 0.5 / 256.0, 0.5)).r,
                                   texture(uCurva, vec2(col.g * 255.0 / 256.0 + 0.5 / 256.0, 0.5)).g,
                                   texture(uCurva, vec2(col.b * 255.0 / 256.0 + 0.5 / 256.0, 0.5)).b);
+  // ---------- Seletivo (como no Snapseed, com a máscara que abraça o assunto): cada ponto ajusta só a sua área
+  float mascara = 0.0;
+  for (int i = 0; i < 4; i++) {
+    if (i >= uNPt) break;
+    vec4 A = uPtA[i], B = uPtB[i]; vec2 C = uPtC[i];
+    vec2 q = (fu - A.xy) * uRes / min(uRes.x, uRes.y); float r = mix(0.06, 0.5, A.z), d2 = dot(q, q) / (r * r);
+    float pega = max(exp(-3.5 * d2), mix(0.2, 1.0, semelhancaEm(uv, A.xy)));   // miolo menor: o fundo diferente, mesmo perto, não ganha halo
+    float m = exp(-0.5 * d2) * pega;
+    if (i == uVerMasc) mascara = m;
+    if (m < 0.003 && C.y <= 0.0) continue;
+    vec3 L = dec(col);
+    if (B.x != 0.0) { float g = exp2(1.1 * B.x * m); L = B.x > 0.0 ? L * g / (1.0 + (g - 1.0) * min(L, vec3(1.0))) : L * g; }   // luz: clareia sem estourar
+    if (B.w != 0.0) L *= mix(vec3(1.0), vec3(1.0 + 0.16 * B.w, 1.0, 1.0 - 0.16 * B.w), m);                                       // calor
+    if (C.y > 0.0) L *= exp2(-1.3 * C.y * (1.0 - exp(-0.5 * d2 / 2.4) * pega));                                                    // entorno: queima em volta
+    col = enc(L);
+    if (B.y != 0.0) col = clamp(0.45 + (col - 0.45) * (1.0 + B.y * 0.7 * m), 0.0, 1.0);                                          // contraste
+    if (B.z != 0.0) col = clamp(mix(vec3(luma(col)), col, 1.0 + B.z * m), 0.0, 1.0);                                              // saturação
+    if (C.x != 0.0) {                                                                                                              // estrutura: detalhe médio
+      float R = uTex * 0.012, lod = max(0.0, log2(R) - 1.5), lb = luma(textureLod(uImg, uv, lod).rgb);
+      float d = luma(textureLod(uImg, uv, max(0.0, lod - 3.0)).rgb) - lb; d *= 1.0 / (1.0 + (d / 0.14) * (d / 0.14));
+      col = clamp(col + d * C.x * 1.1 * m, 0.0, 1.0);
+    }
+  }
+  if (uVerMasc >= 0) col = mix(col, vec3(0.95, 0.22, 0.18), mascara * 0.55);   // enquanto mexe: a área do ponto em vermelho
   if (uDif > 0.0) {   // difusão (bloom, "vintage glow"): as luzes se espalham num brilho levemente quente, como filtro de difusão
     float lod = log2(uTex * 0.022), bl = 0.0; vec3 acc = vec3(0.0), avg = vec3(0.0);   // borrão largo: sem fantasma (cópias deslocadas)
     for (int i = 0; i < 12; i++) {
@@ -459,26 +488,19 @@ void main(){
   // ---------- ampliação (o trabalho do fotógrafo no laboratório, na cópia): queimar o céu, segurar a luz em cima do
   // assunto (ele acende) e queimar o entorno (o olhar vai para o assunto). Em paradas de luz no papel; o grão do
   // negativo, que vem depois, é ampliado junto, como na cópia de verdade.
-  if (uAmpl.x > 0.0 || uAmpl.y > 0.0 || uAmpl.z > 0.0) {
+  if (uAmpl.x > 0.0) {
     vec3 L = dec(col); float l = luma(col);
-    if (uAmpl.x > 0.0) {   // céu: gradual a partir do horizonte, mais forte lá em cima e mais nas áreas claras (o céu)
-      float m = (1.0 - smoothstep(uHor - 0.24, uHor + 0.04, fu.y)) * mix(1.0, 1.3, 1.0 - smoothstep(0.0, uHor, fu.y));
-      m *= mix(0.4, 1.0, smoothstep(0.2, 0.7, l));
-      // queimado com filtro duro (como no laboratório, "split grade"): o céu escurece E as nuvens ganham contraste,
-      // em vez de virar um cinza chapado; o branco das nuvens fica, o azul do céu desce
-      L *= exp2(-1.1 * uAmpl.x * m);
-      L = pow(max(L, vec3(1e-6)), vec3(1.0 + 0.55 * uAmpl.x * m));
+    // céu: gradual a partir do horizonte, mais forte lá em cima e mais nas áreas claras; e só no que SE PARECE com céu
+    // (a cor do céu é lida no alto e perto do horizonte): o que fura o horizonte (pessoa, árvore, prédio) fica protegido
+    float m = (1.0 - smoothstep(uHor - 0.24, uHor + 0.04, fu.y)) * mix(1.0, 1.3, 1.0 - smoothstep(0.0, uHor, fu.y));
+    m *= mix(0.4, 1.0, smoothstep(0.2, 0.7, l));
+    if (m > 0.0) {
+      float sc = max(max(semelhancaEm(uv, vec2(0.25, uHor * 0.3)), semelhancaEm(uv, vec2(0.75, uHor * 0.3))), semelhancaEm(uv, vec2(0.5, max(uHor * 0.85, 0.02))));
+      m *= mix(0.12, 1.0, sc);
     }
-    vec2 q = aoAlvo(fu); float r = mix(0.1, 0.45, uAmpl.w), d2 = dot(q, q) / (r * r);
-    // a máscara abraça o assunto: perto E parecido com o ponto tocado (o que é diferente, mesmo colado nele, fica de fora)
-    // no miolo do círculo vale tudo (é o corpo do assunto, de qualquer cor); a semelhança decide nas bordas,
-    // onde o assunto encontra o fundo: é ali que a máscara "abraça"
-    float sim = (uAmpl.y > 0.0 || uAmpl.z > 0.0) ? semelhanca(uv) : 1.0, pega = max(exp(-2.0 * d2), mix(0.25, 1.0, sim));
-    if (uAmpl.y > 0.0) {   // assunto: acende sem nunca estourar o branco
-      float g = exp2(0.95 * uAmpl.y * exp(-0.5 * d2) * pega);
-      L = L * g / (1.0 + (g - 1.0) * min(L, vec3(1.0)));
-    }
-    if (uAmpl.z > 0.0) L *= exp2(-1.3 * uAmpl.z * (1.0 - exp(-0.5 * d2 / 2.4) * pega));   // entorno: queima em volta, e o que é diferente do assunto, mesmo perto
+    // queimado com filtro duro (como no laboratório, "split grade"): o céu escurece E as nuvens ganham contraste
+    L *= exp2(-1.1 * uAmpl.x * m);
+    L = pow(max(L, vec3(1e-6)), vec3(1.0 + 0.55 * uAmpl.x * m));
     col = enc(L);
   }
   if (uDust != 0.0) {   // direita (+) = poeira branca, como no negativo escaneado; esquerda (−) = preta, como na cópia em papel
@@ -533,7 +555,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor', 'uCort'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor', 'uCort', 'uFlashP', 'uFlashCor', 'uFlashAmb', 'uFlashR', 'uPtA', 'uPtB', 'uPtC', 'uNPt', 'uVerMasc'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -629,8 +651,19 @@ export class Render {
     const al = s.assunto || { x: 0.5, y: 0.5 };
     gl.uniform1f(u.uCort, bypass ? -1 : (s.cortina ?? -1));
     gl.uniform2f(u.uAlvo, al.x, al.y); gl.uniform1f(u.uHor, s.horizonte ?? 0.42);
-    gl.uniform4f(u.uAmpl, z('amplCeu'), z('amplAssunto'), z('amplEntorno'), s.amplTam ?? 0.5);
+    gl.uniform4f(u.uAmpl, z('amplCeu'), 0, 0, 0);
     gl.uniform2f(u.uFlash, z('flash'), s.flashAlcance ?? 0.5);
+    const fe = FLASHES[s.flashEstilo] || FLASHES.anos90;
+    gl.uniform4fv(u.uFlashP, fe.p); gl.uniform3fv(u.uFlashCor, fe.cor); gl.uniform3fv(u.uFlashAmb, fe.amb); gl.uniform1f(u.uFlashR, fe.r);
+    // Seletivo
+    const pts = bypass ? [] : (s.pontos || []).slice(0, 4), A = new Float32Array(16), B = new Float32Array(16), C = new Float32Array(8);
+    pts.forEach((pt, i) => {
+      A.set([pt.x, pt.y, pt.tam ?? 0.4, 0], i * 4);
+      B.set([pt.luz || 0, pt.contraste || 0, pt.sat || 0, pt.calor || 0], i * 4);
+      C.set([pt.estrutura || 0, pt.entorno || 0], i * 2);
+    });
+    gl.uniform4fv(u.uPtA, A); gl.uniform4fv(u.uPtB, B); gl.uniform2fv(u.uPtC, C); gl.uniform1i(u.uNPt, pts.length);
+    gl.uniform1i(u.uVerMasc, bypass ? -1 : (s.verMasc ?? -1));
     // geometria (corte, giro, espelho, endireitar): da saída para a foto; a comparação com a original mantém o corte
     const G = geometria(s, this.w, this.h, !!s.semCorte);
     gl.uniformMatrix3fv(u.uGeo, false, G.m); gl.uniform2f(u.uTexel, 1 / this.w, 1 / this.h);
@@ -759,4 +792,11 @@ export const TIPOS_GRAO = {
   classico: [0.45, 0.42, 1, 1],        // grão cúbico (Tri-X, HP5)
   aspero: [0.85, 0.46, 1.35, 1.25],    // puxado ou de alta sensibilidade: grãos aglomerados, irregulares
   colorido: [0.4, 0.42, 1.1, 1.15],      // nuvens de corante do negativo em cores
+};
+
+// estilos de flash: p = [assunto (paradas), fundo (paradas), brilho na pele, contraste], cor do flash, cor do ambiente, alcance
+export const FLASHES = {
+  anos90: { p: [0.7, -2.2, 1.1, 0.2], cor: [0.96, 1.0, 1.06], amb: [1.05, 1.0, 0.88], r: 1.0 },    // compacta de filme: fundo bem escuro, ambiente quente
+  digital: { p: [1.0, -1.25, 2.2, 0.08], cor: [0.91, 1.0, 1.13], amb: [0.93, 1.0, 1.08], r: 1.25 },  // compacta digital (anos 2010): equilíbrio automático (o ambiente não fica laranja), luz fria e limpa, pele brilhante
+  festa: { p: [1.0, -3.0, 1.3, 0.35], cor: [0.97, 1.0, 1.04], amb: [1.08, 0.97, 0.84], r: 0.85 },  // flash forte e perto: fundo some, contraste alto
 };
