@@ -22,6 +22,6 @@ A conferir pelo usuário: o sentido da régua do Enquadrar (hoje arrastar para a
 
 Sugestões aceitas (19/11, depois do estudo do RNI):
 - ✅ (48.14) Flash dos anos 90, sem IA (toque no assunto). Depois: reconhecimento leve no aparelho (pessoa, rosto, céu) para Flash, Ampliação e Retrato.
-- Minhas receitas (salvar e passar adiante por código curto).
-- Comparar com cortina; ficha do filme (toque longo na miniatura); exportar pronto para o Instagram (4:5, 1080 × 1350).
+- ✅ (48.16) Minhas receitas (salvar e passar adiante por código curto).
+- ✅ (48.16) Comparar com cortina; ficha do filme (toque longo na miniatura); exportar pronto para o Instagram (4:5, 1080 × 1350).
 - Identidade visual do briefing, trocar a v47 e preparar a Play Store.

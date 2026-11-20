@@ -27,7 +27,7 @@ uniform sampler2D uCurva; uniform mat3 uGeo; uniform vec2 uTexel;
 // enquadrar: corte (fração do quadro), quadro girado (px), endireitar (cos, sen), perspectiva (vertical, horizontal), lente
 uniform vec4 uCorte; uniform vec2 uQ, uRotCS, uPer; uniform float uLen, uEsp;
 // assunto marcado (fração do quadro final), ampliação (céu, assunto, entorno, tamanho), horizonte e flash (força, alcance)
-uniform vec2 uAlvo, uFlash; uniform vec4 uAmpl; uniform float uHor;
+uniform vec2 uAlvo, uFlash; uniform vec4 uAmpl; uniform float uHor, uCort;
 // distância ao assunto em unidades do lado menor da foto (um círculo é círculo em qualquer formato)
 vec2 aoAlvo(vec2 fu){ return (fu - uAlvo) * uRes / min(uRes.x, uRes.y); }
 vec2 geoUv(vec2 uv){   // mesma conta de mapeia() no JavaScript
@@ -252,7 +252,7 @@ void main(){
   uv = geoUv(uv);                                 // corte, giro, endireitar, perspectiva e lente -> posição na foto
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { o = vec4(0.07, 0.066, 0.06, 1.0); return; }   // fora da foto (só aparece enquanto corta)
   vec3 c = texture(uImg, uv).rgb;
-  if (uBypass > 0.5) { o = vec4(c, 1.0); return; }
+  if (uBypass > 0.5 || (uCort >= 0.0 && fu.x < uCort)) { o = vec4(c, 1.0); return; }   // cortina: à esquerda da linha, a original
   vec3 lin = dec(c);
   // nitidez do filme: cada camada perde detalhe fino de um jeito (o vermelho, mais funda, é a mais macia)
   if (uSoft > 0.0) {
@@ -515,7 +515,7 @@ export class Render {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, 'aPos'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
-    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor'])
+    for (const n of ['uImg', 'uLut', 'uLutN', 'uLutMin', 'uLutMax', 'uMix', 'uExp', 'uHalo', 'uGrain', 'uGrainSize', 'uSoft', 'uSeed', 'uLong', 'uTex', 'uOut', 'uHasFilm', 'uBypass', 'uAuto', 'uPre', 'uPost', 'uSoftCh', 'uRes', 'uRet', 'uSep', 'uPele6', 'uPele5', 'uFaceLod', 'uFace', 'uG0', 'uDust', 'uScratch', 'uLeak', 'uDustSeed', 'uScrSeed', 'uLeakSeed', 'uLeakType', 'uFr', 'uLeakP', 'uFrm', 'uCan', 'uPush', 'uVenc', 'uGrainMul', 'uVencCor', 'uBri', 'uCon', 'uRea', 'uSom', 'uBra', 'uPre2', 'uSat', 'uVib', 'uPele', 'uFade', 'uVig', 'uNit', 'uClar', 'uDif', 'uTemCurva', 'uTemHsl', 'uHslH', 'uHslS', 'uHslL', 'uCurva', 'uGeo', 'uTexel', 'uCorte', 'uQ', 'uRotCS', 'uPer', 'uLen', 'uEsp', 'uGrainT', 'uGrainCor', 'uGrainCrom', 'uAlvo', 'uFlash', 'uAmpl', 'uHor', 'uCort'])
       this.u[n] = gl.getUniformLocation(p, n);
     gl.uniform1i(this.u.uImg, 0); gl.uniform1i(this.u.uLut, 1); gl.uniform1i(this.u.uCurva, 2);
     this.img = gl.createTexture(); this.lut = gl.createTexture(); this.curva = gl.createTexture(); this.curvaChave = '';
@@ -609,6 +609,7 @@ export class Render {
     }
     // assunto marcado, ampliação e flash
     const al = s.assunto || { x: 0.5, y: 0.5 };
+    gl.uniform1f(u.uCort, bypass ? -1 : (s.cortina ?? -1));
     gl.uniform2f(u.uAlvo, al.x, al.y); gl.uniform1f(u.uHor, s.horizonte ?? 0.42);
     gl.uniform4f(u.uAmpl, z('amplCeu'), z('amplAssunto'), z('amplEntorno'), s.amplTam ?? 0.5);
     gl.uniform2f(u.uFlash, z('flash'), s.flashAlcance ?? 0.5);
