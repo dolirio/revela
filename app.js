@@ -833,6 +833,7 @@ for (const [pag, grupos] of Object.entries(GRUPOS)) {
   p.querySelectorAll(':scope > .sec').forEach((e) => e.remove());   // os títulos de seção passam para dentro dos grupos
   for (const g of grupos) {
     const w = document.createElement('div'); w.className = 'grupo'; w.dataset.g = g.id;
+    if (g.el.length === 1 && g.el[0][0] !== '#') w.classList.add('unico');   // um controle só: o nome já está na ferramenta, não se repete em cima da barra
     if (g.sec) secao(w, g.sec);
     for (const k of g.el) w.append(k[0] === '#' ? $(k.slice(1)) : $('r_' + k).parentElement);
     p.append(w);

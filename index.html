@@ -105,11 +105,13 @@
   .cores button.on { outline-color: var(--text); }
   .cores { align-items: center; gap: 9px; } .cores button { width: 22px; height: 22px; }
   .cores .qual { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
-  /* aba Filmes: Intensidade · Puxar · Vencido numa linha; o controle numa linha só (o nome já está na ferramenta) */
+  /* ferramenta de um controle só (Exposição, Brilho, Intensidade…): o nome já está na linha de ferramentas,
+     então a barra e o valor ficam numa linha só, sem repetir o nome */
   #cIntensidade .ferramentas { padding-top: 2px; }
-  #cIntensidade .ctl { display: flex; align-items: center; gap: 10px; padding: 2px 18px 4px; }
-  #cIntensidade .ctl label { display: none; } #cIntensidade .ctl input { order: -1; flex: 1; min-width: 0; }
-  #cIntensidade .ctl output { min-width: 46px; text-align: right; }
+  .grupo.unico .ctl { display: flex; align-items: center; gap: 10px; padding: 10px 18px 4px; }
+  #cIntensidade .grupo.unico .ctl { padding: 2px 18px 4px; }
+  .grupo.unico .ctl label { display: none; } .grupo.unico .ctl input { order: -1; flex: 1; min-width: 0; }
+  .grupo.unico .ctl output { min-width: 46px; text-align: right; }
   .cores button.mudou::after { content: ''; position: absolute; top: -5px; right: -5px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
   .canais, .acoes { display: flex; gap: 6px; padding: 8px 18px 4px; overflow-x: auto; scrollbar-width: none; }
   .canais::-webkit-scrollbar, .acoes::-webkit-scrollbar, .props div::-webkit-scrollbar { display: none; }
@@ -265,7 +267,7 @@
     #folha { left: auto; right: 0; width: 360px; border-left: 1px solid var(--line); border-radius: 16px 0 0 0; }
     body.enquadrando #enq { min-height: 0; justify-content: flex-start; gap: 18px; padding-top: 10px; }
     #nota { display: block; } .film { width: 74px; } .film canvas, .film .ph { width: 74px; height: 74px; }
-    #cIntensidade .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } #cIntensidade .ctl label { display: block; } #cIntensidade .ctl input { order: 0; grid-column: 1 / -1; }
+    .grupo.unico .ctl, #cIntensidade .grupo.unico .ctl { display: grid; grid-template-columns: 1fr auto auto; padding: 7px 18px; } .grupo.unico .ctl label { display: block; } .grupo.unico .ctl input { order: 0; grid-column: 1 / -1; }
     #g_curvas > #curva { display: block; margin: 6px 18px; width: calc(100% - 36px); height: 300px; aspect-ratio: auto; }
     .acoes, .props div { flex-wrap: wrap; overflow: visible; }
     #g_curvas .dica { display: none; }
