@@ -63,7 +63,7 @@ function aplicaReceita(r) {
   const rs = { ...r.s }; if (rs.pontos && (s.pontos || []).length) delete rs.pontos;   // os pontos que você já pôs nesta foto ficam
   Object.assign(s, rs); s.receita = r.id;
   R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); desenha(); memoriza();
-  if (celular()) aviso(r.nota);
+  if (celular()) aviso(r.nota, { titulo: r.n, sub: f ? 'filme ' + f.meta.nome : '' });
 }
 
 // ------------------------------------------------------------ estado da edição
@@ -149,11 +149,6 @@ function montaCats() {
   fx.addEventListener('click', (e) => { if (moveu) { e.stopPropagation(); e.preventDefault(); moveu = false; } }, true);   // arrastar não escolhe filme
 }
 // o filme real que inspirou cada um (aparece em letra menor embaixo do nome, na faixa)
-const INSPIRADO = {   // curto, numa linha só: a marca vai na ficha (toque longo)
-  portrait400: 'Portra 400', portrait160: 'Portra 160', portrait800: 'Portra 800', gold200: 'Gold 200',
-  editorial100: 'Ektachrome', chrome100: 'Ektar 100', vivid50: 'Velvia 50', chrome64: 'Kodachrome',
-  pro400: 'Pro 400H', tungsten800: 'CineStill', silver400: 'Tri-X 400', silverportrait: 'Tri-X verde',
-};
 function montaFaixa() {
   const fx = $('faixa'); fx.innerHTML = '';
   const item = (id, nome, desenha, ref = '') => {
@@ -194,8 +189,8 @@ function montaFaixa() {
       b.onclick = () => aplicaReceita(r); toqueLongo(b, () => fichaReceita(r)); fx.append(b);
     }
   } else {
-    item('none', 'Digital', (c) => miniatura(c, null), 'sem filme');
-    for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f), INSPIRADO[f.meta.id] || '');
+    item('none', 'Digital', (c) => miniatura(c, null));
+    for (const f of filmes) item(f.meta.id, f.meta.nome, (c) => miniatura(c, f));
   }
   atualizaNota();
 }
@@ -375,7 +370,8 @@ function escolheFilme(id) {
   s.grao = a.grao ?? 0; s.graoTamanho = a.grao_tamanho ?? 1; s.halacao = a.halacao ?? 0;   // o caráter do filme vem junto
   R.setFilm(f); montaFaixa(); sincroniza(); desenha(); memoriza();
   setTimeout(() => dica(lerDicas().ficha ? 'comparar' : 'ficha'), 2800);   // depois do aviso com a descrição do filme
-  if (celular()) aviso(f ? `${f.meta.nome || ''}${f.meta.nome ? ': ' : ''}${f.meta.nota}` : 'Digital: a foto como saiu da câmera');   // no celular a descrição aparece de passagem
+  // no celular, um cartão de passagem com tudo sobre o filme: nome, inspiração e a alma dele
+  if (celular()) aviso(f ? f.meta.nota : 'a foto como saiu da câmera, sem filme', { titulo: f ? f.meta.nome : 'Digital', sub: f?.meta.inspirado ? 'inspirado no ' + f.meta.inspirado : '' });
 }
 
 // ------------------------------------------------------------ controles
@@ -1528,9 +1524,13 @@ function dica(k) {
   const fecha = () => d.classList.remove('on'); d.querySelector('button').onclick = fecha;
   clearTimeout(d._t); d._t = setTimeout(fecha, 7000);
 }
-function aviso(t) {
-  const a = $('aviso'); a.textContent = t; a.style.opacity = t ? 1 : 0;
-  clearTimeout(tAviso); if (t) tAviso = setTimeout(() => (a.style.opacity = 0), 2600);
+function aviso(t, cartao) {   // cartao = { titulo, sub }: o cartão do filme ou da receita (título, inspiração e descrição)
+  const a = $('aviso'); a.textContent = ''; a.classList.toggle('cartao', !!cartao);
+  if (cartao) {
+    for (const [cls, txt] of [['titulo', cartao.titulo], ['sub', cartao.sub], ['txt', t]]) if (txt) { const e = document.createElement('span'); e.className = cls; e.textContent = txt; a.append(e); }
+  } else a.textContent = t;
+  a.style.opacity = t ? 1 : 0;
+  clearTimeout(tAviso); if (t) tAviso = setTimeout(() => (a.style.opacity = 0), cartao ? 3600 : 2600);
 }
 
 // ------------------------------------------------------------ início
