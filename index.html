@@ -287,7 +287,7 @@
   @font-face { font-family: 'Revela Mono'; src: url(fontes/IBMPlexMono-400.woff2) format('woff2'); font-display: swap; }
   @font-face { font-family: 'Revela Mono'; font-weight: 500; src: url(fontes/IBMPlexMono-500.woff2) format('woff2'); font-display: swap; }
   :root { --marca: #b5121b;   /* vermelho Valentino: a marcação do item escolhido, como o lápis de cera vermelho da folha de contato */
-    --bg: #0f0e0d; --panel: #151311; --raise: #1f1c19; --line: #2a2723; --text: #eee7dc; --muted: #a39a8d; --faint: #8a8173; --accent: #e2a257;
+    --bg: #0f0e0d; --panel: #151311; --raise: #1f1c19; --line: #2a2723; --text: #eee7dc; --muted: #a39a8d; --faint: #8a8173; --accent: #b5121b; --accent-texto: #e0403f;   /* tudo no vermelho Valentino; em texto pequeno, o mesmo vermelho um pouco mais aceso para dar leitura */
     --serif: 'Revela Serif', 'Iowan Old Style', Georgia, serif; --mono: 'Revela Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
   .exportar { background: var(--text); color: #15120f; }
   /* abas: as três etapas do laboratório, numeradas */
@@ -300,9 +300,7 @@
   .film:not(.rotulo):not(.acao) { position: relative; counter-increment: quadro; }
   .film:not(.rotulo):not(.acao)::before { content: '▸' counter(quadro); position: absolute; left: 3px; top: 3px; z-index: 1; padding: 1px 4px; border-radius: 4px;
     font: 500 9px var(--mono); letter-spacing: .02em; color: #f2e9dc; background: #0009; pointer-events: none; }
-  .film.on canvas, .film.on .ph { outline-color: transparent; }
-  .film.on::after { content: ''; position: absolute; left: -7px; top: -6px; width: calc(100% + 14px); aspect-ratio: 1; pointer-events: none;
-    background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M18 30 C 22 8, 82 4, 92 30 C 100 56, 88 94, 50 93 C 18 92, 4 70, 8 46 C 10 34, 20 24, 34 20' fill='none' stroke='%23b5121b' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .film.on canvas, .film.on .ph { outline: 2px solid var(--marca); outline-offset: 2px; }   /* seleção: uma borda vermelha simples em volta da miniatura */
   .film span { font-family: var(--serif); font-size: 14px; letter-spacing: .01em; line-height: 1.15; }
   .film { gap: 4px; }   /* faixa mais baixa: a foto ganha espaço */
   .film:not(:has(.ref)) span { line-height: 1.02; }   /* receitas: nome de até 3 linhas na mesma altura dos filmes */
@@ -330,6 +328,9 @@
   #vazio button { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; border-color: var(--accent); color: var(--text); }
   .versao { font-family: var(--mono); letter-spacing: .06em; }
   .marca { font-family: var(--serif); font-weight: 400; letter-spacing: .02em; font-size: 22px; color: var(--text); text-transform: none; }
+  /* texto em vermelho: o tom mais aceso (o Valentino puro fica escuro demais para ler em letra pequena) */
+  .abas button.on b, #dica button, #vazio .borda, #bComparar.on { color: var(--accent-texto); }
+  #pontos .pt.sel b { color: #fff; }
   body:not(.com-foto) .marca { visibility: hidden; }
   .marca { display: inline-flex; align-items: center; gap: 8px; } .marca img { display: block; width: 26px; height: auto; }
   #vazio .simbolo { width: 112px; height: auto; margin: 4px 0 -6px; }   /* nas boas-vindas o nome já está grande no centro */
@@ -358,7 +359,7 @@
     <h1>Revela</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão 49.2 · 20/11/2026</small>
+    <small class="versao">versão 49.3 · 22/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
