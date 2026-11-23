@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Revela · Lente (prévia)</title>
+<meta name="theme-color" content="#000000">
+<style>
+  /* Prévia da ferramenta Lente (23/11/2026): desfoque de lente com máscara pintada à mão e/ou achada pela IA.
+     Mesmo visual da versão 50: preto e branco seguindo o celular. */
+  :root { color-scheme: dark; --bg: #000; --palco: #000; --panel: #0c0c0d; --raise: #1c1c1e; --line: #2c2c2e; --text: #fff; --inverso: #000; --muted: #a1a1a6; }
+  @media (prefers-color-scheme: light) { :root { color-scheme: light; --bg: #fff; --palco: #f4f4f6; --panel: #fff; --raise: #eeeef1; --line: #dcdce0; --text: #000; --inverso: #fff; --muted: #5c5c61; } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.35 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; }
+  body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  header { display: flex; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px; }
+  header h1 { margin: 0; font: 400 22px 'Iowan Old Style', Georgia, serif; flex: 1; }
+  header h1 small { font: 12px system-ui, sans-serif; color: var(--muted); margin-left: 6px; }
+  .pilula { padding: 8px 14px; border-radius: 999px; background: var(--raise); }
+  .pilula.forte { background: var(--text); color: var(--inverso); font-weight: 600; }
+  #palco { position: relative; background: var(--palco); display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; overflow: hidden; touch-action: none; padding: 8px; }
+  #palco > * { grid-area: 1 / 1; }
+  #pincelVer, #aviso { grid-area: auto; }
+  #tela { max-width: 100%; max-height: 100%; display: none; touch-action: none; }
+  #vazio { text-align: center; color: var(--muted); padding: 24px; max-width: 340px; }
+  #vazio b { color: var(--text); }
+  #aviso { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px; border-radius: 12px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%; text-align: center; }
+  #pincelVer { position: absolute; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #0007; border-radius: 50%; pointer-events: none; display: none; }
+  #painel { background: var(--panel); border-top: 1px solid var(--line); padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .linha { display: flex; gap: 4px; padding: 4px 12px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+  .linha::-webkit-scrollbar { display: none; }
+  .linha button { flex: none; padding: 7px 13px; border-radius: 999px; color: var(--muted); white-space: nowrap; }
+  .linha button.on { background: var(--text); color: var(--inverso); }
+  .linha button.contorno.on { background: none; color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .linha .sep { width: 1px; height: 18px; background: var(--line); flex: none; margin: 0 6px; }
+  .ctl { display: flex; align-items: center; gap: 12px; padding: 6px 18px; }
+  .ctl label { width: 92px; flex: none; color: var(--muted); font-size: 13px; }
+  .ctl output { width: 38px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 28px; background: none; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--text); margin-top: -8px; }
+  input[type=range]::-moz-range-track { height: 2px; background: var(--line); }
+  input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--text); border: 0; }
+  .grupo { display: none; } .grupo.on { display: block; }
+  .nota { padding: 2px 18px 4px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lente <small>prévia</small></h1>
+  <button class="pilula" id="bAbrir">Abrir foto</button>
+  <button class="pilula" id="bComparar" disabled>Comparar</button>
+  <button class="pilula forte" id="bSalvar" disabled>Salvar</button>
+  <input type="file" id="arquivo" accept="image/*" hidden>
+</header>
+<main id="palco">
+  <canvas id="tela"></canvas>
+  <div id="vazio"><p><b>Desfoque de lente</b>, como numa lente clara com pouca profundidade de campo.</p>
+    <p>Abra uma foto. A IA pode achar o assunto, e você pinta com o dedo o que deve ficar desfocado ou nítido.</p>
+    <p>A foto não sai do aparelho.</p></div>
+  <div id="pincelVer"></div>
+  <div id="aviso"></div>
+</main>
+<section id="painel">
+  <div class="linha" id="modos">
+    <button data-m="mascara" class="on">Máscara</button>
+    <button data-m="desfoque">Desfoque</button>
+  </div>
+  <div class="grupo on" data-g="mascara">
+    <div class="linha">
+      <button id="bIA">Achar o assunto (IA)</button>
+      <span class="sep"></span>
+      <button class="contorno on" data-p="1">Desfocar</button>
+      <button class="contorno" data-p="0">Proteger</button>
+      <span class="sep"></span>
+      <button id="bVer" class="contorno">Ver máscara</button>
+      <button id="bDesfazer">Desfazer</button>
+      <button id="bTudo">Desfocar tudo</button>
+      <button id="bLimpa">Limpar</button>
+    </div>
+    <div class="ctl"><label for="rPincel">Pincel</label><input type="range" id="rPincel" min="8" max="160" value="60"><output id="oPincel"></output></div>
+    <div class="ctl"><label for="rMacio">Borda macia</label><input type="range" id="rMacio" min="0" max="100" value="60"><output id="oMacio"></output></div>
+  </div>
+  <div class="grupo" data-g="desfoque">
+    <div class="linha" id="formas">
+      <button class="contorno on" data-f="0">Redonda</button>
+      <button class="contorno" data-f="1">Hexagonal</button>
+      <button class="contorno" data-f="2">Olho de gato</button>
+    </div>
+    <div class="ctl"><label for="rForca">Força</label><input type="range" id="rForca" min="0" max="100" value="55"><output id="oForca"></output></div>
+    <div class="ctl"><label for="rLuz">Bolhas de luz</label><input type="range" id="rLuz" min="0" max="100" value="50"><output id="oLuz"></output></div>
+  </div>
+  <div class="nota" id="nota">Pinte com o dedo onde a foto deve ficar desfocada.</div>
+</section>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const tela = $('tela'), palco = $('palco');
+const gl = tela.getContext('webgl2', { preserveDrawingBuffer: true, premultipliedAlpha: false });
+const aviso = (t, ms = 2600) => { const a = $('aviso'); a.textContent = t; a.style.opacity = t ? 1 : 0; clearTimeout(aviso.t); if (t) aviso.t = setTimeout(() => (a.style.opacity = 0), ms); };
+
+// ------------------------------------------------ o desfoque de lente (WebGL2)
+// Para cada ponto, junta as amostras de um disco (espiral de ângulo dourado) do tamanho que a máscara manda.
+// Três cuidados para parecer lente e não borrão: (1) soma em luz linear; (2) as luzes fortes pesam mais e viram
+// discos ("bolhas de luz"); (3) uma amostra que caiu no assunto nítido não entra na conta: o fundo não "vaza"
+// em volta do assunto (sem halo). Forma: redonda, hexagonal (lâminas do diafragma) ou olho de gato (corte nas bordas).
+const VS = `#version 300 es
+in vec2 p; out vec2 uv; void main() { uv = p * .5 + .5; uv.y = 1. - uv.y; gl_Position = vec4(p, 0, 1); }`;
+const FS = `#version 300 es
+precision highp float;
+in vec2 uv; out vec4 cor;
+uniform sampler2D uImg, uMasc; uniform vec2 uTam; uniform float uRaio, uLuz, uForma, uVer, uOriginal;
+const int N = 112; const float OURO = 2.39996323;
+vec3 lin(vec3 c) { return pow(c, vec3(2.2)); }
+void main() {
+  vec3 c0 = texture(uImg, uv).rgb; float m0 = texture(uMasc, uv).r;
+  if (uOriginal > .5) { cor = vec4(c0, 1); return; }
+  float R = m0 * uRaio;
+  vec3 res = c0;
+  if (R > .6) {
+    vec3 soma = vec3(0); float pesos = 0.;
+    vec2 centro = uv - .5; float borda = length(centro) * 2.;
+    for (int i = 0; i < N; i++) {
+      float f = (float(i) + .5) / float(N), r = sqrt(f), a = float(i) * OURO;
+      if (uForma > .5 && uForma < 1.5) {   // hexágono: o raio encolhe entre os vértices
+        float s = mod(a, 1.0471976) - .5235988; r *= .8660254 / cos(s);
+      }
+      vec2 d = vec2(cos(a), sin(a)) * r;
+      if (uForma > 1.5) {   // olho de gato: perto da borda da foto o disco é cortado por outro disco deslocado
+        vec2 dir = length(centro) > .001 ? normalize(centro) : vec2(0);
+        if (length(d + dir * borda * .9) > 1.05) continue;
+      }
+      vec2 q = uv + d * R / uTam;
+      float mq = texture(uMasc, q).r;
+      vec3 cq = lin(texture(uImg, q).rgb);
+      float l = dot(cq, vec3(.2126, .7152, .0722));
+      float w = smoothstep(.05, .35, mq) * (1. + uLuz * 24. * pow(l, 3.));
+      soma += cq * w; pesos += w;
+    }
+    vec3 desf = pesos > 0. ? pow(soma / pesos, vec3(1. / 2.2)) : c0;
+    res = mix(c0, desf, smoothstep(.0, .35, m0));
+  }
+  if (uVer > .5) res = mix(res, vec3(1, .1, .15), m0 * .55);
+  cor = vec4(res, 1);
+}`;
+function prog() {
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(p); return p;
+}
+const P = prog(); gl.useProgram(P);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+const lp = gl.getAttribLocation(P, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
+const U = (n) => gl.getUniformLocation(P, n);
+const tex = (unidade) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unidade); gl.bindTexture(gl.TEXTURE_2D, t);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v); return t; };
+const tImg = tex(0), tMasc = tex(1);
+gl.uniform1i(U('uImg'), 0); gl.uniform1i(U('uMasc'), 1);
+
+// ------------------------------------------------ estado
+let foto = null, W = 0, H = 0, forma = 0, pinta = 1, ver = false, original = false;
+const masc = document.createElement('canvas'), mc = masc.getContext('2d', { willReadFrequently: true });
+const hist = [];
+const val = (id) => +$(id).value;
+function sobeMascara() { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tMasc); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, masc); }
+function desenha() {
+  if (!foto) return;
+  gl.viewport(0, 0, W, H);
+  gl.uniform2f(U('uTam'), W, H);
+  gl.uniform1f(U('uRaio'), (val('rForca') / 100) ** 1.4 * Math.max(W, H) * 0.035);   // até ~3,5 % do lado maior
+  gl.uniform1f(U('uLuz'), val('rLuz') / 100);
+  gl.uniform1f(U('uForma'), forma); gl.uniform1f(U('uVer'), ver ? 1 : 0); gl.uniform1f(U('uOriginal'), original ? 1 : 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+let pedido = 0; const pede = () => { if (!pedido) pedido = requestAnimationFrame(() => { pedido = 0; desenha(); }); };
+
+// ------------------------------------------------ abrir
+$('bAbrir').onclick = () => $('arquivo').click();
+$('arquivo').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' });
+  const lado = Math.min(2048, gl.getParameter(gl.MAX_TEXTURE_SIZE)), k = Math.min(1, lado / Math.max(bmp.width, bmp.height));
+  W = Math.round(bmp.width * k); H = Math.round(bmp.height * k);
+  const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(bmp, 0, 0, W, H); foto = c;
+  tela.width = W; tela.height = H; tela.style.display = 'block'; $('vazio').style.display = 'none';
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tImg); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  masc.width = W; masc.height = H; mc.fillStyle = '#000'; mc.fillRect(0, 0, W, H); hist.length = 0; sobeMascara();
+  for (const id of ['bComparar', 'bSalvar']) $(id).disabled = false;
+  desenha(); aviso('Toque em "Achar o assunto (IA)" ou pinte o que deve desfocar');
+};
+
+// ------------------------------------------------ pincel
+const guarda = () => { hist.push(mc.getImageData(0, 0, W, H)); if (hist.length > 15) hist.shift(); };
+function pontoNaFoto(ev) { const r = tela.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * W, y: (ev.clientY - r.top) / r.height * H, esc: W / r.width, r }; }
+function carimbo(x, y, raio) {
+  const macio = val('rMacio') / 100, g = mc.createRadialGradient(x, y, raio * (1 - macio) * .98, x, y, raio);
+  const c = pinta ? '255,255,255' : '0,0,0';
+  g.addColorStop(0, `rgba(${c},1)`); g.addColorStop(1, `rgba(${c},0)`);
+  mc.fillStyle = g; mc.beginPath(); mc.arc(x, y, raio, 0, 7); mc.fill();
+}
+const toques = new Map(); let ultimo = null, pintando = false;
+function mostraPincel(ev) {
+  const v = $('pincelVer'), d = val('rPincel'), pr = palco.getBoundingClientRect();
+  v.style.display = 'block'; v.style.width = v.style.height = d + 'px'; v.style.left = (ev.clientX - pr.left - d / 2) + 'px'; v.style.top = (ev.clientY - pr.top - d / 2) + 'px';
+}
+tela.addEventListener('pointerdown', (ev) => {
+  if (!foto || modo !== 'mascara') return;
+  tela.setPointerCapture(ev.pointerId); toques.set(ev.pointerId, ev);
+  if (toques.size > 1) { pintando = false; return; }   // dois dedos: não pinta
+  guarda(); pintando = true; ultimo = pontoNaFoto(ev); ver = true;
+  carimbo(ultimo.x, ultimo.y, val('rPincel') / 2 * ultimo.esc); sobeMascara(); pede(); mostraPincel(ev);
+});
+tela.addEventListener('pointermove', (ev) => {
+  if (!pintando) return;
+  const p = pontoNaFoto(ev), raio = val('rPincel') / 2 * p.esc, passo = Math.max(1, raio * .25);
+  const dx = p.x - ultimo.x, dy = p.y - ultimo.y, n = Math.ceil(Math.hypot(dx, dy) / passo);
+  for (let i = 1; i <= n; i++) carimbo(ultimo.x + dx * i / n, ultimo.y + dy * i / n, raio);
+  ultimo = p; sobeMascara(); pede(); mostraPincel(ev);
+});
+const solta = (ev) => { toques.delete(ev.pointerId); if (!pintando) return; pintando = false; ver = $('bVer').classList.contains('on'); $('pincelVer').style.display = 'none'; pede(); };
+tela.addEventListener('pointerup', solta); tela.addEventListener('pointercancel', solta);
+
+// ------------------------------------------------ IA: achar o assunto (no aparelho, MediaPipe)
+// DeepLab v3 (2,7 MB) reconhece pessoas, bichos, carros, plantas em vaso, móveis…; se achar pessoa, o modelo de
+// retrato (16 MB) refaz a borda com cabelo e roupa. Os modelos baixam uma vez; a foto não sai do aparelho.
+let visao = null;
+async function carregaIA() {
+  if (visao) return visao;
+  const v = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+  const fs = await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const cria = (url) => v.ImageSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: url }, runningMode: 'IMAGE', outputCategoryMask: true, outputConfidenceMasks: true });
+  visao = { geral: await cria('https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite'), pessoa: null, cria };
+  return visao;
+}
+$('bIA').onclick = async () => {
+  if (!foto) return;
+  const b = $('bIA'); b.disabled = true; b.textContent = 'Procurando…'; aviso('Procurando o assunto…', 20000);
+  try {
+    const ia = await carregaIA();
+    const r = ia.geral.segment(foto);
+    const cat = r.categoryMask, mw = cat.width, mh = cat.height, dados = cat.getAsUint8Array();
+    const temPessoa = dados.some((x) => x === 15);
+    let fundo;   // 0..1, 1 = fundo (desfoca)
+    if (temPessoa) {   // o modelo de retrato dá a borda do cabelo e da roupa
+      aviso('Pessoa encontrada: refinando a borda…', 20000);
+      ia.pessoa ||= await ia.cria('https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite');
+      const rp = ia.pessoa.segment(foto), conf = rp.confidenceMasks[0];   // classe 0 = fundo
+      fundo = { w: conf.width, h: conf.height, v: conf.getAsFloat32Array() };
+      const geral = Float32Array.from(dados, (x) => (x === 0 ? 1 : 0));   // o que o DeepLab acha que não é fundo também fica nítido (o cachorro do lado)
+      fundo.extra = { w: mw, h: mh, v: geral };
+    } else {
+      if (!dados.some((x) => x !== 0)) { aviso('Não achei um assunto claro: pinte com o dedo'); return; }
+      fundo = { w: mw, h: mh, v: Float32Array.from(dados, (x) => (x === 0 ? 1 : 0)) };
+    }
+    guarda();
+    const paraTela = (m) => {   // passa a máscara pequena da IA para o tamanho da foto, com a borda suavizada
+      const c = document.createElement('canvas'); c.width = m.w; c.height = m.h; const x = c.getContext('2d'), id = x.createImageData(m.w, m.h);
+      for (let i = 0; i < m.v.length; i++) { const g = Math.round(m.v[i] * 255); id.data.set([g, g, g, 255], i * 4); }
+      x.putImageData(id, 0, 0); return c;
+    };
+    mc.save(); mc.filter = `blur(${Math.max(1.5, W / 700)}px)`; mc.drawImage(paraTela(fundo), 0, 0, W, H);
+    if (fundo.extra) { mc.globalCompositeOperation = 'darken'; mc.drawImage(paraTela(fundo.extra), 0, 0, W, H); }
+    mc.restore(); sobeMascara(); pede();
+    aviso(temPessoa ? 'Pronto: o fundo desfoca e a pessoa fica nítida. Retoque com o pincel.' : 'Pronto: o fundo desfoca. Retoque com o pincel.', 3600);
+    r.close?.();
+  } catch (err) { console.error(err); aviso('Não consegui usar a IA agora (é preciso internet na primeira vez)'); }
+  finally { b.disabled = false; b.textContent = 'Achar o assunto (IA)'; }
+};
+
+// ------------------------------------------------ botões
+let modo = 'mascara';
+$('modos').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; modo = b.dataset.m;
+  document.querySelectorAll('#modos button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.grupo').forEach((g) => g.classList.toggle('on', g.dataset.g === modo));
+  $('nota').textContent = modo === 'mascara' ? 'Pinte com o dedo onde a foto deve ficar desfocada.' : 'Bolhas de luz: os pontos de luz do fundo viram discos, como numa lente de verdade.'; };
+document.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { pinta = +b.dataset.p; document.querySelectorAll('[data-p]').forEach((x) => x.classList.toggle('on', x === b)); });
+$('formas').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; forma = +b.dataset.f; document.querySelectorAll('#formas button').forEach((x) => x.classList.toggle('on', x === b)); pede(); };
+$('bVer').onclick = () => { $('bVer').classList.toggle('on'); ver = $('bVer').classList.contains('on'); pede(); };
+$('bDesfazer').onclick = () => { const d = hist.pop(); if (!d) return; mc.putImageData(d, 0, 0); sobeMascara(); pede(); };
+$('bTudo').onclick = () => { if (!foto) return; guarda(); mc.fillStyle = '#fff'; mc.fillRect(0, 0, W, H); sobeMascara(); pede(); };
+$('bLimpa').onclick = () => { if (!foto) return; guarda(); mc.fillStyle = '#000'; mc.fillRect(0, 0, W, H); sobeMascara(); pede(); };
+for (const id of ['rPincel', 'rMacio', 'rForca', 'rLuz']) { const r = $(id), o = $('o' + id.slice(1)); const at = () => { o.textContent = r.value; pede(); }; r.oninput = at; at(); }
+const cmp = $('bComparar');
+cmp.onpointerdown = () => { original = true; pede(); }; for (const e of ['pointerup', 'pointerleave', 'pointercancel']) cmp.addEventListener(e, () => { original = false; pede(); });
+$('bSalvar').onclick = () => { const v = ver; ver = false; desenha(); tela.toBlob((b) => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'revela_lente.jpg'; a.click(); ver = v; pede(); }, 'image/jpeg', .95); };
+</script>
+</body>
+</html>
