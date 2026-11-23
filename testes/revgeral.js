@@ -12,7 +12,7 @@ const { chromium, devices } = require('playwright');
       const w = innerWidth, ruins = [];
       for (const el of document.querySelectorAll('header *, #painel *, #folha *')) {
         const r = el.getBoundingClientRect(); if (!r.width || getComputedStyle(el).visibility === 'hidden') continue;
-        if (el.closest('.faixa, .ferramentas, .enq-props, .canais, .props div, #e_luzTipo div, .cats')) continue;   // essas rolam de lado de propósito
+        if (el.closest('.faixa, .ferramentas, .subs, .enq-props, .canais, .props div, #e_luzTipo div, .cats')) continue;   // essas rolam de lado de propósito
         if (r.right > w + 1 || r.left < -1) ruins.push((el.id || el.className || el.tagName) + ':' + Math.round(r.left) + '-' + Math.round(r.right));
       }
       return { pagina: document.documentElement.scrollWidth <= w + 1, ruins: [...new Set(ruins)].slice(0, 6) };

@@ -580,7 +580,7 @@ gCurva.innerHTML = `<div class="canais"><button data-c="l">Luz</button><button d
 const editorCurva = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); editorCurva.id = 'curva'; gCurva.append(editorCurva);
 gCurva.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { canal = b.dataset.c; desenhaCurva(); });
 gCurva.querySelector('.zerar').onclick = () => { if (!s.curvas) return; s.curvas = curvaMexida({ ...s.curvas, [canal]: CURVA0[canal] }) ? { ...s.curvas, [canal]: CURVA0[canal] } : null; desenhaCurva(); desenha(); sincronizaFerramentas(); memoriza(); };
-const COR_CANAL = { l: '#eee7dc', r: '#e06a5e', g: '#6cc06a', b: '#6f97ee' };
+const COR_CANAL = { l: 'currentColor', r: '#e06a5e', g: '#6cc06a', b: '#6f97ee' };
 function desenhaCurva() {
   gCurva.querySelectorAll('[data-c]').forEach((b) => b.classList.toggle('on', b.dataset.c === canal));
   const W = editorCurva.clientWidth, H = editorCurva.clientHeight;
@@ -637,8 +637,8 @@ function desenhaCurva() {
 // régua com marcas para os ajustes finos, grade sobre a foto e ✕ / ✓ (o enquadramento se aplica ou se cancela de uma vez)
 const PROPORCOES = [['livre', 'Livre'], ['original', 'Original'], ['1:1', '1:1'], ['4:5', '4:5'], ['2:3', '2:3'], ['9:16', '9:16']];
 const vira = (id) => (id.includes(':') ? id.split(':').reverse().join(':') : id);   // 4:5 <-> 5:4
-const gCorte = document.createElement('div'); gCorte.id = 'g_corte'; $('p-ajustes').append(gCorte);
-gCorte.innerHTML = '<div class="acoes"><button id="bEnquadrar">Enquadrar a foto</button></div><small class="dica" style="display:block">Cortar, girar, endireitar, perspectiva e lente</small>';
+// Enquadrar mora na barra de cima (muda o formato da foto, não a aparência): um toque abre, em qualquer aba
+$('bEnquadrar').innerHTML = icon('crop');
 const ICO = {
   cortar: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/>',
   girar: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/>',
@@ -659,7 +659,7 @@ enq.innerHTML = `<div class="enq-ferr">${FERR_ENQ.map(([id, n]) => `<button data
   <div class="enq-meio"><div class="enq-props"></div><div class="regua"><output></output><div class="trilho"><div class="marcas"></div><i class="agulha"></i></div></div></div>
   <div class="enq-fim"><button class="cancela" aria-label="Cancelar">✕</button><button class="restaura">Restaurar</button><button class="aplica" aria-label="Aplicar">✓</button></div>`;
 $('painel').append(enq);
-let enquadrando = false, ferrEnq = 'cortar', antesEnq = null, deitado = false, grupoAntes = 'luz';
+let enquadrando = false, ferrEnq = 'cortar', antesEnq = null, deitado = false;
 const GEO_ZERO = { giro: 0, espelho: 0, endireitar: 0, corte: null, proporcao: 'livre', perspV: 0, perspH: 0, lente: 0 };
 function abreEnquadrar() {
   if (!foto || enquadrando) return;
@@ -671,7 +671,6 @@ function fechaEnquadrar(aplica) {
   if (!enquadrando) return;
   if (!aplica && antesEnq) Object.assign(s, JSON.parse(antesEnq));
   enquadrando = false; document.body.classList.remove('enquadrando');
-  if (celular() && grupoAtivo['p-ajustes'] === 'corte') mostraGrupo('p-ajustes', grupoAntes);
   sincroniza(); atualizaModos(); desenha(); if (aplica) memoriza();
 }
 $('bEnquadrar').onclick = abreEnquadrar;
@@ -772,34 +771,22 @@ function montaEnqMarcas() {   // só os pontinhos e o Restaurar (sem refazer a r
 // No celular cada aba mostra uma linha de ferramentas e só o controle da escolhida, como no VSCO e no RNI:
 // o painel fica baixo e sempre do mesmo tamanho, e a foto não encolhe. No computador (≥ 900 px) tudo fica à vista.
 const GRUPOS = {
-  'p-ajustes': [   // em famílias: luz, cor, detalhe, retrato e corte (no celular, uma linha que rola)
-    { id: 'luz', n: 'Exposição', el: ['exposicao'], sec: 'Luz' },
-    { id: 'brilho', n: 'Brilho', el: ['brilho'] },
-    { id: 'contraste', n: 'Contraste', el: ['contraste'] },
-    { id: 'realces', n: 'Realces', el: ['realces'] },
-    { id: 'sombras', n: 'Sombras', el: ['sombras'] },
-    { id: 'brancos', n: 'Brancos', el: ['brancos'] },
-    { id: 'pretos', n: 'Pretos', el: ['pretos'] },
-    { id: 'esmaecer', n: 'Esmaecer', el: ['esmaecer'] },
-    { id: 'curvas', n: 'Curvas', el: ['#g_curvas'], muda: () => curvaMexida(s.curvas) },
-    { id: 'calor', n: 'Calor', el: ['cenaTemp'], sec: 'Cor' },
-    { id: 'matiz', n: 'Matiz', el: ['cenaMatiz'] },
-    { id: 'saturacao', n: 'Saturação', el: ['saturacao'] },
-    { id: 'vibracao', n: 'Vibração', el: ['vibracao'] },
-    { id: 'pele', n: 'Tom de pele', el: ['pele'] },
-    { id: 'hsl', n: 'Cores', el: ['#g_hsl'], muda: () => s.hsl.some((c) => c.some((x) => x)) },
-    { id: 'clareza', n: 'Clareza', el: ['clareza'], sec: 'Detalhe' },
-    { id: 'nitidez', n: 'Nitidez', el: ['nitidez'] },
-    { id: 'vinheta', n: 'Vinheta', el: ['vinheta'] },
+  'p-ajustes': [   // seis ferramentas (23/11/2026); Luz, Cor e Detalhe têm uma segunda linha com os controles de cada uma
+    { id: 'luz', n: 'Luz', el: ['exposicao', 'brilho', 'contraste', 'realces', 'sombras', 'brancos', 'pretos'], sub: true, sec: 'Luz' },
+    { id: 'cor', n: 'Cor', el: ['cenaTemp', 'cenaMatiz', 'saturacao', 'vibracao', 'pele'], sub: true, sec: 'Cor' },
+    { id: 'detalhe', n: 'Detalhe', el: ['clareza', 'nitidez'], sub: true, sec: 'Detalhe' },
+    { id: 'curvas', n: 'Curvas', el: ['#g_curvas'], sec: 'Curvas', muda: () => curvaMexida(s.curvas) },
+    { id: 'hsl', n: 'Cores', el: ['#g_hsl'], sec: 'Cor por cor', muda: () => s.hsl.some((c) => c.some((x) => x)) },
     { id: 'seletivo', n: 'Seletivo', el: ['#g_sel'], sec: 'Seletivo', muda: () => (s.pontos || []).length > 0 },
-    ...(RETRATO ? [{ id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto, fam: true }] : []),
-    { id: 'corte', n: 'Enquadrar', el: ['#g_corte'], muda: () => !!(s.giro || s.espelho || s.endireitar || s.corte || s.perspV || s.perspH || s.lente), sec: 'Enquadrar' },
+    ...(RETRATO ? [{ id: 'retrato', n: 'Retrato', el: ['#g_retrato'], muda: () => !!s.rosto }] : []),
   ],
   'p-analogico': [
     { id: 'grao', n: 'Grão', el: ['grao', 'graoTamanho', '#e_graoTipo'], sec: 'Textura', muda: () => Math.abs(s.grao - padraoDe('grao')) > 1e-6 || Math.abs(s.graoTamanho - padraoDe('graoTamanho')) > 1e-6 || s.graoTipo !== 'classico' },
     { id: 'poeira', n: 'Poeira', el: ['poeira'] },
+    { id: 'esmaecer', n: 'Esmaecer', el: ['esmaecer'] },
     { id: 'halacao', n: 'Halação', el: ['halacao'], sec: 'Luz' },
     { id: 'difusao', n: 'Difusão', el: ['difusao'] },
+    { id: 'vinheta', n: 'Vinheta', el: ['vinheta'] },
     { id: 'luzvazada', n: 'Luz vazada', el: ['luzVazada', '#e_luzTipo'] },
     { id: 'flash', n: 'Flash', el: ['#e_flashEstilo', 'flash', 'flashAlcance', '#dicaFlash'], muda: () => s.flash > 0 },
     { id: 'ceu', n: 'Céu', el: ['amplCeu', '#dicaCeu'], sec: 'Laboratório', muda: () => s.amplCeu > 0 },
@@ -819,7 +806,6 @@ function padraoDe(k) {
 function mudou(g) { return g.muda ? g.muda() : g.el.some((k) => k[0] !== '#' && Math.abs((s[k] ?? 0) - padraoDe(k)) > 1e-6); }
 function mostraGrupo(pag, id) {
   if (pronto && foto && ['seletivo', 'flash', 'ceu', 'curvas'].includes(id) && !pc.matches) setTimeout(() => dica(id), 400);
-  if (pag === 'p-ajustes' && id !== 'corte' && typeof grupoAntes !== 'undefined') grupoAntes = id;
   grupoAtivo[pag] = id;
   const p = $(pag);
   p.querySelectorAll('.grupo').forEach((g) => g.classList.toggle('on', g.dataset.g === id));
@@ -832,23 +818,35 @@ for (const [pag, grupos] of Object.entries(GRUPOS)) {
   p.querySelectorAll(':scope > .sec').forEach((e) => e.remove());   // os títulos de seção passam para dentro dos grupos
   for (const g of grupos) {
     const w = document.createElement('div'); w.className = 'grupo'; w.dataset.g = g.id;
-    if (g.el.length === 1 && g.el[0][0] !== '#') w.classList.add('unico');   // um controle só: o nome já está na ferramenta, não se repete em cima da barra
+    if ((g.el.length === 1 && g.el[0][0] !== '#') || g.sub) w.classList.add('unico');   // um controle à vista: o nome já está na ferramenta, não se repete em cima da barra
     if (g.sec) secao(w, g.sec);
+    if (g.sub) {   // segunda linha: um nome por controle; no celular só o escolhido aparece
+      const linha = document.createElement('div'); linha.className = 'subs'; w.append(linha); w.classList.add('com-sub');
+      for (const k of g.el) {
+        const c = $('r_' + k).parentElement, sb = document.createElement('button');
+        sb.dataset.k = k; sb.textContent = c.querySelector('label').textContent;
+        sb.onclick = () => { w.querySelectorAll('.subs button').forEach((x) => x.classList.toggle('on', x === sb)); w.querySelectorAll(':scope > .ctl').forEach((x) => x.classList.toggle('on', x === c)); };
+        linha.append(sb);
+      }
+    }
     for (const k of g.el) w.append(k[0] === '#' ? $(k.slice(1)) : $('r_' + k).parentElement);
+    if (g.sub) w.querySelector('.subs button').click();
     p.append(w);
     const b = document.createElement('button'); b.dataset.g = g.id; b.textContent = g.n; b.setAttribute('role', 'tab');
     b.onclick = () => mostraGrupo(pag, g.id);
-    if ((g.sec || g.fam) && g !== grupos[0]) b.classList.add('fam');   // um respiro entre as famílias
+    if ((g.sec || g.fam) && g !== grupos[0] && pag !== 'p-ajustes') b.classList.add('fam');   // um respiro entre as famílias (Ajustes tem poucas: sem respiro)   // um respiro entre as famílias
     bar.append(b);
   }
   p.prepend(bar); mostraGrupo(pag, grupos[0].id);
 }
 function sincronizaFerramentas() {
   const temRetrato = RETRATO && !!filmeAtual()?.meta.retrato;
+  $('bEnquadrar').classList.toggle('mudou', !!(s.giro || s.espelho || s.endireitar || s.corte || s.perspV || s.perspH || s.lente));
   for (const [pag, grupos] of Object.entries(GRUPOS)) {
     for (const g of grupos) {
       const b = $(pag).querySelector(`.ferramentas button[data-g="${g.id}"]`);
       b.classList.toggle('mudou', mudou(g));
+      if (g.sub) for (const sb of $(pag).querySelectorAll(`.grupo[data-g="${g.id}"] .subs button`)) sb.classList.toggle('mudou', Math.abs((s[sb.dataset.k] ?? 0) - padraoDe(sb.dataset.k)) > 1e-6);
       if (g.id === 'retrato' && b) b.hidden = !temRetrato;
     }
     if (grupoAtivo[pag] === 'retrato' && !temRetrato) mostraGrupo(pag, grupos[0].id);
@@ -896,7 +894,6 @@ let modoCorte = false, curvaNaFoto = false;
 function atualizaModos() {
   if (!pronto) return;
   const ajustes = aba === 'ajustes' && !!foto;
-  if (!pc.matches && ajustes && grupoAtivo['p-ajustes'] === 'corte' && !enquadrando) { abreEnquadrar(); return; }   // celular: tocar em Enquadrar já abre
   const corte = enquadrando && !!foto;
   const curva = !pc.matches && ajustes && grupoAtivo['p-ajustes'] === 'curvas';
   if (curva !== curvaNaFoto) { curvaNaFoto = curva; (curva ? $('palco') : gCurva).append(editorCurva); editorCurva.classList.toggle('na-foto', curva); }
@@ -1322,7 +1319,7 @@ async function abre(file, recupera = null) {
     s = { ...PADRAO, semente: Math.random() }; ptSel = -1; novoPonto = false; marcando = false; if (enquadrando) { enquadrando = false; document.body.classList.remove('enquadrando'); } R.setFilm(null); zoom.z = 1; zoom.tx = zoom.ty = 0; aplicaZoom();
     perguntaRepetir(anterior);
     tela.style.display = 'block'; $('vazio').style.display = 'none'; document.body.classList.add('com-foto');
-    for (const id of ['bComparar', 'bExportar', 'bLote']) $(id).disabled = false;
+    for (const id of ['bComparar', 'bExportar', 'bLote', 'bEnquadrar']) $(id).disabled = false;
     if (recupera) {   // o Android fechou o app em segundo plano: volta a foto, a edição e o histórico de desfazer
       s = { ...PADRAO, ...recupera.s }; hist = recupera.hist || []; hi = Math.min(recupera.hi ?? hist.length - 1, hist.length - 1);
       R.setFilm(filmeAtual()); montaFaixa(); sincroniza(); atualizaNota(); atualizaModos(); desenha(); botoes(); memoriza();

@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0a">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Revela</title>
 <link rel="icon" href="icone.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icone-180.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#141210">
 <style>
   :root {
     --bg: #0b0b0a; --panel: #121211; --raise: #1c1b19; --line: #262522; --text: #f1ece3; --muted: #8d877d; --faint: #5d5850;
@@ -278,75 +278,89 @@
     .faixa { flex-wrap: wrap; overflow: visible; row-gap: 12px; }   /* computador: todos os filmes à vista, sem rolar */
   }
 
-  /* ================= Identidade (20/11/2026): Laboratório + Folha de contato =================
-     Quarto escuro quente, um único acento âmbar (a luz de segurança), nomes em serifa clássica como nas caixas de
-     papel fotográfico, números em letra de máquina como as marcas na borda do filme; na faixa, cada filme é um quadro
-     numerado da folha de contato, e o escolhido ganha o círculo de lápis de cera. */
+  /* ================= Identidade (23/11/2026): preto e branco, seguindo o celular =================
+     A única cor da tela é a da foto. Modo escuro: fundo preto e tudo branco; modo claro: fundo quase branco e tudo preto
+     (segue o ajuste do celular). O que está escolhido vira um retângulo de cantos redondos na cor do texto, com a letra
+     invertida. Serifa só nos destaques (nome do app, nomes dos filmes, número grande); o resto na letra do sistema. */
   @font-face { font-family: 'Revela Serif'; src: url(fontes/InstrumentSerif-400.woff2) format('woff2'); font-display: swap; }
   @font-face { font-family: 'Revela Serif'; font-style: italic; src: url(fontes/InstrumentSerif-400i.woff2) format('woff2'); font-display: swap; }
-  @font-face { font-family: 'Revela Mono'; src: url(fontes/IBMPlexMono-400.woff2) format('woff2'); font-display: swap; }
-  @font-face { font-family: 'Revela Mono'; font-weight: 500; src: url(fontes/IBMPlexMono-500.woff2) format('woff2'); font-display: swap; }
-  :root { --marca: #b5121b;   /* vermelho Valentino: a marcação do item escolhido, como o lápis de cera vermelho da folha de contato */
-    --bg: #0f0e0d; --panel: #151311; --raise: #1f1c19; --line: #2a2723; --text: #eee7dc; --muted: #a39a8d; --faint: #8a8173; --accent: #b5121b; --accent-texto: #e0403f;   /* tudo no vermelho Valentino; em texto pequeno, o mesmo vermelho um pouco mais aceso para dar leitura */
-    --serif: 'Revela Serif', 'Iowan Old Style', Georgia, serif; --mono: 'Revela Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
-  .exportar { background: var(--text); color: #15120f; }
-  /* abas: as três etapas do laboratório, numeradas */
-  .abas { gap: 22px; }
-  .abas button { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; display: flex; align-items: baseline; gap: 6px; }
-  .abas button b { font-weight: 500; font-size: 9.5px; color: var(--faint); letter-spacing: .04em; }
-  .abas button.on b { color: var(--accent); }
-  /* folha de contato: cada filme é um quadro numerado; o escolhido ganha o círculo de lápis de cera */
-  .faixa { counter-reset: quadro; }
-  .film:not(.rotulo):not(.acao) { position: relative; counter-increment: quadro; }
-  .film:not(.rotulo):not(.acao)::before { content: '▸' counter(quadro); position: absolute; left: 3px; top: 3px; z-index: 1; padding: 1px 4px; border-radius: 4px;
-    font: 500 9px var(--mono); letter-spacing: .02em; color: #f2e9dc; background: #0009; pointer-events: none; }
-  .film.on canvas, .film.on .ph { outline: 2px solid var(--marca); outline-offset: 2px; }   /* seleção: uma borda vermelha simples em volta da miniatura */
-  .film span { font-family: var(--serif); font-size: 14px; letter-spacing: .01em; line-height: 1.15; }
-  .film { gap: 4px; }   /* faixa mais baixa: a foto ganha espaço */
-  .film:not(:has(.ref)) span { line-height: 1.02; }   /* receitas: nome de até 3 linhas na mesma altura dos filmes */
-  .film .ref { font-size: 10px; letter-spacing: .01em; }   /* letra comum, maior: precisa ser lida */
+  :root { color-scheme: dark;
+    --bg: #000; --palco: #000; --panel: #0c0c0d; --raise: #1c1c1e; --line: #2c2c2e; --text: #fff; --inverso: #000; --muted: #a1a1a6; --faint: #8e8e93;
+    --accent: var(--text); --accent-texto: var(--text); --marca: var(--text); --cartao: #1c1c1ef7; --sombra-foto: none;
+    --serif: 'Revela Serif', 'Iowan Old Style', Georgia, serif; }
+  @media (prefers-color-scheme: light) {
+    :root { color-scheme: light;
+      --bg: #fff; --palco: #f4f4f6; --panel: #fff; --raise: #eeeef1; --line: #dcdce0; --text: #000; --inverso: #fff; --muted: #5c5c61; --faint: #6c6c70;
+      --cartao: #fffffff7; }
+  }
+  html, body { background: var(--bg); }
+  #palco { background: var(--palco); }
+  #tela { box-shadow: none; }   /* sem sombra atrás da foto */
+  .exportar { background: var(--text); color: var(--inverso); }
+  /* o que está escolhido: retângulo de cantos redondos, letra invertida */
+  .abas { gap: 4px; }
+  .abas button { font-size: 14px; letter-spacing: 0; text-transform: none; padding: 6px 15px; border-radius: 999px; color: var(--muted); }
+  .abas button b { display: none; }
+  .abas button.on, .ferramentas button.on { background: var(--text); color: var(--inverso); box-shadow: none; }
+  .ferramentas { gap: 2px; padding-top: 2px; padding-bottom: 2px; }
+  .ferramentas button { padding: 7px 13px; border-radius: 999px; }
+  .ferramentas button.fam { margin-left: 12px; } .ferramentas button.fam::before { left: -8px; }
+  .ferramentas button.mudou::after { top: 5px; right: 5px; }
+  .ferramentas button.on.mudou::after { background: var(--inverso); }
+  #cIntensidade .ferramentas { padding-left: 12px; } .ferramentas { padding-left: 12px; padding-right: 12px; }
+  /* Filmes · Receitas · Minhas: só a letra (o retângulo fica para as abas e ferramentas) */
+  .cats button { font-family: var(--serif); font-size: 17px; }
+  .cats button.on { color: var(--text); }
   .cats .insp { margin-left: auto; align-self: center; color: var(--faint); font-size: 10.5px; line-height: 1.05; text-align: right; white-space: normal; max-width: 78px; }
-  /* área de toque maior nas ferramentas (a linha toda vira botão), sem mudar a altura do painel */
-  .ferramentas { padding-top: 0; padding-bottom: 0; } .ferramentas button { padding: 11px 0 9px; }
-  .ferramentas button.mudou::after { top: 8px; }
-  #cIntensidade .ferramentas button { padding: 8px 0 6px; } #cIntensidade .ferramentas button.mudou::after { top: 5px; }
-  .film.rotulo span { font-family: var(--mono); font-size: 9px; }
-  .cats button { font-family: var(--serif); font-size: 16px; }
-  /* números e valores em letra de máquina; o número grande sobre a foto em serifa */
-  .ctl output, .ctl.linha output, .regua output, .selAcoes .dica { font-family: var(--mono); font-size: 11px; letter-spacing: .02em; }
+  /* filmes: o escolhido ganha uma borda na cor do texto */
+  .film.on canvas, .film.on .ph { outline: 2px solid var(--text); outline-offset: 2px; }
+  .film span { font-family: var(--serif); font-size: 14px; letter-spacing: .01em; line-height: 1.02; }
+  .film { gap: 4px; }
+  @media (max-width: 899px) { .faixa { box-sizing: border-box; min-height: 126px; } }   /* filmes e receitas com a mesma altura: a linha de baixo não se mexe */
+  .film.rotulo span { font-size: 9px; }
+  /* números: letra do sistema com algarismos de mesma largura (não pulam ao arrastar) */
+  .ctl output, .ctl.linha output, .regua output { font-variant-numeric: tabular-nums; }
   #numero { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 76px; }
-  #numero small { font-family: var(--mono); font-style: normal; font-size: 10px; letter-spacing: .2em; }
-  .sec, .film.rotulo { font-family: var(--mono); }
-  .ferramentas button.on { box-shadow: inset 0 -1.5px 0 var(--accent); }
-  input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--accent) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
-  input[type=range]::-moz-range-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--accent) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  #numero small { font-style: normal; font-size: 10px; letter-spacing: .2em; }
+  input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  input[type=range]::-moz-range-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
+  .escolha button.on, .canais button.on, .acoes button.on, .enq-props button.on, .selParams button.on, .selAcoes button.on { background: var(--text); color: var(--inverso); border-color: var(--text); }
   .ficha h3 { font-family: var(--serif); font-size: 26px; font-weight: 400; }
-  .ficha dt { font-family: var(--mono); }
+  /* sobre a foto: sempre claro, qualquer que seja o modo */
+  #pontos .pt.sel b { background: #fff; color: #000; }
+  #curva { color: var(--text); } #curva.na-foto { color: #fff; }
+  #dica button { color: var(--text); font-weight: 600; }
   /* boas-vindas */
   #vazio h1 { font-family: var(--serif); font-weight: 400; font-size: 64px; letter-spacing: .005em; line-height: 1; }
-  #vazio .borda { font: 500 10px var(--mono); letter-spacing: .22em; color: var(--accent); opacity: .85; }
-  #vazio button { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; border-color: var(--accent); color: var(--text); }
-  .versao { font-family: var(--mono); letter-spacing: .06em; }
-  .marca { font-family: var(--serif); font-weight: 400; letter-spacing: .02em; font-size: 22px; color: var(--text); text-transform: none; }
-  /* texto em vermelho: o tom mais aceso (o Valentino puro fica escuro demais para ler em letra pequena) */
-  .abas button.on b, #dica button, #vazio .borda, #bComparar.on { color: var(--accent-texto); }
-  #pontos .pt.sel b { color: #fff; }
-  /* cartão do filme (aparece de passagem ao escolher): nome em serifa, inspiração em vermelho, a alma do filme */
-  #aviso.cartao { z-index: 6; display: grid; gap: 3px; padding: 12px 18px 13px; width: max-content; max-width: min(88%, 340px); border-radius: 14px; background: #0b0a09f5; box-shadow: 0 8px 30px #0008; }
-  @media (max-width: 899px) { .faixa { box-sizing: border-box; min-height: 126px; } }   /* filmes e receitas com a faixa da mesma altura: a linha de baixo não se mexe */
+  #vazio .borda { display: none; }
+  #vazio button { background: var(--text); color: var(--inverso); border: 0; font-weight: 600; }
+  .marca { font-family: var(--serif); font-weight: 400; letter-spacing: .02em; font-size: 22px; color: var(--text); text-transform: none; display: inline-flex; align-items: center; gap: 8px; }
+  .marca img { display: block; width: 26px; height: auto; }
+  body:not(.com-foto) .marca { visibility: hidden; }   /* nas boas-vindas o nome já está grande no centro */
+  #vazio .simbolo { width: 104px; height: auto; margin: 0 0 -4px; }
+  .simbolo.claro, .marca img.claro { display: none; }
+  @media (prefers-color-scheme: light) { .simbolo.escuro, .marca img.escuro { display: none; } .simbolo.claro, .marca img.claro { display: block; } }
+  /* Luz, Cor e Detalhe: a segunda linha com os controles (no celular só o escolhido aparece) */
+  .subs { display: flex; gap: 2px; padding: 4px 12px 0; overflow-x: auto; scrollbar-width: none; } .subs::-webkit-scrollbar { display: none; }
+  .subs button { position: relative; flex: none; padding: 5px 11px; border-radius: 999px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .subs button.on { color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .subs button.mudou::after, .ib.mudou::after { content: ''; position: absolute; top: 4px; right: 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--text); }
+  .ib { position: relative; }
+  @media (max-width: 899px) { .grupo.com-sub > .ctl:not(.on) { display: none; } }
+  @media (min-width: 900px) { .subs { display: none; } }
+  /* cartão do filme (de passagem, ao escolher): nome em serifa, a inspiração e a alma do filme */
+  #aviso.cartao { z-index: 6; display: grid; gap: 3px; padding: 12px 18px 13px; width: max-content; max-width: min(88%, 340px); border-radius: 16px; background: var(--cartao); box-shadow: 0 8px 30px #0005; color: var(--text); }
   #aviso.cartao .titulo { font: 400 24px/1.05 var(--serif); color: var(--text); }
-  #aviso.cartao .sub { font-size: 11.5px; color: var(--accent-texto); letter-spacing: .01em; }
+  #aviso.cartao .sub { font-size: 11.5px; font-weight: 600; color: var(--text); }
   #aviso.cartao .txt { font-size: 13px; line-height: 1.35; color: var(--muted); margin-top: 3px; }
-  body:not(.com-foto) .marca { visibility: hidden; }
-  .marca { display: inline-flex; align-items: center; gap: 8px; } .marca img { display: block; width: 26px; height: auto; }
-  #vazio .simbolo { width: 112px; height: auto; margin: 4px 0 -6px; }   /* nas boas-vindas o nome já está grande no centro */
 </style>
 </head>
 <body>
 <header>
   <div class="grp">
     <button class="ib" id="bAbrir" title="Abrir foto" aria-label="Abrir foto"></button>
-    <span class="marca"><img src="icone-desenho.svg" alt="" width="26" height="22">Revela</span>
+    <button class="ib" id="bEnquadrar" title="Enquadrar: cortar, girar, endireitar, perspectiva e lente" aria-label="Enquadrar" disabled></button>
+    <span class="marca"><img class="escuro" src="icone-desenho.svg" alt="" width="26" height="22"><img class="claro" src="icone-desenho-claro.svg" alt="" width="26" height="22">Revela</span>
   </div>
   <div class="grp">
     <button class="ib" id="bDesfazer" title="Desfazer" aria-label="Desfazer" disabled></button>
@@ -361,11 +375,11 @@
   <canvas id="tela"></canvas>
   <div id="vazio">
     <span class="borda">REVELA 400 &nbsp;▸ 1 &nbsp;▸ 2 &nbsp;▸ 3</span>
-    <img class="simbolo" src="icone-desenho.svg" alt="">
+    <img class="simbolo escuro" src="icone-desenho.svg" alt=""><img class="simbolo claro" src="icone-desenho-claro.svg" alt="">
     <h1>Revela</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão 49.4 · 22/11/2026</small>
+    <small class="versao">versão 50 · 23/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
