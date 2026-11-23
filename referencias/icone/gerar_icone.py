@@ -1,27 +1,34 @@
-"""Gera o ícone do Revela (a cópia inclinada, céu petróleo, paleta Kodachrome) em SVG.
-Uso: python3 referencias/icone/gerar_icone.py   (escreve icone.svg e icone-desenho.svg na raiz)
+"""Gera o ícone do Revela: a cópia em papel saindo inclinada da linha, com céu petróleo, sol âmbar e montanhas
+verde-oliva (versão B refinada, 23/11/2026: menor, centrada, cantos e pontas macias).
+Uso: python3 referencias/icone/gerar_icone.py   (escreve na raiz: icone.svg, icone-desenho.svg, icone-desenho-claro.svg)
 Os PNG saem de testes/icones_png.js (o Chromium desenha o SVG)."""
 import os
 RAIZ = os.path.join(os.path.dirname(__file__), '..', '..')
-FUNDO, PAPEL = '#141210', '#EEE7DC'
+FUNDO = '#111111'
 CEU, SOL, MONT1, MONT2 = '#2B6E8C', '#E2A257', '#7A8A3E', '#3F5226'
+W, H, BORDA, GIRO, LINHA, LH, RAIO_FOTO, MACIO, SOL_R = 344, 326, 22, -8, 440, 24, 14, 22, .13
 
-def desenho():
-    x, w, top, base, b, giro = 290, 444, 196, 664, 30, -6
-    ix, iw, iy, ih = x + b, w - 2 * b, top + b, base - top - b
+def desenho(papel):
+    base = 512 + (H + LH) / 2 - LH
+    x, top = 512 - W / 2, base - H
+    ix, iw, iy, ih = x + BORDA, W - 2 * BORDA, top + BORDA, H - BORDA
     p = lambda pts: 'M' + ' L'.join(f'{ix + iw * a:.1f} {iy + ih * c:.1f}' for a, c in pts) + 'Z'
-    fundo = p([(0, 1.2), (0, .78), (.22, .56), (.5, .74), (.74, .46), (1, .7), (1, 1.2)])
-    frente = p([(0, 1.2), (0, .95), (.34, .66), (.58, .88), (.8, .72), (1, .92), (1, 1.2)])
-    return (f'<defs><clipPath id="corte"><rect width="1024" height="{base}"/></clipPath></defs>'
-            f'<g clip-path="url(#corte)"><g transform="rotate({giro} 512 {base})">'
-            f'<rect x="{x}" y="{top}" width="{w}" height="{base - top + 80}" rx="20" fill="{PAPEL}"/>'
-            f'<rect x="{ix}" y="{iy}" width="{iw}" height="{ih + 60}" fill="{CEU}"/>'
-            f'<circle cx="{ix + iw * .7:.1f}" cy="{iy + ih * .3:.1f}" r="{iw * .11:.1f}" fill="{SOL}"/>'
-            f'<path d="{fundo}" fill="{MONT1}"/><path d="{frente}" fill="{MONT2}"/></g></g>'
-            f'<rect x="196" y="664" width="632" height="38" rx="19" fill="{PAPEL}"/>')
+    fundo = p([(-.1, 1.3), (-.1, .8), (.22, .54), (.5, .74), (.74, .44), (1.1, .72), (1.1, 1.3)])
+    frente = p([(-.1, 1.3), (-.1, .97), (.34, .64), (.58, .86), (.8, .7), (1.1, .92), (1.1, 1.3)])
+    macio = lambda c: f' stroke="{c}" stroke-width="{MACIO}" stroke-linejoin="round"'
+    return (f'<defs><clipPath id="corte"><rect width="1024" height="{base:.1f}"/></clipPath>'
+            f'<clipPath id="janela"><rect x="{ix:.1f}" y="{iy:.1f}" width="{iw:.1f}" height="{ih + 60:.1f}" rx="{RAIO_FOTO}"/></clipPath></defs>'
+            f'<g clip-path="url(#corte)"><g transform="rotate({GIRO} 512 {base:.1f})">'
+            f'<rect x="{x:.1f}" y="{top:.1f}" width="{W}" height="{H + 60}" rx="{W * .06:.1f}" fill="{papel}"/>'
+            f'<g clip-path="url(#janela)"><rect x="{ix:.1f}" y="{iy:.1f}" width="{iw:.1f}" height="{ih + 60:.1f}" fill="{CEU}"/>'
+            f'<circle cx="{ix + iw * .7:.1f}" cy="{iy + ih * .3:.1f}" r="{iw * SOL_R:.1f}" fill="{SOL}"/>'
+            f'<path d="{fundo}" fill="{MONT1}"{macio(MONT1)}/><path d="{frente}" fill="{MONT2}"{macio(MONT2)}/></g></g></g>'
+            f'<rect x="{512 - LINHA / 2:.1f}" y="{base:.1f}" width="{LINHA}" height="{LH}" rx="{LH / 2}" fill="{papel}"/>')
 
 cab = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
-open(os.path.join(RAIZ, 'icone.svg'), 'w').write(f'{cab}<rect width="1024" height="1024" fill="{FUNDO}"/>{desenho()}</svg>\n')
-# sem fundo e recortado no desenho: para o cabeçalho e a tela inicial
-open(os.path.join(RAIZ, 'icone-desenho.svg'), 'w').write(desenho_svg := f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="180 150 664 568">{desenho()}</svg>\n')
+recorte = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="240 250 544 520">'   # sem fundo, só o desenho
+esc = lambda n, s: open(os.path.join(RAIZ, n), 'w').write(s + '\n')
+esc('icone.svg', f'{cab}<rect width="1024" height="1024" fill="{FUNDO}"/>{desenho("#F4F4F2")}</svg>')
+esc('icone-desenho.svg', f'{recorte}{desenho("#F4F4F2")}</svg>')          # para o modo escuro (papel claro)
+esc('icone-desenho-claro.svg', f'{recorte}{desenho("#1C1C1E")}</svg>')    # para o modo claro (borda e linha escuras)
 print('ok')

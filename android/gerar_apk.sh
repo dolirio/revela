@@ -19,7 +19,7 @@ npm i -s @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/file
 cp "$RAIZ/android/capacitor.config.json" .
 # o app: os arquivos da raiz que ele usa (sem o service worker, o app clássico, a pesquisa e os testes)
 rm -rf www && mkdir www
-cp "$RAIZ"/index.html "$RAIZ"/app.js "$RAIZ"/render.js "$RAIZ"/core.js "$RAIZ"/icons.js "$RAIZ"/manifest.webmanifest "$RAIZ"/icone.svg "$RAIZ"/icone-desenho.svg "$RAIZ"/icone-*.png www/
+cp "$RAIZ"/index.html "$RAIZ"/app.js "$RAIZ"/render.js "$RAIZ"/core.js "$RAIZ"/icons.js "$RAIZ"/manifest.webmanifest "$RAIZ"/icone.svg "$RAIZ"/icone-desenho*.svg "$RAIZ"/icone-*.png www/
 cp -r "$RAIZ/filmes" www/filmes && cp -r "$RAIZ/vendor" www/vendor && cp -r "$RAIZ/fontes" www/fontes
 # só os filmes do índice (as tabelas antigas ficam no repositório, mas não vão no APK)
 python3 - www/filmes <<'PY'
@@ -45,7 +45,7 @@ for f in glob.glob('android/app/src/main/res/mipmap-*/*.png'):
     else:
         cheio.resize((w, h), Image.LANCZOS).save(f)
 PY
-sed -i 's/#FFFFFF/#141210/; s/#28252A/#141210/' android/app/src/main/res/values/ic_launcher_background.xml
+sed -i 's/#FFFFFF/#111111/; s/#28252A/#111111/; s/#141210/#111111/' android/app/src/main/res/values/ic_launcher_background.xml
 npx cap sync android
 cd android && echo "sdk.dir=$ANDROID_HOME" > local.properties && ./gradlew assembleDebug -q --no-daemon
 cp app/build/outputs/apk/debug/app-debug.apk "$W/Revela-teste.apk" && echo "APK: $W/Revela-teste.apk"

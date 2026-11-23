@@ -11,11 +11,10 @@ const { chromium, devices } = require('playwright');
     const r = {};
     await clica('.film >> nth=1'); await p.waitForTimeout(400);
     await clica('.abas button[data-p="ajustes"]'); await p.waitForTimeout(300);
-    if (nome === 'pixel') { const ch = p.locator('#p-ajustes .ferramentas button[data-g="corte"]'); await ch.scrollIntoViewIfNeeded(); await ch.tap(); }
-    else { await p.locator('#bEnquadrar').scrollIntoViewIfNeeded(); await p.locator('#bEnquadrar').click(); }
+    const tela0 = await p.locator('#tela').boundingBox();   // a foto antes de enquadrar: cancelar tem de voltar a ela
+    await clica('#bEnquadrar');   // Enquadrar mora na barra de cima
     await p.waitForTimeout(500);
     r.aberto = await p.locator('#enq').isVisible(); r.painel = Math.round((await p.locator('#painel').boundingBox()).height);
-    const tela0 = await p.locator('#tela').boundingBox();
     await clica('.enq-props button[data-v="4:5"]'); await p.waitForTimeout(300);
     const arrasta = async (dx) => { const tb = await p.locator('.regua .trilho').boundingBox(); const y = tb.y + tb.height / 2, x = tb.x + tb.width / 2; await p.mouse.move(x, y); await p.mouse.down(); await p.mouse.move(x + dx, y, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(300); return p.locator('.regua output').textContent(); };
     await clica('.enq-ferr button[data-f="endireitar"]'); r.endireitar = await arrasta(-60);
@@ -27,7 +26,7 @@ const { chromium, devices } = require('playwright');
     await clica('.enq-fim .cancela'); await p.waitForTimeout(500);
     const tela1 = await p.locator('#tela').boundingBox(); r.cancelouIgual = Math.abs(tela1.width - tela0.width) < 2 && Math.abs(tela1.height - tela0.height) < 2; r.fechou = !(await p.locator('#enq').isVisible());
     // de novo, aplicar
-    if (nome === 'pixel') { const ch = p.locator('#p-ajustes .ferramentas button[data-g="corte"]'); await ch.scrollIntoViewIfNeeded(); await ch.tap(); } else await p.locator('#bEnquadrar').click();
+    await clica('#bEnquadrar');
     await p.waitForTimeout(400);
     await clica('.enq-props button[data-v="4:5"]'); await clica('.enq-ferr button[data-f="lente"]'); await arrasta(100); await clica('.enq-ferr button[data-f="girar"]'); await p.waitForTimeout(300);
     await clica('.enq-fim .aplica'); await p.waitForTimeout(600);

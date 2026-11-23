@@ -1,9 +1,9 @@
 // Revela: funciona sem internet. Rede primeiro (a versão nova chega na hora), cache quando estiver sem rede.
 // Mude a versão a cada publicação.
-const CACHE = 'revela-49e';
-const BASE = ['./', 'index.html', 'app.js', 'render.js', 'manifest.webmanifest', 'icone.svg', 'icone-desenho.svg', 'icone-192.png', 'icone-512.png',
+const CACHE = 'revela-50';
+const BASE = ['./', 'index.html', 'app.js', 'render.js', 'manifest.webmanifest', 'icone.svg', 'icone-desenho.svg', 'icone-desenho-claro.svg', 'icone-192.png', 'icone-512.png',
   'core.js', 'icons.js', 'vendor/libheif-bundle.mjs', 'filmes/indice.json',
-  'fontes/InstrumentSerif-400.woff2', 'fontes/InstrumentSerif-400i.woff2', 'fontes/IBMPlexMono-400.woff2', 'fontes/IBMPlexMono-500.woff2'];
+  'fontes/InstrumentSerif-400.woff2', 'fontes/InstrumentSerif-400i.woff2'];
 self.addEventListener('install', (e) => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(BASE.map((f) => new Request(f, { cache: 'reload' })));
