@@ -320,8 +320,9 @@
   .film.rotulo span { font-size: 9px; }
   /* números: letra do sistema com algarismos de mesma largura (não pulam ao arrastar) */
   .ctl output, .ctl.linha output, .regua output { font-variant-numeric: tabular-nums; }
-  #numero { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 76px; }
-  #numero small { font-style: normal; font-size: 10px; letter-spacing: .2em; }
+  /* número grande ao arrastar: valor menor (não cobre o assunto) e o nome do controle legível, na letra do sistema */
+  #numero { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 46px; line-height: 1; white-space: nowrap; text-align: center; text-shadow: 0 1px 3px #0008, 0 0 18px #0007; }
+  #numero small { margin-top: 8px; font: 600 14px/1.2 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; font-style: normal; letter-spacing: .02em; text-transform: none; opacity: .95; }
   input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
   input[type=range]::-moz-range-track { background: linear-gradient(90deg, var(--line) calc(9px + (100% - 18px) * var(--a, 0)), var(--text) 0 calc(9px + (100% - 18px) * var(--b, 0)), var(--line) 0); }
   .escolha button.on, .canais button.on, .acoes button.on, .enq-props button.on, .selParams button.on, .selAcoes button.on { background: var(--text); color: var(--inverso); border-color: var(--text); }
@@ -379,7 +380,7 @@
     <h1>Revela</h1>
     <p>Sua foto digital, revelada em filme.</p>
     <button id="bAbrir2">Abrir uma foto</button>
-    <small class="versao">versão 50 · 23/11/2026</small>
+    <small class="versao">versão 50.1 · 24/11/2026</small>
   </div>
   <div id="selo">ORIGINAL</div>
   <div id="aviso"></div>
